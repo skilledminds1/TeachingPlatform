@@ -1,0 +1,342 @@
+// TeachingPlatform — Prisma schema
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum OrgRole {
+  admin
+  instructor
+  student
+
+  @@map("org_role")
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  cancelled
+
+  @@map("subscription_status")
+}
+
+enum TeacherProfileStatus {
+  draft
+  pending_approval
+  approved
+  rejected
+
+  @@map("teacher_profile_status")
+}
+
+enum PaymentProvider {
+  paypal
+  stripe
+
+  @@map("payment_provider")
+}
+
+enum BookingStatus {
+  pending_payment
+  confirmed
+  cancelled
+  completed
+  no_show
+
+  @@map("booking_status")
+}
+
+enum VideoSessionStatus {
+  scheduled
+  live
+  ended
+
+  @@map("video_session_status")
+}
+
+enum ReviewStatus {
+  pending
+  approved
+  rejected
+
+  @@map("review_status")
+}
+
+// ─── Users & Organizations ───────────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique
+  name            String
+  avatarUrl       String?   @map("avatar_url")
+  timezone        String    @default("Africa/Johannesburg")
+  isPlatformAdmin Boolean   @default(false) @map("is_platform_admin")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  memberships         OrganizationMember[]
+  teacherProfile      TeacherProfile?
+  teacherPaymentAccounts TeacherPaymentAccount[]
+  availabilitySlots   Availability[]
+  availabilityExceptions AvailabilityException[]
+  teacherBookings     Booking[]              @relation("TeacherBookings")
+  studentBookings     Booking[]              @relation("StudentBookings")
+  reviewsWritten      Review[]               @relation("ReviewsWritten")
+  reviewsReceived     Review[]               @relation("ReviewsReceived")
+  adminAuditLogs      AdminAuditLog[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model Organization {
+  id                 String             @id @default(uuid()) @db.Uuid
+  name               String
+  slug               String             @unique
+  planId             String             @map("plan_id") @db.Uuid
+  payfastToken       String?            @map("payfast_token")
+  subscriptionStatus SubscriptionStatus @default(trialing) @map("subscription_status")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  deletedAt          DateTime?          @map("deleted_at")
+
+  plan            Plan                 @relation(fields: [planId], references: [id])
+  members         OrganizationMember[]
+  teacherProfiles TeacherProfile[]
+  bookings        Booking[]
+
+  @@index([slug])
+  @@index([planId])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  userId         String   @map("user_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  role           OrgRole
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, organizationId])
+  @@index([organizationId])
+  @@map("organization_members")
+}
+
+model Plan {
+  id                    String   @id @default(uuid()) @db.Uuid
+  name                  String
+  slug                  String   @unique
+  priceCents            Int      @map("price_cents")
+  currency              String   @default("ZAR")
+  studentLimit          Int      @map("student_limit")
+  marketplaceListing    Boolean  @default(false) @map("marketplace_listing")
+  videoSessions         Boolean  @default(false) @map("video_sessions")
+  teacherPayments       Boolean  @default(false) @map("teacher_payments")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  organizations Organization[]
+
+  @@index([slug])
+  @@map("plans")
+}
+
+// ─── Marketplace ─────────────────────────────────────────────────────────────
+
+model Subject {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  teachers TeacherSubject[]
+
+  @@index([slug])
+  @@map("subjects")
+}
+
+model TeacherProfile {
+  id              String               @id @default(uuid()) @db.Uuid
+  userId          String               @unique @map("user_id") @db.Uuid
+  organizationId  String               @map("organization_id") @db.Uuid
+  bio             String               @default("")
+  headline        String?
+  hourlyRateCents Int                  @default(0) @map("hourly_rate_cents")
+  currency        String               @default("ZAR")
+  status          TeacherProfileStatus @default(draft)
+  rejectionReason String?              @map("rejection_reason")
+  slug            String               @unique
+  submittedAt     DateTime?            @map("submitted_at")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  deletedAt       DateTime?            @map("deleted_at")
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subjects     TeacherSubject[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([slug])
+  @@map("teacher_profiles")
+}
+
+model TeacherSubject {
+  teacherProfileId String @map("teacher_profile_id") @db.Uuid
+  subjectId        String @map("subject_id") @db.Uuid
+
+  teacherProfile TeacherProfile @relation(fields: [teacherProfileId], references: [id], onDelete: Cascade)
+  subject        Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@id([teacherProfileId, subjectId])
+  @@map("teacher_subjects")
+}
+
+model TeacherPaymentAccount {
+  id                String          @id @default(uuid()) @db.Uuid
+  userId            String          @map("user_id") @db.Uuid
+  provider          PaymentProvider
+  providerAccountId String          @map("provider_account_id")
+  isDefault         Boolean         @default(false) @map("is_default")
+  isActive          Boolean         @default(true) @map("is_active")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("teacher_payment_accounts")
+}
+
+// ─── Availability & Bookings ─────────────────────────────────────────────────
+
+model Availability {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  dayOfWeek Int      @map("day_of_week")
+  startTime DateTime @map("start_time") @db.Time()
+  endTime   DateTime @map("end_time") @db.Time()
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dayOfWeek])
+  @@map("availability")
+}
+
+model AvailabilityException {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  specificDate DateTime @map("specific_date")
+  startTime    DateTime @map("start_time") @db.Time()
+  endTime      DateTime @map("end_time") @db.Time()
+  isBlocked    Boolean  @default(true) @map("is_blocked")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, specificDate])
+  @@map("availability_exceptions")
+}
+
+model Booking {
+  id                String           @id @default(uuid()) @db.Uuid
+  teacherId         String           @map("teacher_id") @db.Uuid
+  studentId         String           @map("student_id") @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  startsAt          DateTime         @map("starts_at")
+  endsAt            DateTime         @map("ends_at")
+  status            BookingStatus    @default(pending_payment)
+  hourlyRateCents   Int              @map("hourly_rate_cents")
+  currency          String           @default("ZAR")
+  paymentProvider   PaymentProvider? @map("payment_provider")
+  paymentExternalId String?          @map("payment_external_id")
+  cancellationReason String?         @map("cancellation_reason")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  teacher      User          @relation("TeacherBookings", fields: [teacherId], references: [id])
+  student      User          @relation("StudentBookings", fields: [studentId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  videoSession VideoSession?
+  review       Review?
+
+  @@index([teacherId])
+  @@index([studentId])
+  @@index([organizationId])
+  @@index([startsAt])
+  @@index([status])
+  @@map("bookings")
+}
+
+model VideoSession {
+  id           String             @id @default(uuid()) @db.Uuid
+  bookingId    String             @unique @map("booking_id") @db.Uuid
+  dailyRoomName String            @map("daily_room_name")
+  dailyRoomUrl  String            @map("daily_room_url")
+  status       VideoSessionStatus @default(scheduled)
+  startedAt    DateTime?          @map("started_at")
+  endedAt      DateTime?          @map("ended_at")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("video_sessions")
+}
+
+model Review {
+  id              String       @id @default(uuid()) @db.Uuid
+  bookingId       String       @unique @map("booking_id") @db.Uuid
+  studentId       String       @map("student_id") @db.Uuid
+  teacherId       String       @map("teacher_id") @db.Uuid
+  rating          Int
+  comment         String
+  status          ReviewStatus @default(pending)
+  teacherResponse String?      @map("teacher_response")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  student User    @relation("ReviewsWritten", fields: [studentId], references: [id])
+  teacher User    @relation("ReviewsReceived", fields: [teacherId], references: [id])
+
+  @@index([teacherId])
+  @@index([status])
+  @@map("reviews")
+}
+
+// ─── Platform Admin ──────────────────────────────────────────────────────────
+
+model AdminAuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  adminUserId String   @map("admin_user_id") @db.Uuid
+  action      String
+  targetType  String   @map("target_type")
+  targetId    String   @map("target_id") @db.Uuid
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  admin User @relation(fields: [adminUserId], references: [id])
+
+  @@index([adminUserId])
+  @@index([targetType, targetId])
+  @@map("admin_audit_logs")
+}

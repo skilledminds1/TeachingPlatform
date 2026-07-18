@@ -1,0 +1,2 @@
+-- RLS policies will be added as features are implemented.
+-- Application-level authorization in src/server/ is the primary layer.
