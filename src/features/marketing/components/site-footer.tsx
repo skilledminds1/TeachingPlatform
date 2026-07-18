@@ -26,7 +26,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-6 py-12 md:px-8 md:py-16">
         <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr]">
           <div className="space-y-3">
-            <p className="text-lg font-semibold tracking-tight">TeachingPlatform</p>
+            <p className="text-lg font-semibold tracking-tight">Amazing Skills</p>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
               The online tutoring marketplace connecting students with expert teachers for live
               video lessons.
@@ -52,7 +52,7 @@ export function SiteFooter() {
         </div>
         <div className="mt-12 border-t border-border/60 pt-6">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} TeachingPlatform. All rights reserved.
+            &copy; {new Date().getFullYear()} Amazing Skills. All rights reserved.
           </p>
         </div>
       </div>

@@ -17,7 +17,7 @@ User ────────────── OrganizationMember ────�
  │                                                │
  ├── Availability / AvailabilityException         │
  │                                                │
- ├── Booking ────── VideoSession (Daily.co)       │
+ ├── Booking ────── VideoSession (LiveKit Cloud)  │
  │                                                │
  ├── Subscription ── Plan (PayFast)              │
  │                                                │
@@ -65,7 +65,7 @@ User ────────────── OrganizationMember ────�
 | bio | Text | Min 100 words for submission |
 | headline | String? | |
 | hourlyRateCents | Int | Display currency per teacher locale |
-| currency | String | ZAR default |
+| currency | String | USD default |
 | subjects | Relation | Many-to-many via TeacherSubject |
 | status | Enum | draft, pending_approval, approved, rejected |
 | rejectionReason | String? | |
@@ -126,8 +126,7 @@ Weekly recurring slots + one-off blocks.
 |-------|------|-------|
 | id | UUID | PK |
 | bookingId | UUID | FK → Booking, unique |
-| dailyRoomName | String | Daily.co room id |
-| dailyRoomUrl | String | |
+| livekitRoomName | String | LiveKit room name |
 | status | Enum | scheduled, live, ended |
 | startedAt / endedAt | DateTime? | |
 
@@ -149,12 +148,25 @@ Weekly recurring slots + one-off blocks.
 
 | Plan | Fields |
 |------|--------|
-| Plan | name, slug, priceCents, currency, studentLimit, features (JSON), payfastRecurringAmount |
-| Subscription | organizationId, planId, payfastToken, status, currentPeriodEnd, trialEndsAt |
+| Plan | name, slug, monthlyPriceCents, annualPriceCents, currency, nullable studentLimit, monthlyLiveLessonMinutes, courseLimit, features |
+| Organization billing | planId, billingInterval, payfastToken, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd |
+| BillingEvent | organizationId, providerEventId, eventType, payload; unique event ID makes webhooks idempotent |
+
+### Invitations, qualifications, and active students
+
+| Model | Purpose |
+|-------|---------|
+| OrganizationInvitation | Hashed, expiring, role-scoped organization invitation |
+| TeacherQualification | Teacher credentials with moderation status |
+| StudentRelationship | Active/archived teacher-student relationship used for plan-limit enforcement |
 
 ### Notification / Message
 
-Standard messaging and notification tables — see Phase 8 implementation.
+| Model | Purpose |
+|-------|---------|
+| Conversation | Unique teacher↔student thread |
+| Message | Thread messages with optional `readAt` |
+| Notification | In-app alerts with optional deep link and metadata |
 
 ### AdminAuditLog
 

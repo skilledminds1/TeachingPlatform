@@ -1,4 +1,4 @@
-# TeachingPlatform — Product Specification
+# Amazing Skills — Product Specification
 
 > **This is the single source of truth for product decisions.** Cursor and all contributors must refer to this document before designing features, writing code, or making architectural choices. If a decision conflicts with this spec, the spec wins unless explicitly updated here first.
 
@@ -8,7 +8,7 @@
 
 **Mission:** Connect students with great teachers for live online learning — as easily as Preply or AmazingTalker, built for the South African market first.
 
-**Long-term goal:** TeachingPlatform becomes the go-to marketplace where students discover tutors, book live video sessions, and pay teachers directly — while teachers grow their practice through profiles, reviews, and a professional booking workflow.
+**Long-term goal:** Amazing Skills becomes the go-to marketplace where students discover tutors, book live video sessions, and pay teachers directly — while teachers grow their practice through profiles, reviews, and a professional booking workflow.
 
 **What we are:** An **online video tutoring marketplace** — not a traditional LMS.
 
@@ -60,7 +60,7 @@ Modelled after **Preply** and **AmazingTalker**:
 
 ## Business Model
 
-TeachingPlatform operates as a **B2B2C marketplace SaaS**:
+Amazing Skills operates as a **B2B2C marketplace SaaS**:
 
 | Money flow | Who pays whom | Processor | Platform role |
 |------------|---------------|-----------|---------------|
@@ -73,37 +73,39 @@ The platform **never** touches student-to-teacher payments. Teachers link their 
 
 ## Subscription Model
 
-Subscriptions are billed at the **organization or solo-teacher account level** via **PayFast only**.
+Subscriptions are billed at the **organization or solo-teacher account level** via **PayFast only**. Plan prices are presented in USD; PayFast converts the configured ZAR checkout amount and settles in ZAR.
 
 ### Plans
 
-| Plan | Price (ZAR) | Target | Student limit | Teachers | Key limits |
-|------|-------------|--------|---------------|----------|------------|
-| **Free** | R0/month | New teachers exploring | 5 students | 1 | No marketplace listing, no video sessions |
-| **Pro** | R299/month | Active independent tutors | 50 students | 1 | Marketplace listing, bookings, video, PayPal/Stripe link |
-| **Academy** | R799/month | Training organizations | 250 students | Up to 10 | Team management, priority support |
-| **Enterprise** | Custom | Large academies | Custom | Unlimited | Custom SLA |
+| Plan | Monthly | Annual | Active students | Live lessons | Courses |
+|------|---------|--------|-----------------|--------------|---------|
+| **Free** | $0 | Free | 1 | 2 hrs/month | 1 |
+| **Starter** | $9 | $90 | 5 | 20 hrs/month | Unlimited |
+| **Professional** | $19 | $190 | 15 | 75 hrs/month | Unlimited |
+| **Business** | $39 | $390 | Unlimited | Unlimited (fair use) | Unlimited |
 
 ### What Each Plan Unlocks
 
-| Capability | Free | Pro | Academy | Enterprise |
+| Capability | Free | Starter | Professional | Business |
 |------------|------|-----|---------|------------|
-| Marketplace profile | ✗ | ✓ | ✓ | ✓ |
-| Bookings & calendar | ✗ | ✓ | ✓ | ✓ |
-| Live video sessions | ✗ | ✓ | ✓ | ✓ |
-| Link PayPal/Stripe | ✗ | ✓ | ✓ | ✓ |
-| Student limit | 5 | 50 | 250 | Custom |
-| Team members | 1 | 1 | 10 | Unlimited |
-| Messaging | Basic | Full | Full | Full |
-| Analytics | ✗ | Basic | Full | Full + export |
+| Marketplace profile | ✓ | ✓ | ✓ | ✓ |
+| Bookings & messaging | ✓ | ✓ | ✓ | ✓ |
+| Link PayPal/Stripe | ✓ | ✓ | ✓ | ✓ |
+| Homework & student notes | ✗ | ✓ | ✓ | ✓ |
+| Courses | 1 | Unlimited | Unlimited | Unlimited |
+| Quizzes & groups | ✗ | ✗ | ✓ | ✓ |
+| Team teachers & branding | ✗ | ✗ | ✗ | ✓ |
+| Student limit | 1 | 5 | 15 | Unlimited |
+| Live lesson hours / month | 2 | 20 | 75 | Unlimited (fair use) |
 
 ### Subscription Rules
 
-1. **Hard student limits** — No new bookings when limit reached; upgrade required.
-2. **Grace period** — 7 days after failed PayFast payment before restriction; read-only for 14 days.
-3. **Downgrade protection** — Must remove excess students before downgrade.
-4. **Billing cycle** — Monthly default; annual at 2 months free.
-5. **Trial** — 14-day Pro trial for new teachers.
+1. **New-student limits** — Existing students remain available; only accepting a new student is blocked at the plan limit.
+2. **Monthly live-lesson limits** — Pending, confirmed, and completed reservations share the organization quota; cancellation releases reserved time.
+3. **Grace period** — 7 days after failed PayFast payment before restriction; read-only for 14 days.
+4. **Downgrade protection** — Must remove excess students and remain within the target live-hour allowance.
+5. **Billing cycle** — Monthly default; annual at 2 months free. Live-hour allowances reset each calendar month.
+6. **Currency** — Catalog prices are USD; PayFast checkout and settlement use converted ZAR.
 
 ---
 
@@ -241,7 +243,7 @@ See [TODO.md](TODO.md) for checklist.
 | **2** | Dashboards — teacher, student, admin, platform admin |
 | **3** | Marketplace — profiles, search, filters, reviews |
 | **4** | Bookings — availability, calendar, timezone |
-| **5** | Video sessions — embedded live calls (Daily.co) |
+| **5** | Video sessions — embedded live calls (LiveKit Cloud) |
 | **6** | Subscriptions — PayFast billing, plan limits |
 | **7** | Teacher payments — PayPal/Stripe linking, student checkout |
 | **8** | Communication — messaging, notifications, emails |
@@ -251,15 +253,15 @@ See [TODO.md](TODO.md) for checklist.
 
 ## Live Video Strategy
 
-**Recommended:** [Daily.co](https://www.daily.co/) embedded video rooms for 1-on-1 sessions.
+**Provider:** [LiveKit Cloud](https://livekit.io/) with private rooms and signed participant tokens.
 
 | Approach | Rationale |
 |----------|-----------|
-| **Daily.co embedded** | Browser-based, no install, API to create rooms per booking, recording optional |
+| **LiveKit Cloud** | Browser-based, no install, private rooms, React components, recording optional |
 | Not Zoom links | Worse UX; doesn't match Preply model |
 | Not custom WebRTC | Too complex for v1 |
 
-Flow: Booking confirmed → server creates Daily.co room → both parties get join link on dashboard and email.
+Flow: Booking confirmed → server creates LiveKit room → authorized participants receive short-lived join tokens.
 
 ---
 
@@ -289,7 +291,7 @@ Flow: Booking confirmed → server creates Daily.co room → both parties get jo
 | Storage | Supabase Storage (avatars) |
 | Platform billing | **PayFast** (subscriptions only) |
 | Teacher payouts | **PayPal + Stripe Connect** (student → teacher) |
-| Video | **Daily.co** |
+| Video | **LiveKit Cloud** |
 | Email | Resend |
 | Deployment | Vercel |
 

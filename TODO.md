@@ -1,6 +1,6 @@
 # Product Backlog
 
-TeachingPlatform — online tutoring marketplace (Preply / AmazingTalker model).
+Amazing Skills — online tutoring marketplace (Preply / AmazingTalker model).
 
 Check off items as they are completed.
 
@@ -18,57 +18,62 @@ Check off items as they are completed.
 # Phase 2 — Dashboards
 
 - [ ] Teacher Dashboard
-- [ ] Student Dashboard
+- [x] Teacher onboarding (photo, profile, subjects, rate, qualifications)
+- [x] Secure organization invitation links and acceptance
+- [x] Student Dashboard
 - [ ] Organization Admin Dashboard
-- [ ] Platform Admin Dashboard
+- [x] Platform Admin Dashboard
 
 ---
 
 # Phase 3 — Marketplace
 
-- [ ] Teacher Profiles
-- [ ] Marketplace listing page
-- [ ] Search
-- [ ] Filters (subject, price, rating, availability)
-- [ ] Reviews & ratings
-- [ ] Profile approval workflow
+- [x] Teacher Profiles (public page: bio, subjects, qualifications, availability, rate)
+- [x] Marketplace listing page (`/teachers`)
+- [x] Search (name, subject, keyword)
+- [x] Filters (subject, price, rating) + sorting (rating, price, newest)
+- [x] Reviews & ratings (approved reviews with aggregates and teacher responses)
+- [x] Profile approval workflow (admin moderation; only approved profiles listed)
 
 ---
 
 # Phase 4 — Bookings
 
-- [ ] Teacher availability (weekly schedule + exceptions)
-- [ ] Calendar views (teacher & student)
-- [ ] Timezone handling
-- [ ] Booking flow (slot selection, confirmation)
-- [ ] Cancellation policies
+- [x] Teacher availability (weekly schedule + blocked/extra-hour exceptions)
+- [x] Calendar views (teacher & student)
+- [x] Timezone handling (teacher-local schedules, UTC bookings, viewer-local display)
+- [x] Booking flow (60-minute slot selection, atomic reservation, confirmation)
+- [x] Cancellation policies (upcoming lesson cancellation with reason and 24-hour notice)
 
 ---
 
 # Phase 5 — Video Sessions
 
-- [ ] Daily.co integration
-- [ ] Video room per booking
-- [ ] Join session UI (teacher & student)
-- [ ] Session status tracking (scheduled → live → completed)
-- [ ] Post-session review prompt
+- [x] LiveKit Cloud integration (private rooms and short-lived participant tokens)
+- [x] Video room per confirmed booking
+- [x] Join session UI (teacher & student)
+- [x] Session status tracking (scheduled → live → ended; booking completed/no-show)
+- [x] Post-session review prompt and moderation submission
 
 ---
 
 # Phase 6 — Subscriptions
 
-- [ ] PayFast subscription checkout
-- [ ] PayFast ITN webhooks
-- [ ] Plan limits (student count, feature gates)
-- [ ] Billing dashboard
-- [ ] Upgrade / downgrade / trial / grace period
+- [x] PayFast monthly and annual subscription checkout
+- [x] Signed, server-validated, idempotent PayFast ITN webhooks
+- [x] Plan entitlements and concurrency-safe new-student limits
+- [x] Monthly live-lesson quotas (2 / 20 / 75 hours / unlimited fair use)
+- [x] Course allowances (1 on Free, unlimited from Starter)
+- [x] USD pricing and billing dashboard
+- [x] Upgrade prompts and hosted checkout
+- [ ] Downgrade scheduling, trials, and grace-period automation
 
 ---
 
 # Phase 7 — Teacher Payments
 
-- [ ] PayPal account linking (OAuth)
-- [ ] Stripe Connect linking (OAuth)
+- [x] PayPal account linking (OAuth foundation; provider credentials required)
+- [x] Stripe Connect linking (OAuth; provider credentials required)
 - [ ] Student checkout via teacher's payment method
 - [ ] Payment confirmation webhooks (PayPal/Stripe)
 - [ ] Teacher earnings summary (read-only, from provider)
@@ -77,9 +82,9 @@ Check off items as they are completed.
 
 # Phase 8 — Communication
 
-- [ ] In-app messaging (teacher ↔ student)
-- [ ] Notification center
-- [ ] Email notifications (booking, payment, session reminder)
+- [x] In-app messaging (teacher ↔ student)
+- [x] Notification center
+- [x] Email notifications (booking, payment, session reminder)
 
 ---
 

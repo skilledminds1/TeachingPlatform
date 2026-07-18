@@ -185,7 +185,8 @@ Store secrets in environment variables only — never in code or git.
 | `PAYPAL_CLIENT_SECRET` | **Never** |
 | `STRIPE_SECRET_KEY` | **Never** |
 | `STRIPE_WEBHOOK_SECRET` | **Never** |
-| `DAILY_API_KEY` | **Never** |
+| `LIVEKIT_API_KEY` | **Never** |
+| `LIVEKIT_API_SECRET` | **Never** |
 
 - `.env.local` is gitignored
 - Commit `.env.example` with placeholder values only

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
+import "@livekit/components-styles";
 import "@/styles/globals.css";
 
 const inter = Inter({
@@ -12,8 +13,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "TeachingPlatform — Find Tutors & Book Live Lessons",
-    template: "%s | TeachingPlatform",
+    default: "Amazing Skills — Find Tutors & Book Live Lessons",
+    template: "%s | Amazing Skills",
   },
   description:
     "Discover expert tutors, book live video sessions, and learn online. The Preply-style marketplace built for teachers and students.",

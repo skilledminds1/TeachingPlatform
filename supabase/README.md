@@ -24,9 +24,14 @@ Enable in Supabase Dashboard → Authentication → Providers:
 
 Create in Supabase Dashboard → Storage:
 
-| Bucket | Public read | Auth write |
+| Bucket | Public read | Write path |
 |--------|-------------|------------|
-| `avatars` | Yes | Authenticated users |
+| `avatars` | Yes | Validated server action (service role) |
+| `credentials` | Yes | Validated teacher credential uploads (PDF/JPG/PNG/WebP, max 3 MB) |
+
+The teacher-onboarding upload action accepts JPG, PNG, and WebP files up to 2 MB and validates
+the binary file signature before storage. Qualification credentials accept PDF or image files up
+to 3 MB.
 
 ## RLS
 

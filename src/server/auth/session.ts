@@ -1,11 +1,13 @@
 import type { User as AuthUser } from "@supabase/supabase-js";
-import type { OrgRole, User } from "@prisma/client";
+import type { OrgRole, Prisma, User } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
-import type { RegisterRole } from "@/lib/validations/auth";
+import { registerRoleSchema, type RegisterRole } from "@/lib/validations/auth";
 import { slugify } from "@/utils/slugify";
+
+type DbClient = Prisma.TransactionClient | typeof db;
 
 export type SessionUser = User & {
   memberships: Array<{
@@ -35,6 +37,23 @@ function resolveAvatarUrl(authUser: AuthUser): string | null {
   return null;
 }
 
+function resolveRegisterRole(
+  authUser: AuthUser,
+  explicit?: RegisterRole,
+): RegisterRole | undefined {
+  if (explicit) return explicit;
+  const parsed = registerRoleSchema.safeParse(authUser.user_metadata?.role);
+  return parsed.success ? parsed.data : undefined;
+}
+
+export function hasTeacherMembership(user: {
+  memberships: Array<{ role: OrgRole }>;
+}): boolean {
+  return user.memberships.some(
+    (membership) => membership.role === "admin" || membership.role === "instructor",
+  );
+}
+
 export async function syncUserFromAuth(
   authUser: AuthUser,
   options?: { role?: RegisterRole },
@@ -46,13 +65,12 @@ export async function syncUserFromAuth(
 
   const name = resolveDisplayName(authUser);
   const avatarUrl = resolveAvatarUrl(authUser);
+  const role = resolveRegisterRole(authUser, options?.role);
 
   const existing = await db.user.findUnique({ where: { id: authUser.id } });
 
-  let user: User;
-
   if (existing) {
-    user = await db.user.update({
+    const user = await db.user.update({
       where: { id: authUser.id },
       data: {
         email,
@@ -60,15 +78,23 @@ export async function syncUserFromAuth(
         avatarUrl: avatarUrl ?? existing.avatarUrl,
       },
     });
-  } else {
-    const byEmail = await db.user.findUnique({ where: { email } });
-    if (byEmail && byEmail.id !== authUser.id) {
-      throw new ForbiddenError(
-        "An account with this email already exists. Sign in with the original method or contact support.",
-      );
+
+    if (role === "teacher") {
+      await ensureSoloTeacherOrganization(user);
     }
 
-    user = await db.user.create({
+    return user;
+  }
+
+  const byEmail = await db.user.findUnique({ where: { email } });
+  if (byEmail && byEmail.id !== authUser.id) {
+    throw new ForbiddenError(
+      "An account with this email already exists. Sign in with the original method or contact support.",
+    );
+  }
+
+  return db.$transaction(async (transaction) => {
+    const user = await transaction.user.create({
       data: {
         id: authUser.id,
         email,
@@ -76,26 +102,32 @@ export async function syncUserFromAuth(
         avatarUrl,
       },
     });
-  }
 
-  if (options?.role === "teacher") {
-    const membershipCount = await db.organizationMember.count({
-      where: { userId: user.id },
-    });
-    if (membershipCount === 0) {
-      await provisionSoloTeacherOrganization(user);
+    if (role === "teacher") {
+      await ensureSoloTeacherOrganization(user, transaction);
     }
-  }
 
-  return user;
+    return user;
+  });
 }
 
-async function provisionSoloTeacherOrganization(user: User): Promise<void> {
-  const freePlan = await db.plan.findUniqueOrThrow({ where: { slug: "free" } });
+async function ensureSoloTeacherOrganization(
+  user: User,
+  client: DbClient = db,
+): Promise<void> {
+  const teacherMembershipCount = await client.organizationMember.count({
+    where: {
+      userId: user.id,
+      role: { in: ["admin", "instructor"] },
+    },
+  });
+  if (teacherMembershipCount > 0) return;
+
+  const freePlan = await client.plan.findUniqueOrThrow({ where: { slug: "free" } });
   const base = slugify(user.name) || "teacher";
   const slug = `${base}-${user.id.slice(0, 8)}`;
 
-  await db.organization.create({
+  await client.organization.create({
     data: {
       name: `${user.name}'s Teaching`,
       slug,
@@ -154,6 +186,16 @@ export async function requirePlatformAdmin(): Promise<SessionUser> {
   return user;
 }
 
+export async function requireTeacher(): Promise<SessionUser> {
+  const user = await requireAuth();
+
+  if (!hasTeacherMembership(user)) {
+    throw new ForbiddenError("Teacher access required.");
+  }
+
+  return user;
+}
+
 export async function requireOrgMembership(
   organizationId: string,
   allowedRoles?: OrgRole[],
@@ -172,13 +214,40 @@ export async function requireOrgMembership(
   return user;
 }
 
-export function getPostAuthRedirect(user: SessionUser): string {
+export async function getPostAuthRedirect(user: SessionUser): Promise<string> {
   if (user.isPlatformAdmin) return "/admin";
 
-  const isTeacher = user.memberships.some(
-    (m) => m.role === "admin" || m.role === "instructor",
-  );
+  if (!hasTeacherMembership(user)) return "/dashboard";
 
-  if (isTeacher) return "/dashboard/teacher";
-  return "/dashboard";
+  const profile = await db.teacherProfile.findUnique({
+    where: { userId: user.id },
+    select: {
+      status: true,
+      bio: true,
+      headline: true,
+      hourlyRateCents: true,
+      subjects: { select: { subjectId: true }, take: 1 },
+      qualifications: { select: { id: true }, take: 1 },
+      user: { select: { avatarUrl: true } },
+    },
+  });
+
+  if (!profile || profile.status === "rejected") {
+    return "/onboarding/teacher";
+  }
+
+  if (profile.status === "draft") {
+    const bioWords = profile.bio.trim().split(/\s+/).filter(Boolean).length;
+    const profileComplete =
+      Boolean(profile.user.avatarUrl) &&
+      Boolean(profile.headline) &&
+      bioWords >= 100 &&
+      profile.hourlyRateCents > 0 &&
+      profile.subjects.length > 0 &&
+      profile.qualifications.length > 0;
+
+    return profileComplete ? "/dashboard/teacher" : "/onboarding/teacher";
+  }
+
+  return "/dashboard/teacher";
 }

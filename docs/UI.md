@@ -60,7 +60,7 @@ Main — page content with generous spacing (p-6 md:p-8)
 ## Video Session UI
 
 - Pre-session lobby with countdown
-- Embedded Daily.co room — full-width, minimal chrome
+- Embedded LiveKit room — full-width, minimal chrome
 - Post-session: review prompt modal
 
 ## States

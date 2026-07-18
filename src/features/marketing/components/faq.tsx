@@ -2,7 +2,7 @@ const faqs = [
   {
     question: "How do I pay for lessons?",
     answer:
-      "You pay your teacher directly through their linked PayPal or Stripe account when you book. TeachingPlatform never holds your money, and there's no platform fee added to lesson prices.",
+      "You pay your teacher directly through their linked PayPal or Stripe account when you book. Amazing Skills never holds your money, and there's no platform fee added to lesson prices.",
   },
   {
     question: "Is it free for students?",
@@ -17,7 +17,7 @@ const faqs = [
   {
     question: "What do teachers pay?",
     answer:
-      "Teachers pay a flat monthly subscription via PayFast — starting free, with Pro at R299/month. We take zero commission on lesson earnings.",
+      "Teachers can start free, then unlock more tools from $9/month. Monthly and annual subscriptions use PayFast, and we take zero commission on lesson earnings.",
   },
   {
     question: "What happens if a lesson is cancelled?",

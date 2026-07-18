@@ -9,12 +9,12 @@ import {
 import Link from "next/link";
 
 const subjects = [
-  { icon: Calculator, name: "Mathematics" },
-  { icon: BookText, name: "English" },
-  { icon: FlaskConical, name: "Science" },
-  { icon: Languages, name: "Afrikaans" },
-  { icon: Code2, name: "Computer Science" },
-  { icon: MoreHorizontal, name: "And more" },
+  { icon: Calculator, name: "Mathematics", href: "/teachers?subject=mathematics" },
+  { icon: BookText, name: "English", href: "/teachers?subject=english" },
+  { icon: FlaskConical, name: "Science", href: "/teachers?subject=science" },
+  { icon: Languages, name: "Afrikaans", href: "/teachers?subject=afrikaans" },
+  { icon: Code2, name: "Computer Science", href: "/teachers?subject=computer-science" },
+  { icon: MoreHorizontal, name: "And more", href: "/teachers" },
 ] as const;
 
 export function Subjects() {
@@ -31,7 +31,7 @@ export function Subjects() {
           {subjects.map((subject) => (
             <li key={subject.name}>
               <Link
-                href="/teachers"
+                href={subject.href}
                 className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-6 text-center shadow-sm transition-colors duration-200 hover:border-primary/40 hover:bg-card/80"
               >
                 <subject.icon className="size-6 text-primary" aria-hidden />

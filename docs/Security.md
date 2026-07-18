@@ -2,7 +2,7 @@
 
 ## Overview
 
-TeachingPlatform handles profiles, bookings, video sessions, and payment integrations. Security is layered: middleware, server actions, server modules, RLS.
+Amazing Skills handles profiles, bookings, video sessions, and payment integrations. Security is layered: middleware, server actions, server modules, RLS.
 
 ## Authentication
 
@@ -84,7 +84,8 @@ PAYPAL_CLIENT_ID
 PAYPAL_CLIENT_SECRET
 STRIPE_SECRET_KEY
 STRIPE_WEBHOOK_SECRET
-DAILY_API_KEY
+LIVEKIT_API_KEY
+LIVEKIT_API_SECRET
 ```
 
 ## Compliance

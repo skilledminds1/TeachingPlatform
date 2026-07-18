@@ -8,6 +8,7 @@ const publicExact = new Set([
   "/register",
   "/forgot-password",
   "/teachers",
+  "/subscribe",
 ]);
 
 function isPublicRoute(pathname: string): boolean {
@@ -24,8 +25,27 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   if (isPublicRoute(pathname)) {
-    // Signed-in users hitting auth pages go to the app.
+    // Signed-in users hitting auth pages go to the app — preserve paid-plan checkout.
     if (userId && (pathname === "/login" || pathname === "/register")) {
+      const plan = request.nextUrl.searchParams.get("plan");
+      const billing = request.nextUrl.searchParams.get("billing") === "annual" ? "annual" : "monthly";
+      const redirectParam = request.nextUrl.searchParams.get("redirect");
+
+      if (plan && ["starter", "professional", "business"].includes(plan)) {
+        const subscribeUrl = request.nextUrl.clone();
+        subscribeUrl.pathname = "/subscribe";
+        subscribeUrl.search = `plan=${plan}&interval=${billing}`;
+        return NextResponse.redirect(subscribeUrl);
+      }
+
+      if (
+        redirectParam &&
+        redirectParam.startsWith("/") &&
+        !redirectParam.startsWith("//")
+      ) {
+        return NextResponse.redirect(new URL(redirectParam, request.url));
+      }
+
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/dashboard";
       redirectUrl.search = "";

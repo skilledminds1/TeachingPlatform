@@ -2,7 +2,7 @@
 
 ## Scope
 
-**PayFast is used for platform subscriptions only** — teachers paying TeachingPlatform for Pro/Academy plans.
+**PayFast is used for platform subscriptions only** — teachers paying Amazing Skills for Starter, Professional, or Business plans.
 
 PayFast is **NOT** used for student→teacher session payments. Those use the teacher's linked **PayPal** or **Stripe** account.
 
@@ -29,6 +29,7 @@ PAYFAST_MERCHANT_ID=       # Server-only
 PAYFAST_MERCHANT_KEY=      # Server-only
 PAYFAST_PASSPHRASE=        # Server-only
 PAYFAST_SANDBOX=true       # true in dev/staging
+PAYFAST_USD_ZAR_RATE=       # Maintained conversion rate used to create ZAR subscriptions
 NEXT_PUBLIC_PAYFAST_MERCHANT_ID=  # Public merchant id for form generation if needed
 ```
 
@@ -62,14 +63,13 @@ Always respond `200 OK` to PayFast after processing (or queued).
 
 ## Plan Mapping
 
-| Plan | PayFast recurring amount | Frequency |
-|------|--------------------------|-----------|
-| Pro | R299.00 | Monthly |
-| Academy | R799.00 | Monthly |
-| Pro (annual) | R2,990.00 | Annual |
-| Academy (annual) | R7,990.00 | Annual |
+| Plan | USD catalog price | Billing |
+|------|-------------------|---------|
+| Starter | $9 / $90 | Monthly / annual |
+| Professional | $19 / $190 | Monthly / annual |
+| Business | $39 / $390 | Monthly / annual |
 
-Amounts stored in `Plan.priceCents`. PayFast amounts in ZAR decimal strings.
+Amounts are stored in `Plan.monthlyPriceCents` and `Plan.annualPriceCents` with currency `USD`. PayFast receives a ZAR amount calculated with `PAYFAST_USD_ZAR_RATE`; Multi-Currency Pricing can let the customer view USD, while settlement remains ZAR.
 
 ---
 
@@ -91,16 +91,18 @@ trialing → active → past_due → cancelled → free
 
 ## Feature Gates
 
-Central service: `src/server/billing/check-plan-limit.ts`
+Central services: `src/server/billing/entitlements.ts` and `src/server/billing/student-access.ts`
 
-| Check | Free | Pro | Academy |
-|-------|------|-----|---------|
-| Marketplace listing | ✗ | ✓ | ✓ |
-| Video sessions | ✗ | ✓ | ✓ |
-| Active students | 5 | 50 | 250 |
-| Link PayPal/Stripe | ✗ | ✓ | ✓ |
+| Check | Free | Starter | Professional | Business |
+|-------|------|---------|--------------|----------|
+| Active students | 1 | 5 | 15 | Unlimited |
+| Live lesson hours / month | 2 | 20 | 75 | Unlimited (fair use) |
+| Courses | 1 | Unlimited | Unlimited | Unlimited |
+| Homework and notes | ✗ | ✓ | ✓ | ✓ |
+| Quizzes and groups | ✗ | ✗ | ✓ | ✓ |
+| Team and branding | ✗ | ✗ | ✗ | ✓ |
 
-Call before: new booking enrollment, profile submission, video room creation.
+Call the entitlement service before every gated feature. Booking creation atomically reserves live-lesson minutes and enforces both the organization hour pool and active-student limit.
 
 ---
 

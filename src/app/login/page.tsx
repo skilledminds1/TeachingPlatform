@@ -5,7 +5,7 @@ import { LoginForm } from "@/features/auth/components/login-form";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to TeachingPlatform to book tutors or manage your teaching practice.",
+  description: "Sign in to Amazing Skills to book tutors or manage your teaching practice.",
 };
 
 export default async function LoginPage({
@@ -16,7 +16,7 @@ export default async function LoginPage({
   const params = await searchParams;
 
   return (
-    <AuthShell title="Welcome back" description="Sign in to continue to TeachingPlatform.">
+    <AuthShell title="Welcome back" description="Sign in to continue to Amazing Skills.">
       {params.error ? (
         <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
           Authentication failed. Please try signing in again.

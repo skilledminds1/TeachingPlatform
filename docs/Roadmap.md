@@ -93,7 +93,7 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 
 | Task | Status |
 |------|--------|
-| Daily.co API integration | Pending |
+| LiveKit Cloud integration | Complete |
 | Create room per confirmed booking | Pending |
 | Join session UI (teacher + student) | Pending |
 | Session status lifecycle | Pending |
@@ -111,11 +111,13 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 
 | Task | Status |
 |------|--------|
-| Plan + Subscription schema | Pending |
-| PayFast subscription checkout | Pending |
-| PayFast ITN webhook handler | Pending |
-| Feature gates + student limits | Pending |
-| Billing dashboard, trial, grace period | Pending |
+| USD Free / Starter / Professional / Business catalog | Done |
+| Monthly + annual pricing with PayFast ZAR conversion | Done |
+| PayFast subscription checkout + in-place upgrades | Done |
+| Signed, validated, idempotent PayFast ITN webhook | Done |
+| Feature entitlements + concurrency-safe new-student limits | Done |
+| Teacher billing dashboard and upgrade prompts | Done |
+| Downgrade scheduling, trials, and grace-period automation | Pending |
 
 **Exit criteria:** Teacher subscribes via PayFast; limits enforced.
 
@@ -129,8 +131,8 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 
 | Task | Status |
 |------|--------|
-| PayPal OAuth linking | Pending |
-| Stripe Connect linking | Pending |
+| PayPal OAuth linking foundation | Done (credentials required) |
+| Stripe Connect linking foundation | Done (credentials required) |
 | Student checkout at booking | Pending |
 | PayPal/Stripe webhooks for confirmation | Pending |
 | Teacher earnings summary | Pending |
@@ -147,9 +149,9 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 
 | Task | Status |
 |------|--------|
-| In-app messaging (Supabase Realtime) | Pending |
-| Notification center | Pending |
-| Transactional emails (Resend) | Pending |
+| In-app messaging (teacher ↔ student) | Done |
+| Notification center | Done |
+| Transactional emails (Resend) | Done (booking + reminder; payment receipt with Phase 7 checkout) |
 
 **Duration:** 2 weeks
 
@@ -195,7 +197,7 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 | 2026-07 | Preply/AmazingTalker model over LMS-first | User priority: live tutoring marketplace |
 | 2026-07 | PayFast for platform subscriptions only | SA market; platform revenue separation |
 | 2026-07 | PayPal + Stripe for student→teacher payments | Platform does not handle teacher payouts |
-| 2026-07 | Daily.co for embedded video | Best UX for 1-on-1 browser sessions |
+| 2026-07 | LiveKit Cloud for embedded video | Secure JWT access and flexible 1-on-1 UI |
 | 2026-07 | `isPlatformAdmin` on User model | Simplest secure admin provisioning |
 | 2026-07 | 9-phase roadmap | Matches TODO.md and PROJECT.md |
 

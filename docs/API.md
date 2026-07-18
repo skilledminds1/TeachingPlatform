@@ -9,6 +9,8 @@
 | Route | Purpose | Auth |
 |-------|---------|------|
 | `POST /api/v1/webhooks/payfast` | PayFast ITN — **platform subscriptions only** | Signature |
+| `GET /api/v1/payments/stripe/callback` | Stripe Connect OAuth return | Teacher session |
+| `GET /api/v1/payments/paypal/callback` | PayPal OAuth return | Teacher session |
 | `POST /api/v1/webhooks/paypal` | PayPal — student→teacher booking payment | Signature |
 | `POST /api/v1/webhooks/stripe` | Stripe Connect — student→teacher booking payment | Signature |
 | `GET /api/v1/health` | Health check | None |
@@ -20,26 +22,41 @@
 ### Auth — `src/actions/auth.ts`
 `signUp`, `signIn`, `signOut`, `resetPassword`
 
-### Organizations — `src/actions/organizations.ts`
-`createOrganization`, `inviteMember`, `updateMemberRole`, `removeMember`
+### Organizations — `src/actions/organization-invites.ts`
+`createOrganizationInvite`, `acceptOrganizationInvite`, `revokeOrganizationInvite`
 
-### Marketplace — `src/actions/marketplace.ts`
-`updateTeacherProfile`, `submitProfileForApproval`, `approveProfile` (platform admin), `rejectProfile` (platform admin)
+### Teacher onboarding — `src/actions/teacher-onboarding.ts`
+`uploadTeacherAvatar`, `saveTeacherOnboarding`, `submitTeacherProfile`
+
+### Admin — `src/actions/admin.ts`
+`approveTeacherProfile`, `rejectTeacherProfile`, `moderateReview`
 
 ### Bookings — `src/actions/bookings.ts`
-`createBooking`, `cancelBooking`, `completeBooking`
+`createBooking`, `cancelBooking`
+
+### Availability — `src/actions/availability.ts`
+`saveWeeklyAvailability`, `addAvailabilityException`, `deleteAvailabilityException`
 
 ### Video — `src/actions/video.ts`
-`createVideoRoom`, `startSession`, `endSession`
+`confirmBookingAndCreateRoom`, `startSession`, `getJoinCredentials`, `endSession`
 
 ### Billing — `src/actions/billing.ts`
-`createPayFastSubscription`, `cancelSubscription`, `changePlan`
+`createSubscriptionCheckout` (hosted PayFast for Free→paid; in-place PayFast update for paid upgrades)
 
-### Teacher Payments — `src/actions/teacher-payments.ts`
-`linkPayPalAccount`, `linkStripeAccount`, `disconnectPaymentAccount`, `initiateStudentCheckout`
+### Teacher Payments — `src/actions/payment-linking.ts`
+`startStripeConnect`, `startPayPalConnect`, `disconnectPaymentAccount`
 
 ### Reviews — `src/actions/reviews.ts`
-`submitReview`, `respondToReview`, `moderateReview` (platform admin)
+`submitReview`; moderation is handled by `moderateReview` in `src/actions/admin.ts`
+
+### Messaging — `src/actions/messaging.ts`
+`sendMessage`, `startConversationWithTeacher`
+
+### Notifications — `src/actions/notifications.ts`
+`markNotificationRead`, `markAllNotificationsRead`
+
+### Jobs
+`GET /api/v1/jobs/session-reminders` — emails + in-app alerts for confirmed lessons starting in ~1 hour
 
 ## Response Conventions
 

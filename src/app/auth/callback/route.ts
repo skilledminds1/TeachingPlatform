@@ -40,7 +40,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
       });
 
-      const destination = next ?? getPostAuthRedirect(sessionUser);
+      const destination = next ?? (await getPostAuthRedirect(sessionUser));
       return NextResponse.redirect(new URL(destination, origin));
     }
   }

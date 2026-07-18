@@ -5,7 +5,7 @@ import { ForgotPasswordForm } from "@/features/auth/components/forgot-password-f
 
 export const metadata: Metadata = {
   title: "Reset password",
-  description: "Reset your TeachingPlatform password.",
+  description: "Reset your Amazing Skills password.",
 };
 
 export default function ForgotPasswordPage() {

@@ -1,4 +1,4 @@
-# TeachingPlatform
+# Amazing Skills
 
 Online tutoring marketplace — discover teachers, book live video sessions, and learn online.
 

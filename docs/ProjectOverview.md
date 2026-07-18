@@ -2,11 +2,11 @@
 
 ## Name
 
-**TeachingPlatform** — Online Tutoring Marketplace
+**Amazing Skills** — Online Tutoring Marketplace
 
 ## Summary
 
-TeachingPlatform is a Preply/AmazingTalker-style marketplace for live online tutoring. Students discover teachers, book sessions, pay tutors directly, and join embedded video calls. Teachers pay the platform a subscription via PayFast; students pay teachers via the teacher's own PayPal or Stripe.
+Amazing Skills is a Preply/AmazingTalker-style marketplace for live online tutoring. Students discover teachers, book sessions, pay tutors directly, and join embedded video calls. Teachers pay the platform a subscription via PayFast; students pay teachers via the teacher's own PayPal or Stripe.
 
 ## Problem
 
@@ -42,7 +42,7 @@ One platform for the full tutoring loop:
 | Auth | Supabase Auth |
 | Platform billing | PayFast (subscriptions only) |
 | Teacher payouts | PayPal + Stripe Connect (student → teacher) |
-| Video | Daily.co |
+| Video | LiveKit Cloud |
 | Deployment | Vercel |
 
 ## Current Status

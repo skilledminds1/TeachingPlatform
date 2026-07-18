@@ -82,6 +82,6 @@ Write concise, user-facing bullet points — one line per change. Do not skip th
 
 - **Product spec:** [PROJECT.md](../PROJECT.md) — **read this first** for all product decisions
 - **Backlog:** [TODO.md](../TODO.md) · **Changelog:** [CHANGELOG.md](../CHANGELOG.md)
-- **Product:** TeachingPlatform — Online Teaching SaaS
-- **Stack:** Next.js App Router, TypeScript, Tailwind, Prisma, Supabase, PayFast, PayPal, Stripe, Daily.co
+- **Product:** Amazing Skills — Online Teaching SaaS
+- **Stack:** Next.js App Router, TypeScript, Tailwind, Prisma, Supabase, PayFast, PayPal, Stripe, LiveKit Cloud
 - **Docs:** `docs/` · **Specialized rules:** `coding-standards.md`, `ui.md`, `database.md`, `security.md`, `api.md`

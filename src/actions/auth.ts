@@ -70,7 +70,7 @@ export async function signUp(
 
     return ok({
       needsEmailConfirmation: false,
-      redirectTo: getPostAuthRedirect(sessionUser),
+      redirectTo: await getPostAuthRedirect(sessionUser),
     });
   }
 
@@ -115,7 +115,7 @@ export async function signIn(
   });
 
   const destination =
-    safeRedirectPath(redirectTo) ?? getPostAuthRedirect(sessionUser);
+    safeRedirectPath(redirectTo) ?? (await getPostAuthRedirect(sessionUser));
 
   return ok({ redirectTo: destination });
 }

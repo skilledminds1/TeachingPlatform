@@ -11,7 +11,7 @@ Vercel (Next.js)
   ├── Supabase (Auth, DB, Storage, Realtime)
   ├── PayFast (platform subscriptions)
   ├── PayPal + Stripe (student→teacher payments)
-  └── Daily.co (video sessions)
+  └── LiveKit Cloud (video sessions)
 ```
 
 ## Environments
@@ -52,7 +52,9 @@ STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 
 # Video
-DAILY_API_KEY=
+LIVEKIT_URL=wss://your-project.livekit.cloud
+LIVEKIT_API_KEY=
+LIVEKIT_API_SECRET=
 
 # Email
 RESEND_API_KEY=
@@ -107,7 +109,7 @@ Deploy: Vercel auto-deploy on merge.
 - [ ] Production Supabase configured
 - [ ] PayFast live credentials (subscriptions)
 - [ ] PayPal/Stripe apps configured (teacher linking)
-- [ ] Daily.co production API key
+- [ ] LiveKit Cloud URL and production API credentials
 - [ ] All env vars in Vercel
 - [ ] Migrations applied
 - [ ] Platform admin seeded

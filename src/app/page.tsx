@@ -13,11 +13,11 @@ import { Subjects } from "@/features/marketing/components/subjects";
 import { Testimonials } from "@/features/marketing/components/testimonials";
 
 export const metadata: Metadata = {
-  title: "TeachingPlatform — Find Tutors & Book Live Lessons",
+  title: "Amazing Skills — Find Tutors & Book Live Lessons",
   description:
     "Connect with expert tutors, book sessions in minutes, and learn live online. Verified teachers, direct payments, and browser-based video lessons — built for South Africa.",
   openGraph: {
-    title: "TeachingPlatform — Find Tutors & Book Live Lessons",
+    title: "Amazing Skills — Find Tutors & Book Live Lessons",
     description:
       "Connect with expert tutors, book sessions in minutes, and learn live online. Verified teachers, direct payments, no platform markup.",
     type: "website",

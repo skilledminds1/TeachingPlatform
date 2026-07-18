@@ -195,7 +195,7 @@ src/features/courses/hooks/use-course-form.ts  # feature-specific
 | Location | Use for |
 |----------|---------|
 | `src/server/` | Database queries, auth checks, business rules |
-| `src/services/` | External APIs (PayFast, PayPal, Stripe, Daily.co, email) |
+| `src/services/` | External APIs (PayFast, PayPal, Stripe, LiveKit, email) |
 
 Never put business logic or API calls directly in UI components.
 

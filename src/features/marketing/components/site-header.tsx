@@ -15,7 +15,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:px-8">
         <div className="flex items-center gap-10">
           <Link href="/" className="text-lg font-semibold tracking-tight">
-            TeachingPlatform
+            Amazing Skills
           </Link>
           <nav className="hidden items-center gap-6 md:flex" aria-label="Main">
             {navLinks.map((link) => (

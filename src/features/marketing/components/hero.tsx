@@ -18,9 +18,6 @@ export function Hero() {
       />
       <div className="relative mx-auto max-w-6xl px-6 pt-20 pb-16 md:px-8 md:pt-28 md:pb-24">
         <div className="mx-auto max-w-3xl space-y-6 text-center">
-          <p className="inline-flex items-center rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-            Online tutoring marketplace · Built for South Africa
-          </p>
           <h1 className="text-4xl font-bold tracking-tight text-balance md:text-6xl">
             Find the perfect tutor.
             <br />

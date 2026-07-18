@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+const optionalSecret = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
+const optionalPositiveNumber = z.preprocess(
+  (value) => (value === "" || value === undefined ? undefined : value),
+  z.coerce.number().positive().optional(),
+);
+
 const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
@@ -8,6 +17,34 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   DATABASE_URL: z.string().min(1).optional(),
   DIRECT_URL: z.string().min(1).optional(),
+  STRIPE_SECRET_KEY: optionalSecret,
+  STRIPE_CONNECT_CLIENT_ID: optionalSecret,
+  PAYPAL_CLIENT_ID: optionalSecret,
+  PAYPAL_CLIENT_SECRET: optionalSecret,
+  PAYPAL_ENVIRONMENT: z.enum(["sandbox", "live"]).default("sandbox"),
+  PAYFAST_MERCHANT_ID: optionalSecret,
+  PAYFAST_MERCHANT_KEY: optionalSecret,
+  PAYFAST_PASSPHRASE: optionalSecret,
+  PAYFAST_SANDBOX: z.enum(["true", "false"]).default("true"),
+  PAYFAST_USD_ZAR_RATE: optionalPositiveNumber,
+  LIVEKIT_URL: z.string().url().optional(),
+  LIVEKIT_API_KEY: optionalSecret,
+  LIVEKIT_API_SECRET: optionalSecret,
+  RESEND_API_KEY: optionalSecret,
+  // Resend accepts plain emails or "Display Name <email@domain>".
+  RESEND_FROM_EMAIL: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z
+      .string()
+      .min(1)
+      .refine(
+        (value) =>
+          z.string().email().safeParse(value).success ||
+          /^[^<>]+<\s*[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+\s*>$/.test(value),
+        { message: "Invalid From address (use email or Name <email>)" },
+      )
+      .optional(),
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -21,6 +58,21 @@ function parseEnv(): Env {
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     DIRECT_URL: process.env.DIRECT_URL,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_CONNECT_CLIENT_ID: process.env.STRIPE_CONNECT_CLIENT_ID,
+    PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID,
+    PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET,
+    PAYPAL_ENVIRONMENT: process.env.PAYPAL_ENVIRONMENT,
+    PAYFAST_MERCHANT_ID: process.env.PAYFAST_MERCHANT_ID,
+    PAYFAST_MERCHANT_KEY: process.env.PAYFAST_MERCHANT_KEY,
+    PAYFAST_PASSPHRASE: process.env.PAYFAST_PASSPHRASE,
+    PAYFAST_SANDBOX: process.env.PAYFAST_SANDBOX,
+    PAYFAST_USD_ZAR_RATE: process.env.PAYFAST_USD_ZAR_RATE,
+    LIVEKIT_URL: process.env.LIVEKIT_URL,
+    LIVEKIT_API_KEY: process.env.LIVEKIT_API_KEY,
+    LIVEKIT_API_SECRET: process.env.LIVEKIT_API_SECRET,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
   });
 }
 
@@ -74,4 +126,21 @@ export function requireDatabaseEnv(): { databaseUrl: string; directUrl: string }
   }
 
   return { databaseUrl, directUrl };
+}
+
+export function requireLiveKitEnv(): {
+  url: string;
+  apiKey: string;
+  apiSecret: string;
+} {
+  if (!env.LIVEKIT_URL || !env.LIVEKIT_API_KEY || !env.LIVEKIT_API_SECRET) {
+    throw new Error(
+      "Missing LiveKit variables. Set LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET.",
+    );
+  }
+  return {
+    url: env.LIVEKIT_URL,
+    apiKey: env.LIVEKIT_API_KEY,
+    apiSecret: env.LIVEKIT_API_SECRET,
+  };
 }

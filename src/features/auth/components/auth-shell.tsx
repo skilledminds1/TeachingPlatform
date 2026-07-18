@@ -14,7 +14,7 @@ export function AuthShell({
       <header className="border-b border-border/60">
         <div className="mx-auto flex h-16 max-w-6xl items-center px-6 md:px-8">
           <Link href="/" className="text-lg font-semibold tracking-tight">
-            TeachingPlatform
+            Amazing Skills
           </Link>
         </div>
       </header>

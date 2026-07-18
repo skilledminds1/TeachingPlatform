@@ -2,7 +2,7 @@
 
 ## Product Focus
 
-TeachingPlatform is a **live tutoring marketplace** (Preply / AmazingTalker model). Features are organized by phase in [TODO.md](../TODO.md).
+Amazing Skills is a **live tutoring marketplace** (Preply / AmazingTalker model). Features are organized by phase in [TODO.md](../TODO.md).
 
 **Core loop:** Discover teacher → Book slot → Pay teacher → Video session → Review
 
@@ -52,27 +52,37 @@ TeachingPlatform is a **live tutoring marketplace** (Preply / AmazingTalker mode
 
 ## Phase 4 — Bookings
 
-- Weekly availability + exceptions
-- Calendar (teacher & student views)
-- Timezone-aware slot selection
-- Booking creation and cancellation policies
+- Weekly availability with multiple windows per day
+- Starter+ blocked-date and extra-hour exceptions
+- Teacher and student booking calendars with detail views
+- Teacher-local availability converted to UTC reservations and viewer-local display
+- 60-minute slot selection with a two-hour minimum notice period
+- Serializable booking creation with overlap and active-student plan-limit enforcement
+- Upcoming booking cancellation with a required reason and 24-hour policy notice
+- New reservations remain `pending_payment` until Phase 7 checkout is connected
 
 ---
 
 ## Phase 5 — Video Sessions
 
-- Daily.co embedded video rooms per booking
-- Join flow for teacher and student
-- Session lifecycle: scheduled → live → completed
-- Post-session review prompt
+- Private LiveKit Cloud room provisioned for each confirmed booking
+- Two-participant limit, room expiry, and short-lived participant-only meeting tokens
+- Teacher owner permissions for screen sharing and session control
+- Authenticated lobby and embedded join flow for teacher and student
+- Shared Classroom hub (`/dashboard/classroom`) to join or reconnect to lessons
+- Session lifecycle: scheduled → live → ended
+- Booking lifecycle completion or no-show when the session closes
+- Post-session student review prompt with platform moderation
 
 ---
 
 ## Phase 6 — Subscriptions (PayFast)
 
-- Plan selection (Free, Pro, Academy, Enterprise)
+- Plan selection (Free, Starter, Professional, Business)
 - PayFast recurring billing
-- Student limit and feature gate enforcement
+- Monthly and annual USD catalog pricing with PayFast ZAR conversion
+- Active-student and monthly live-lesson hour enforcement
+- Free: 2 hours and 1 course; Starter: 20 hours; Professional: 75 hours; Business: unlimited fair use
 - Billing history, upgrade/downgrade, trial, grace period
 
 ---
@@ -89,9 +99,13 @@ TeachingPlatform is a **live tutoring marketplace** (Preply / AmazingTalker mode
 
 ## Phase 8 — Communication
 
-- In-app messaging (teacher ↔ student)
-- Notification center
-- Email: booking confirmed, session reminder, payment receipt, profile approved
+- Teacher↔student in-app messaging with one conversation per pair
+- Signed-in students can contact approved teachers before booking
+- Teachers receive in-app alerts for new messages and lesson requests
+- Teachers receive an in-app notification and email when their profile is approved
+- Notification center with mark-read and mark-all-read
+- Email via Resend for booking created, booking confirmed, and session reminders
+- Session reminder job for confirmed lessons starting in 45–75 minutes
 
 ---
 

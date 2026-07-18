@@ -6,7 +6,7 @@ Connect students with great teachers for live online learning — a Preply/Amazi
 
 ## Long-Term Vision
 
-TeachingPlatform becomes the default place to find a tutor, book a live video session, and learn — teachers grow their practice; students get quality instruction without friction.
+Amazing Skills becomes the default place to find a tutor, book a live video session, and learn — teachers grow their practice; students get quality instruction without friction.
 
 ## Product Identity
 
@@ -57,7 +57,7 @@ Approved profiles, moderated reviews, reliable sessions. Student and teacher dat
 ## Success Metrics
 
 - Completed video sessions per month (north star)
-- Paying subscribers (Pro+)
+- Paying subscribers (Starter+)
 - Monthly recurring revenue (MRR) via PayFast
 - Marketplace bookings per month
 - Net promoter score (NPS)

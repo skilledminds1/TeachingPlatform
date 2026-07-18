@@ -6,17 +6,21 @@ import { registerRoleSchema } from "@/lib/validations/auth";
 
 export const metadata: Metadata = {
   title: "Get started",
-  description: "Create a TeachingPlatform account as a student or teacher.",
+  description: "Create an Amazing Skills account as a student or teacher.",
 };
 
 export default async function RegisterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ role?: string }>;
+  searchParams: Promise<{ role?: string; redirect?: string }>;
 }) {
   const params = await searchParams;
   const roleParse = registerRoleSchema.safeParse(params.role);
   const defaultRole = roleParse.success ? roleParse.data : "student";
+  const redirectTo =
+    params.redirect && params.redirect.startsWith("/") && !params.redirect.startsWith("//")
+      ? params.redirect
+      : null;
 
   return (
     <AuthShell
@@ -27,7 +31,7 @@ export default async function RegisterPage({
           : "Find tutors and book live lessons in minutes."
       }
     >
-      <RegisterForm defaultRole={defaultRole} />
+      <RegisterForm defaultRole={defaultRole} redirectTo={redirectTo} />
     </AuthShell>
   );
 }

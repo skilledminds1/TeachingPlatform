@@ -28,8 +28,10 @@ import { GoogleSignInButton } from "./google-sign-in-button";
 
 export function RegisterForm({
   defaultRole = "student",
+  redirectTo = null,
 }: {
   defaultRole?: RegisterRole;
+  redirectTo?: string | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -68,7 +70,7 @@ export function RegisterForm({
       }
 
       if (result.data.redirectTo) {
-        router.push(result.data.redirectTo);
+        router.push(redirectTo ?? result.data.redirectTo);
         router.refresh();
       }
     });
@@ -110,7 +112,7 @@ export function RegisterForm({
         </Button>
       </div>
 
-      <GoogleSignInButton role={role} />
+      <GoogleSignInButton role={role} redirectTo={redirectTo} />
       <FieldSeparator>or continue with email</FieldSeparator>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" noValidate>
@@ -171,7 +173,14 @@ export function RegisterForm({
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-foreground hover:underline">
+        <Link
+          href={
+            redirectTo
+              ? `/login?redirect=${encodeURIComponent(redirectTo)}`
+              : "/login"
+          }
+          className="font-medium text-foreground hover:underline"
+        >
           Sign in
         </Link>
       </p>
