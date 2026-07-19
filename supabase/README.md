@@ -28,10 +28,17 @@ Create in Supabase Dashboard → Storage:
 |--------|-------------|------------|
 | `avatars` | Yes | Validated server action (service role) |
 | `credentials` | Yes | Validated teacher credential uploads (PDF/JPG/PNG/WebP, max 3 MB) |
+| `teacher-intros` | Yes | Signed browser upload (MP4/WebM, max 80 MB), confirmed server-side |
 
 The teacher-onboarding upload action accepts JPG, PNG, and WebP files up to 2 MB and validates
 the binary file signature before storage. Qualification credentials accept PDF or image files up
 to 3 MB.
+
+Introduction videos upload directly from the browser to `teacher-intros` via a short-lived signed
+upload URL. The server validates ownership, object existence, size, and MP4/WebM signatures before
+persisting `introVideoUrl` / `introVideoPath` on the teacher profile. The bucket is created
+automatically on first upload when the service role can manage storage; otherwise create it in the
+Dashboard with public read, MIME types `video/mp4` and `video/webm`, and an 80 MB file size limit.
 
 ## RLS
 

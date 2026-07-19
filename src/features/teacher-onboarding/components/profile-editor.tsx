@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronDown, Eye, GraduationCap, Share2, Video, X } from "lucide-react";
+import { Check, ChevronDown, Eye, GraduationCap, Share2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -32,6 +32,7 @@ import {
 } from "@/lib/validations/teacher-onboarding";
 
 import { AvatarUploader } from "./avatar-uploader";
+import { IntroVideoUploader } from "./intro-video-uploader";
 import { QualificationFields } from "./qualification-fields";
 import { SubjectSelect } from "./subject-select";
 import { SubjectSpecialtyFields } from "./subject-specialty-fields";
@@ -58,7 +59,7 @@ const sectionFields: Record<SectionId, Array<keyof TeacherOnboardingInput>> = {
   about: ["name", "timezone"],
   photo: ["avatarUrl"],
   description: ["headline", "bio"],
-  video: [],
+  video: ["introVideoUrl", "introVideoPath"],
   subjects: ["subjectIds", "subjectSpecialties"],
   pricing: ["hourlyRate", "currency"],
   background: ["qualifications"],
@@ -121,6 +122,8 @@ export function ProfileEditor({
 
   const name = useWatch({ control: form.control, name: "name" });
   const avatarUrl = useWatch({ control: form.control, name: "avatarUrl" });
+  const introVideoUrl = useWatch({ control: form.control, name: "introVideoUrl" });
+  const introVideoPath = useWatch({ control: form.control, name: "introVideoPath" });
   const bio = useWatch({ control: form.control, name: "bio" });
   const headline = useWatch({ control: form.control, name: "headline" });
   const currency = useWatch({ control: form.control, name: "currency" }) ?? "USD";
@@ -317,16 +320,46 @@ export function ProfileEditor({
               </p>
             </div>
 
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card px-6 py-14 text-center shadow-sm">
-              <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                <Video className="size-5" aria-hidden />
-              </div>
-              <p className="mt-4 text-sm font-semibold">Video introductions are coming soon</p>
-              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                You&apos;ll be able to add a horizontal video of up to 2 minutes to your
-                public profile.
-              </p>
-            </div>
+            <Field
+              data-invalid={
+                !!form.formState.errors.introVideoUrl ||
+                !!form.formState.errors.introVideoPath ||
+                undefined
+              }
+            >
+              <IntroVideoUploader
+                introVideoUrl={introVideoUrl ?? ""}
+                introVideoPath={introVideoPath ?? ""}
+                onUploaded={({ introVideoUrl: url, introVideoPath: path }) => {
+                  form.setValue("introVideoUrl", url, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  form.setValue("introVideoPath", path, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
+                onRemoved={() => {
+                  form.setValue("introVideoUrl", "", {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  form.setValue("introVideoPath", "", {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
+              />
+              <input type="hidden" {...form.register("introVideoUrl")} />
+              <input type="hidden" {...form.register("introVideoPath")} />
+              <FieldError
+                errors={[
+                  form.formState.errors.introVideoUrl,
+                  form.formState.errors.introVideoPath,
+                ]}
+              />
+            </Field>
 
             <div className="rounded-2xl border border-border bg-muted/30 p-5">
               <h3 className="font-heading text-lg font-semibold">Video requirements</h3>
@@ -525,13 +558,11 @@ export function ProfileEditor({
           </div>
         ) : null}
 
-        {section !== "video" ? (
-          <div className="mt-8 flex justify-end">
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving…" : "Save"}
-            </Button>
-          </div>
-        ) : null}
+        <div className="mt-8 flex justify-end">
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Saving…" : "Save"}
+          </Button>
+        </div>
       </form>
 
       <aside className="order-first lg:order-none">

@@ -88,6 +88,27 @@ export default async function AdminTeachersPage() {
                     </p>
                   </div>
 
+                  {profile.introVideoUrl ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Introduction video
+                      </p>
+                      <div className="max-w-xl overflow-hidden rounded-xl bg-black">
+                        <video
+                          src={profile.introVideoUrl}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="aspect-video w-full"
+                        >
+                          Your browser does not support embedded video.
+                        </video>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-destructive">No introduction video uploaded</p>
+                  )}
+
                   <div className="flex flex-wrap gap-2">
                     {profile.subjects.length > 0 ? (
                       profile.subjects.map(({ subject }) => (

@@ -44,7 +44,7 @@ export default async function TeacherOnboardingPage() {
             Build your teacher profile
           </h1>
           <p className="text-muted-foreground">
-            Complete these four steps to prepare your profile for the marketplace.
+            Complete these five steps to prepare your profile for the marketplace.
           </p>
         </div>
 
@@ -72,6 +72,8 @@ export default async function TeacherOnboardingPage() {
               profile?.currency && isLessonCurrency(profile.currency)
                 ? profile.currency
                 : "USD",
+            introVideoUrl: profile?.introVideoUrl ?? "",
+            introVideoPath: profile?.introVideoPath ?? "",
             subjectIds: profile?.subjects.map((subject) => subject.subjectId) ?? [],
             subjectSpecialties: Object.fromEntries(
               (profile?.subjects ?? [])

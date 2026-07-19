@@ -84,11 +84,14 @@ export async function getTeacherProfileReadiness() {
     subjectsSelected: Boolean(profile?.subjects.length),
     rateSet: Boolean(profile && profile.hourlyRateCents > 0),
     qualificationAdded: Boolean(profile?.qualifications.length),
+    videoAdded: Boolean(profile?.introVideoUrl && profile?.introVideoPath),
     emailVerified: Boolean(authUser?.email_confirmed_at),
     paymentLinked: Boolean(profile?.user.teacherPaymentAccounts.length),
     qualifyingPlan: Boolean(profile?.organization.plan.marketplaceListing),
   };
 
+  // Intentionally omit video from profileComplete so approved teachers without a
+  // video (pre-migration) keep dashboard access.
   const profileComplete =
     checks.profileCreated &&
     checks.photoAdded &&
@@ -97,11 +100,14 @@ export async function getTeacherProfileReadiness() {
     checks.rateSet &&
     checks.qualificationAdded;
 
+  const requiresVideoForSubmission = profile?.status !== "approved";
+
   const readyToSubmit =
     profileComplete &&
     checks.emailVerified &&
     checks.paymentLinked &&
-    checks.qualifyingPlan;
+    checks.qualifyingPlan &&
+    (!requiresVideoForSubmission || checks.videoAdded);
 
   return {
     user,

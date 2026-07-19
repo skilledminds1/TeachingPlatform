@@ -350,6 +350,8 @@ model TeacherProfile {
   headline        String?
   hourlyRateCents Int                  @default(0) @map("hourly_rate_cents")
   currency        String               @default("USD")
+  introVideoUrl   String?              @map("intro_video_url")
+  introVideoPath  String?              @map("intro_video_path")
   status          TeacherProfileStatus @default(draft)
   rejectionReason String?              @map("rejection_reason")
   slug            String               @unique

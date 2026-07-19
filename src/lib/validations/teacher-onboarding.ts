@@ -28,6 +28,9 @@ export const teacherOnboardingSchema = z.object({
     .regex(/^\d+(\.\d{1,2})?$/, "Enter a valid hourly rate")
     .refine((value) => Number(value) > 0, "Enter an hourly rate greater than 0"),
   currency: z.enum(lessonCurrencyCodes, { message: "Select a lesson currency" }),
+  // Empty allowed for grandfathered approved profiles; save/submit enforce when required.
+  introVideoUrl: z.union([z.literal(""), z.url("Upload an introduction video")]),
+  introVideoPath: z.string().trim().max(500),
   subjectIds: z.array(z.uuid()).min(1, "Select at least one subject").max(3),
   subjectSpecialties: z.record(z.uuid(), z.array(z.string().trim().min(1).max(80)).max(8)),
   qualifications: z
@@ -54,6 +57,28 @@ export const teacherOnboardingSchema = z.object({
 
 export type TeacherOnboardingInput = z.infer<typeof teacherOnboardingSchema>;
 
+export const INTRO_VIDEO_MAX_BYTES = 80 * 1024 * 1024;
+export const INTRO_VIDEO_MIN_SECONDS = 30;
+export const INTRO_VIDEO_MAX_SECONDS = 120;
+export const INTRO_VIDEO_BUCKET = "teacher-intros";
+
+export const introVideoMimeTypes = ["video/mp4", "video/webm"] as const;
+
+export const introVideoUploadRequestSchema = z.object({
+  fileName: z.string().trim().min(1).max(200),
+  contentType: z.enum(introVideoMimeTypes),
+  size: z
+    .number()
+    .int()
+    .positive()
+    .max(INTRO_VIDEO_MAX_BYTES, "Video must be smaller than 80 MB"),
+});
+
+export const introVideoConfirmSchema = z.object({
+  path: z.string().trim().min(1).max(500),
+  contentType: z.enum(introVideoMimeTypes),
+});
+
 export const avatarFileSchema = z
   .instanceof(File)
   .refine((file) => file.size > 0, "Choose an image")
@@ -71,6 +96,18 @@ export const credentialFileSchema = z
     (file) =>
       ["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type),
     "Use a PDF, JPG, PNG, or WebP file",
+  );
+
+export const introVideoFileSchema = z
+  .instanceof(File)
+  .refine((file) => file.size > 0, "Choose a video")
+  .refine(
+    (file) => file.size <= INTRO_VIDEO_MAX_BYTES,
+    "Video must be smaller than 80 MB",
+  )
+  .refine(
+    (file) => introVideoMimeTypes.includes(file.type as (typeof introVideoMimeTypes)[number]),
+    "Use an MP4 or WebM video",
   );
 
 export function countWords(value: string): number {

@@ -124,6 +124,7 @@ export async function getTeacherBySlug(slug: string) {
       slug: true,
       headline: true,
       bio: true,
+      introVideoUrl: true,
       hourlyRateCents: true,
       currency: true,
       userId: true,

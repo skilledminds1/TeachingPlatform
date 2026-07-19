@@ -144,6 +144,23 @@ export async function TeacherProfileContent({
               </p>
             </section>
 
+            {teacher.introVideoUrl ? (
+              <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                <h2 className="font-semibold">Introduction</h2>
+                <div className="mt-4 overflow-hidden rounded-xl bg-black">
+                  <video
+                    src={teacher.introVideoUrl}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="aspect-video w-full"
+                  >
+                    Your browser does not support embedded video.
+                  </video>
+                </div>
+              </section>
+            ) : null}
+
             {teacher.qualifications.length > 0 ? (
               <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
                 <h2 className="font-semibold">Qualifications</h2>

@@ -39,6 +39,7 @@ export default async function TeacherDashboardPage() {
 
   const checklist = [
     { label: "Profile information complete", complete: profileComplete },
+    { label: "Introduction video uploaded", complete: checks.videoAdded },
     { label: "Email address verified", complete: checks.emailVerified },
     { label: "Payment account linked", complete: checks.paymentLinked },
     { label: "Listing plan active", complete: checks.qualifyingPlan },

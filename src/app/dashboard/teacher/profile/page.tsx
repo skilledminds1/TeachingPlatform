@@ -22,7 +22,7 @@ export default async function TeacherProfileSettingsPage() {
         subjects={subjects}
         profileStatus={profile.status}
         profileSlug={profile.slug}
-        defaultValues={{
+          defaultValues={{
           name: user.name,
           timezone: user.timezone,
           avatarUrl: user.avatarUrl ?? "",
@@ -31,6 +31,8 @@ export default async function TeacherProfileSettingsPage() {
           hourlyRate:
             profile.hourlyRateCents > 0 ? String(profile.hourlyRateCents / 100) : "",
           currency: isLessonCurrency(profile.currency) ? profile.currency : "USD",
+          introVideoUrl: profile.introVideoUrl ?? "",
+          introVideoPath: profile.introVideoPath ?? "",
           subjectIds: profile.subjects.map((subject) => subject.subjectId),
           subjectSpecialties: Object.fromEntries(
             profile.subjects

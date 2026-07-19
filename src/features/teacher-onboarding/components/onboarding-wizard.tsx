@@ -8,6 +8,7 @@ import {
   FileText,
   GraduationCap,
   UserRound,
+  Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -35,6 +36,7 @@ import { LESSON_CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { cn } from "@/lib/utils";
 
 import { AvatarUploader } from "./avatar-uploader";
+import { IntroVideoUploader } from "./intro-video-uploader";
 import { QualificationFields } from "./qualification-fields";
 import { SubjectSelect } from "./subject-select";
 import { SubjectSpecialtyFields } from "./subject-specialty-fields";
@@ -49,6 +51,7 @@ const steps = [
   { title: "About you", icon: UserRound },
   { title: "Your profile", icon: FileText },
   { title: "Teaching", icon: GraduationCap },
+  { title: "Video", icon: Video },
   { title: "Review", icon: CheckCircle2 },
 ] as const;
 
@@ -56,6 +59,7 @@ const stepFields: Array<Array<keyof TeacherOnboardingInput>> = [
   ["name", "timezone", "avatarUrl"],
   ["headline", "bio", "qualifications"],
   ["hourlyRate", "currency", "subjectIds"],
+  ["introVideoUrl", "introVideoPath"],
   [],
 ];
 
@@ -80,6 +84,8 @@ export function OnboardingWizard({
 
   const name = useWatch({ control: form.control, name: "name" });
   const avatarUrl = useWatch({ control: form.control, name: "avatarUrl" });
+  const introVideoUrl = useWatch({ control: form.control, name: "introVideoUrl" });
+  const introVideoPath = useWatch({ control: form.control, name: "introVideoPath" });
   const bio = useWatch({ control: form.control, name: "bio" });
   const headline = useWatch({ control: form.control, name: "headline" });
   const hourlyRate = useWatch({ control: form.control, name: "hourlyRate" });
@@ -105,7 +111,20 @@ export function OnboardingWizard({
   }
 
   async function nextStep(): Promise<void> {
-    const valid = await form.trigger(stepFields[step], { shouldFocus: true });
+    const fields = stepFields[step];
+    if (step === 3) {
+      const url = form.getValues("introVideoUrl");
+      const path = form.getValues("introVideoPath");
+      if (!url || !path) {
+        form.setError("introVideoUrl", {
+          type: "manual",
+          message: "Upload an introduction video",
+        });
+        toast.error("Upload an introduction video to continue.");
+        return;
+      }
+    }
+    const valid = await form.trigger(fields, { shouldFocus: true });
     if (valid) setStep((current) => Math.min(current + 1, steps.length - 1));
   }
 
@@ -126,7 +145,7 @@ export function OnboardingWizard({
 
   return (
     <div className="space-y-8">
-      <ol className="grid grid-cols-4 gap-2" aria-label="Onboarding progress">
+      <ol className="grid grid-cols-5 gap-2" aria-label="Onboarding progress">
         {steps.map((item, index) => (
           <li key={item.title} className="space-y-2">
             <div
@@ -328,6 +347,58 @@ export function OnboardingWizard({
           {step === 3 ? (
             <div className="space-y-8">
               <div>
+                <h2 className="text-xl font-semibold">Record your introduction video</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Introduce yourself in a landscape video between 30 seconds and 2 minutes.
+                </p>
+              </div>
+              <Field
+                data-invalid={
+                  !!form.formState.errors.introVideoUrl ||
+                  !!form.formState.errors.introVideoPath ||
+                  undefined
+                }
+              >
+                <IntroVideoUploader
+                  introVideoUrl={introVideoUrl ?? ""}
+                  introVideoPath={introVideoPath ?? ""}
+                  onUploaded={({ introVideoUrl: url, introVideoPath: path }) => {
+                    form.clearErrors("introVideoUrl");
+                    form.setValue("introVideoUrl", url, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    form.setValue("introVideoPath", path, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }}
+                  onRemoved={() => {
+                    form.setValue("introVideoUrl", "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    form.setValue("introVideoPath", "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }}
+                />
+                <input type="hidden" {...form.register("introVideoUrl")} />
+                <input type="hidden" {...form.register("introVideoPath")} />
+                <FieldError
+                  errors={[
+                    form.formState.errors.introVideoUrl,
+                    form.formState.errors.introVideoPath,
+                  ]}
+                />
+              </Field>
+            </div>
+          ) : null}
+
+          {step === 4 ? (
+            <div className="space-y-8">
+              <div>
                 <h2 className="text-xl font-semibold">Review your teacher profile</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   You can edit this draft later before submitting it for approval.
@@ -357,6 +428,10 @@ export function OnboardingWizard({
                 <ReviewItem
                   label="Qualifications"
                   value={`${qualifications.length} added`}
+                />
+                <ReviewItem
+                  label="Introduction video"
+                  value={introVideoUrl ? "Uploaded" : "Missing"}
                 />
               </div>
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
