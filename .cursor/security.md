@@ -167,7 +167,7 @@ Return `429 Too Many Requests` with a retry hint when limits are exceeded.
 - TLS 1.2+ enforced on all connections in production
 - PostgreSQL encryption at rest via Supabase
 - Passwords hashed by Supabase Auth — never stored in app database
-- Payment data: PayFast handles subscriptions; PayPal/Stripe handle session payments — platform never stores card numbers
+- Payment data: PayFast handles subscriptions and ZAR sessions; PayPal handles global session payments — platform never stores card numbers
 - Sensitive fields at rest encrypted where required (tokens, API keys stored per-org)
 
 ## Secrets
@@ -183,8 +183,6 @@ Store secrets in environment variables only — never in code or git.
 | `PAYFAST_MERCHANT_KEY` | **Never** |
 | `PAYFAST_PASSPHRASE` | **Never** |
 | `PAYPAL_CLIENT_SECRET` | **Never** |
-| `STRIPE_SECRET_KEY` | **Never** |
-| `STRIPE_WEBHOOK_SECRET` | **Never** |
 | `LIVEKIT_API_KEY` | **Never** |
 | `LIVEKIT_API_SECRET` | **Never** |
 

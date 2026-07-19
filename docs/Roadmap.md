@@ -127,14 +127,13 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 
 ## Phase 7 — Teacher Payments
 
-**Goal:** Students pay teachers via linked PayPal/Stripe.
+**Goal:** Students pay teachers via linked PayFast/PayPal.
 
 | Task | Status |
 |------|--------|
 | PayPal OAuth linking foundation | Done (credentials required) |
-| Stripe Connect linking foundation | Done (credentials required) |
 | Student checkout at booking | Pending |
-| PayPal/Stripe webhooks for confirmation | Pending |
+| PayFast/PayPal webhooks for confirmation | Done (provider approval required) |
 | Teacher earnings summary | Pending |
 
 **Exit criteria:** Student pays teacher directly; booking confirmed; platform never holds funds.
@@ -196,7 +195,7 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 |------|----------|-----------|
 | 2026-07 | Preply/AmazingTalker model over LMS-first | User priority: live tutoring marketplace |
 | 2026-07 | PayFast for platform subscriptions only | SA market; platform revenue separation |
-| 2026-07 | PayPal + Stripe for student→teacher payments | Platform does not handle teacher payouts |
+| 2026-07 | PayFast + PayPal for student→teacher payments | Platform does not handle teacher payouts |
 | 2026-07 | LiveKit Cloud for embedded video | Secure JWT access and flexible 1-on-1 UI |
 | 2026-07 | `isPlatformAdmin` on User model | Simplest secure admin provisioning |
 | 2026-07 | 9-phase roadmap | Matches TODO.md and PROJECT.md |
@@ -209,5 +208,4 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 - Homework and quizzes
 - Group video classes
 - Mobile PWA
-- Stripe for international platform billing (if needed)
 - i18n

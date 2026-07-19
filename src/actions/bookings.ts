@@ -12,6 +12,7 @@ import {
 import { getAvailableSlots } from "@/server/availability/slots";
 import { requireAuth } from "@/server/auth/session";
 import { notifyBookingCreated } from "@/server/notifications/notify";
+import { paymentWindowExpiry } from "@/server/payments/confirm";
 import { deleteLiveKitRoom } from "@/services/livekit/rooms";
 import { fail, ok, type ActionResult } from "@/types/action";
 
@@ -154,6 +155,7 @@ export async function createBooking(
               status: "pending_payment",
               hourlyRateCents: profile.hourlyRateCents,
               currency: profile.currency,
+              paymentExpiresAt: paymentWindowExpiry(),
             },
           });
           return { booking };
@@ -216,7 +218,25 @@ export async function cancelBooking(
       studentId: true,
       startsAt: true,
       status: true,
+      hourlyRateCents: true,
+      currency: true,
+      paymentProvider: true,
+      paymentExternalId: true,
       videoSession: { select: { livekitRoomName: true } },
+      paymentAttempts: {
+        where: { status: { in: ["succeeded", "partially_refunded"] } },
+        orderBy: { succeededAt: "desc" },
+        take: 1,
+        select: {
+          id: true,
+          provider: true,
+          providerPaymentId: true,
+          teacherMerchantId: true,
+          amountCents: true,
+          currency: true,
+          refundedCents: true,
+        },
+      },
     },
   });
   if (!booking) return fail("Booking not found.", "NOT_FOUND");
@@ -228,6 +248,36 @@ export async function cancelBooking(
   }
   if (booking.startsAt <= new Date()) {
     return fail("Past lessons cannot be cancelled.", "CONFLICT");
+  }
+
+  const hoursUntil = (booking.startsAt.getTime() - Date.now()) / 3_600_000;
+  const attempt = booking.paymentAttempts[0];
+  if (booking.status === "confirmed" && attempt?.providerPaymentId && hoursUntil >= 24) {
+    try {
+      if (attempt.provider === "paypal") {
+        const { refundPayPalCapture } = await import("@/services/payments/refunds");
+        await refundPayPalCapture({
+          captureId: attempt.providerPaymentId,
+          amountCents: attempt.amountCents - attempt.refundedCents,
+          currency: attempt.currency,
+        });
+      }
+      // PayFast refunds are handled in the merchant dashboard / API later
+      await db.paymentAttempt.update({
+        where: { id: attempt.id },
+        data: {
+          status: "refunded",
+          refundedCents: attempt.amountCents,
+        },
+      });
+    } catch (error) {
+      return fail(
+        error instanceof Error
+          ? `Cancelled locally but refund failed: ${error.message}`
+          : "Refund failed.",
+        "INTERNAL_ERROR",
+      );
+    }
   }
 
   await db.booking.update({

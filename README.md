@@ -10,7 +10,7 @@ Online tutoring marketplace — discover teachers, book live video sessions, and
 - **React Hook Form** + **Zod**
 - **TanStack Query**
 - **Prisma** + **Supabase** (coming in Phase 1)
-- **PayFast** (subscriptions) · **PayPal/Stripe** (teacher payments)
+- **PayFast** (subscriptions + ZAR teacher payments) · **PayPal** (global teacher payments)
 
 ## Getting started
 

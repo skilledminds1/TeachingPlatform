@@ -44,7 +44,7 @@
 ### Geographic Focus
 
 - **Primary market:** South Africa (PayFast for platform subscriptions)
-- **Secondary market:** International students and teachers (PayPal/Stripe for student→teacher payments)
+- **Secondary market:** International students and teachers (PayPal for student→teacher payments)
 
 ### Competitive Reference
 
@@ -65,9 +65,9 @@ Amazing Skills operates as a **B2B2C marketplace SaaS**:
 | Money flow | Who pays whom | Processor | Platform role |
 |------------|---------------|-----------|---------------|
 | **Subscription** | Teacher → Platform | **PayFast** | Platform revenue — only money the platform collects |
-| **Session payment** | Student → Teacher | **Teacher's PayPal or Stripe** | Platform does NOT handle, hold, or disburse these funds |
+| **Session payment** | Student → Teacher | **PayFast or teacher's PayPal** | Platform does NOT handle, hold, or disburse these funds |
 
-The platform **never** touches student-to-teacher payments. Teachers link their own PayPal or Stripe account in settings. Students pay the teacher directly at booking time through the teacher's connected payment method.
+The platform **never** touches student-to-teacher payments. Teachers link PayFast or their own PayPal account in settings. Students pay the teacher directly at booking time through the teacher's connected payment method.
 
 ---
 
@@ -90,7 +90,7 @@ Subscriptions are billed at the **organization or solo-teacher account level** v
 |------------|------|-----|---------|------------|
 | Marketplace profile | ✓ | ✓ | ✓ | ✓ |
 | Bookings & messaging | ✓ | ✓ | ✓ | ✓ |
-| Link PayPal/Stripe | ✓ | ✓ | ✓ | ✓ |
+| Link PayFast/PayPal | ✓ | ✓ | ✓ | ✓ |
 | Homework & student notes | ✗ | ✓ | ✓ | ✓ |
 | Courses | 1 | Unlimited | Unlimited | Unlimited |
 | Quizzes & groups | ✗ | ✗ | ✓ | ✓ |
@@ -118,9 +118,9 @@ Subscriptions are billed at the **organization or solo-teacher account level** v
 - Webhook ITN verification on every subscription event
 - Invoices generated automatically for subscription charges
 
-### Teacher session payments (PayPal / Stripe — NOT platform)
+### Teacher session payments (PayFast / PayPal — NOT platform)
 
-- Teachers connect **their own** PayPal or Stripe account in profile settings
+- Teachers connect **PayFast** or their own PayPal account in profile settings
 - Students pay the teacher **directly** at booking checkout
 - Platform facilitates the checkout redirect/API call but **never holds funds**
 - Platform takes **zero commission** on session payments in v1
@@ -128,10 +128,10 @@ Subscriptions are billed at the **organization or solo-teacher account level** v
 
 ### Principles
 
-1. **Transparency** — Teachers see subscription cost (PayFast) and session earnings (PayPal/Stripe) separately.
+1. **Transparency** — Teachers see subscription cost and direct session earnings separately.
 2. **Separation** — Platform billing and teacher payouts are completely separate systems.
 3. **No escrow** — Platform does not hold student payments.
-4. **Secure linking** — OAuth/API keys for PayPal/Stripe stored encrypted; never exposed to clients.
+4. **Secure linking** — PayPal OAuth and PayFast merchant details are never exposed to clients.
 
 ### Payment Flows
 
@@ -139,9 +139,9 @@ Subscriptions are billed at the **organization or solo-teacher account level** v
 Subscription (Teacher → Platform via PayFast)
   Teacher selects plan → PayFast checkout → ITN webhook → Plan activated
 
-Session (Student → Teacher via teacher's PayPal/Stripe)
+Session (Student → Teacher via PayFast/PayPal)
   Student selects slot → Checkout via teacher's linked account → Payment to teacher
-  Platform records booking as confirmed on payment webhook from PayPal/Stripe
+  Platform records booking as confirmed on payment webhook from PayFast/PayPal
 
 Platform revenue = subscriptions only. Session payments bypass the platform ledger.
 ```
@@ -156,7 +156,7 @@ Platform revenue = subscriptions only. Session payments bypass the platform ledg
 Teacher completes profile → Submits for review → Platform admin approves/rejects → Live on marketplace
 ```
 
-**Requirements:** Pro plan+, verified email, complete profile (bio 100+ words, photo, subjects, hourly rate, PayPal or Stripe linked).
+**Requirements:** Pro plan+, verified email, complete profile (bio 100+ words, photo, subjects, hourly rate, PayFast or PayPal linked).
 
 **SLA:** 48 business hours.
 
@@ -168,7 +168,7 @@ Teacher completes profile → Submits for review → Platform admin approves/rej
 ### 3. Booking Confirmation
 
 ```
-Student selects slot → Pays teacher (PayPal/Stripe) → Booking confirmed → Video room created
+Student selects slot → Pays teacher (PayFast/PayPal) → Booking confirmed → Video room created
 ```
 
 | Scenario | Behavior |
@@ -209,7 +209,7 @@ Roles are **contextual per organization**, except Platform Admin which is global
 ### Instructor (Teacher)
 
 - Manage profile, availability, hourly rate
-- Link PayPal/Stripe for session payments
+- Link PayFast/PayPal for session payments
 - Conduct video sessions; view bookings and earnings summary
 - Message students
 
@@ -225,7 +225,7 @@ Roles are **contextual per organization**, except Platform Admin which is global
 |--------|:-:|:-:|:-:|:-:|
 | Approve marketplace profiles | ✓ | | | |
 | Manage org PayFast subscription | | ✓ | | |
-| Link PayPal/Stripe | | | ✓ | |
+| Link PayFast/PayPal | | | ✓ | |
 | Set availability & rates | | | ✓ | |
 | Book & pay for session | | | | ✓ |
 | Join video session | | | ✓ | ✓ |
@@ -245,7 +245,7 @@ See [TODO.md](TODO.md) for checklist.
 | **4** | Bookings — availability, calendar, timezone |
 | **5** | Video sessions — embedded live calls (LiveKit Cloud) |
 | **6** | Subscriptions — PayFast billing, plan limits |
-| **7** | Teacher payments — PayPal/Stripe linking, student checkout |
+| **7** | Teacher payments — PayFast/PayPal linking, student checkout |
 | **8** | Communication — messaging, notifications, emails |
 | **9** | Analytics & AI — reports, insights (courses optional later) |
 
@@ -290,7 +290,7 @@ Flow: Booking confirmed → server creates LiveKit room → authorized participa
 | Realtime | Supabase Realtime (chat, notifications) |
 | Storage | Supabase Storage (avatars) |
 | Platform billing | **PayFast** (subscriptions only) |
-| Teacher payouts | **PayPal + Stripe Connect** (student → teacher) |
+| Teacher payments | **PayFast + PayPal** (student → teacher) |
 | Video | **LiveKit Cloud** |
 | Email | Resend |
 | Deployment | Vercel |

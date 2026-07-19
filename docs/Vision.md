@@ -26,7 +26,7 @@ Video calls are central — not a bolt-on to a course catalog. Booking → payme
 
 ### 3. Platform Stays Out of Teacher Payouts
 
-Students pay teachers directly via the teacher's PayPal or Stripe. The platform only collects subscriptions via PayFast.
+Students pay teachers directly via PayFast or the teacher's PayPal. The platform only collects subscriptions via PayFast.
 
 ### 4. Simplicity Over Complexity
 

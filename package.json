@@ -13,7 +13,8 @@
     "db:migrate": "dotenv -e .env.local -- prisma migrate dev",
     "db:push": "dotenv -e .env.local -- prisma db push",
     "db:seed": "dotenv -e .env.local -- prisma db seed",
-    "db:studio": "dotenv -e .env.local -- prisma studio"
+    "db:studio": "dotenv -e .env.local -- prisma studio",
+    "test:payments": "tsx scripts/test-payments.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

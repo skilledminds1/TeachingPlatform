@@ -8,7 +8,7 @@ const benefits = [
     icon: Banknote,
     title: "Keep 100% of your lesson fees",
     description:
-      "Students pay you directly via your own PayPal or Stripe. We never touch your earnings — you only pay a flat subscription.",
+      "Students pay you directly via your own PayPal or PayFast account. We never touch your earnings — you only pay a flat subscription.",
   },
   {
     icon: CalendarRange,

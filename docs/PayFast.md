@@ -2,9 +2,12 @@
 
 ## Scope
 
-**PayFast is used for platform subscriptions only** — teachers paying Amazing Skills for Starter, Professional, or Business plans.
+**PayFast is used for:**
 
-PayFast is **NOT** used for student→teacher session payments. Those use the teacher's linked **PayPal** or **Stripe** account.
+1. **Platform subscriptions** — teachers paying Amazing Skills for Starter, Professional, or Business plans.
+2. **ZAR lesson payments (Split Payments)** — when `LESSON_PAYMENTS_PAYFAST_ENABLED=true`, students pay South African teachers in ZAR. Apple Pay and Google Pay appear on the PayFast hosted page when enabled in the merchant dashboard. See [`docs/LessonPayments.md`](LessonPayments.md).
+
+For non-ZAR / global teacher lesson payments use **PayPal**.
 
 ---
 
@@ -127,6 +130,6 @@ Call the entitlement service before every gated feature. Booking creation atomic
 
 - Process student payments to teachers
 - Hold escrow or disburse teacher earnings
-- Handle PayPal/Stripe teacher accounts
+- Handle PayPal teacher accounts
 
 See Phase 7 teacher payment docs in [Features.md](Features.md).

@@ -2,7 +2,7 @@ const faqs = [
   {
     question: "How do I pay for lessons?",
     answer:
-      "You pay your teacher directly through their linked PayPal or Stripe account when you book. Amazing Skills never holds your money, and there's no platform fee added to lesson prices.",
+      "You pay your teacher directly through their linked PayPal or PayFast account when you book. Amazing Skills never holds your money, and there's no platform fee added to lesson prices.",
   },
   {
     question: "Is it free for students?",

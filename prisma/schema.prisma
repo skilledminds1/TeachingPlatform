@@ -42,8 +42,30 @@ enum TeacherProfileStatus {
 enum PaymentProvider {
   paypal
   stripe
+  payfast
 
   @@map("payment_provider")
+}
+
+enum PaymentAttemptStatus {
+  pending
+  requires_action
+  succeeded
+  failed
+  expired
+  refunded
+  partially_refunded
+
+  @@map("payment_attempt_status")
+}
+
+enum TeacherPaymentOnboardingStatus {
+  not_started
+  pending
+  complete
+  restricted
+
+  @@map("teacher_payment_onboarding_status")
 }
 
 enum BookingStatus {
@@ -333,14 +355,19 @@ model TeacherSubject {
 }
 
 model TeacherPaymentAccount {
-  id                String          @id @default(uuid()) @db.Uuid
-  userId            String          @map("user_id") @db.Uuid
-  provider          PaymentProvider
-  providerAccountId String          @map("provider_account_id")
-  isDefault         Boolean         @default(false) @map("is_default")
-  isActive          Boolean         @default(true) @map("is_active")
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @updatedAt @map("updated_at")
+  id                 String                         @id @default(uuid()) @db.Uuid
+  userId             String                         @map("user_id") @db.Uuid
+  provider           PaymentProvider
+  providerAccountId  String                         @map("provider_account_id")
+  onboardingStatus   TeacherPaymentOnboardingStatus @default(complete) @map("onboarding_status")
+  settlementCurrency String?                        @map("settlement_currency")
+  country            String?
+  capabilities       String[]                       @default([])
+  metadata           Json?
+  isDefault          Boolean                        @default(false) @map("is_default")
+  isActive           Boolean                        @default(true) @map("is_active")
+  createdAt          DateTime                       @default(now()) @map("created_at")
+  updatedAt          DateTime                       @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -394,22 +421,73 @@ model Booking {
   currency           String           @default("USD")
   paymentProvider    PaymentProvider? @map("payment_provider")
   paymentExternalId  String?          @map("payment_external_id")
+  paymentExpiresAt   DateTime?        @map("payment_expires_at")
   cancellationReason String?          @map("cancellation_reason")
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime         @updatedAt @map("updated_at")
 
-  teacher      User          @relation("TeacherBookings", fields: [teacherId], references: [id])
-  student      User          @relation("StudentBookings", fields: [studentId], references: [id])
-  organization Organization  @relation(fields: [organizationId], references: [id])
-  videoSession VideoSession?
-  review       Review?
+  teacher         User             @relation("TeacherBookings", fields: [teacherId], references: [id])
+  student         User             @relation("StudentBookings", fields: [studentId], references: [id])
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  videoSession    VideoSession?
+  review          Review?
+  paymentAttempts PaymentAttempt[]
 
   @@index([teacherId])
   @@index([studentId])
   @@index([organizationId])
   @@index([startsAt])
   @@index([status])
+  @@index([paymentExpiresAt])
   @@map("bookings")
+}
+
+model PaymentAttempt {
+  id                    String               @id @default(uuid()) @db.Uuid
+  bookingId             String               @map("booking_id") @db.Uuid
+  provider              PaymentProvider
+  status                PaymentAttemptStatus @default(pending)
+  amountCents           Int                  @map("amount_cents")
+  currency              String
+  providerCheckoutId    String?              @map("provider_checkout_id")
+  providerPaymentId     String?              @map("provider_payment_id")
+  teacherMerchantId     String               @map("teacher_merchant_id")
+  checkoutUrl           String?              @map("checkout_url")
+  failureCode           String?              @map("failure_code")
+  failureMessage        String?              @map("failure_message")
+  expiresAt             DateTime             @map("expires_at")
+  succeededAt           DateTime?            @map("succeeded_at")
+  refundedCents         Int                  @default(0) @map("refunded_cents")
+  idempotencyKey        String               @unique @map("idempotency_key")
+  metadata              Json?
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+
+  booking Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  events  PaymentEvent[]
+
+  @@index([bookingId])
+  @@index([provider, status])
+  @@index([providerCheckoutId])
+  @@index([providerPaymentId])
+  @@index([expiresAt])
+  @@map("payment_attempts")
+}
+
+model PaymentEvent {
+  id               String   @id @default(uuid()) @db.Uuid
+  paymentAttemptId String?  @map("payment_attempt_id") @db.Uuid
+  provider         PaymentProvider
+  providerEventId  String   @map("provider_event_id")
+  eventType        String   @map("event_type")
+  payload          Json
+  processedAt      DateTime @default(now()) @map("processed_at")
+
+  paymentAttempt PaymentAttempt? @relation(fields: [paymentAttemptId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, providerEventId])
+  @@index([paymentAttemptId])
+  @@map("payment_events")
 }
 
 model VideoSession {

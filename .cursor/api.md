@@ -143,9 +143,8 @@ Use only when Server Actions are not suitable:
 | Route | Method | Auth | Purpose |
 |-------|--------|------|---------|
 | `/api/v1/health` | GET | None | Health check |
-| `/api/v1/webhooks/payfast` | POST | ITN signature | Platform subscription events |
+| `/api/v1/webhooks/payfast` | POST | ITN signature | Platform subscriptions and ZAR lesson payments |
 | `/api/v1/webhooks/paypal` | POST | Signature | Student→teacher booking payment |
-| `/api/v1/webhooks/stripe` | POST | Signature | Student→teacher booking payment |
 
 ### RESTful Conventions
 
@@ -237,7 +236,6 @@ src/lib/validations/course.ts       → Zod schemas
 src/types/api.ts                    → ActionSuccess, ActionError, ErrorCode
 src/app/api/v1/webhooks/payfast/route.ts
 src/app/api/v1/webhooks/paypal/route.ts
-src/app/api/v1/webhooks/stripe/route.ts
 ```
 
 ## Do Not

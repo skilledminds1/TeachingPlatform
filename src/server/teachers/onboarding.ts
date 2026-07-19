@@ -55,6 +55,8 @@ export async function getTeacherProfileReadiness() {
           teacherPaymentAccounts: {
             where: {
               isActive: true,
+              onboardingStatus: "complete",
+              provider: { in: ["payfast", "paypal"] },
               providerAccountId: { not: { startsWith: "local_" } },
             },
             select: { id: true },

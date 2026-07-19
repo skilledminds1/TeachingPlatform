@@ -22,7 +22,7 @@ Full-stack TypeScript tutoring marketplace using Next.js App Router. Feature-bas
 ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐
 │ Prisma/PG   │  │  Supabase   │  │  External Services  │
 │ App data    │  │ Auth·Storage│  │ PayFast (subs)      │
-│             │  │  Realtime   │  │ PayPal/Stripe (tutor)│
+│             │  │  Realtime   │  │ PayFast/PayPal (tutor)│
 └─────────────┘  └─────────────┘  │ LiveKit Cloud       │
                                   └─────────────────────┘
 ```
@@ -34,7 +34,7 @@ Two completely separate payment systems:
 | Flow | Direction | Provider | Platform role |
 |------|-----------|----------|---------------|
 | Subscription | Teacher → Platform | PayFast | Collects revenue |
-| Session | Student → Teacher | PayPal/Stripe | Facilitates checkout only; no fund handling |
+| Session | Student → Teacher | PayFast/PayPal | Facilitates checkout only; no fund handling |
 
 ## Layer Responsibilities
 
@@ -45,7 +45,7 @@ Two completely separate payment systems:
 | Components | `src/components/` | Shared UI |
 | Actions | `src/actions/` | Mutations |
 | Server | `src/server/` | Queries, auth, business rules |
-| Services | `src/services/` | PayFast, PayPal, Stripe, LiveKit, Resend |
+| Services | `src/services/` | PayFast, PayPal, LiveKit, Resend |
 | Lib | `src/lib/` | db, supabase clients, validations |
 
 ## Request Flow (Booking Example)
@@ -55,7 +55,7 @@ Two completely separate payment systems:
 2. Client calls createBooking server action
 3. Action validates session, plan limits, slot availability
 4. Server module creates Booking (pending_payment)
-5. Redirect to teacher's PayPal/Stripe checkout
+5. Redirect to PayFast or the teacher's PayPal checkout
 6. Webhook confirms payment → Booking confirmed
 7. Server creates LiveKit room → VideoSession record
 8. Notifications sent (Phase 8)
@@ -78,7 +78,7 @@ In-app messaging and notifications (Phase 8); Realtime can be added later for li
 | Decision | Rationale |
 |----------|-----------|
 | PayFast subscriptions only | SA market; clear revenue separation |
-| PayPal/Stripe for sessions | Platform avoids money transmitter complexity |
+| PayFast/PayPal for sessions | Platform avoids money transmitter complexity |
 | LiveKit Cloud video | Secure JWT access and flexible 1-on-1 React UI |
 | isPlatformAdmin flag | Simple secure admin provisioning |
 | Marketplace before LMS | Preply model — live tutoring first |

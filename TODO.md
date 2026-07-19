@@ -73,10 +73,11 @@ Check off items as they are completed.
 # Phase 7 — Teacher Payments
 
 - [x] PayPal account linking (OAuth foundation; provider credentials required)
-- [x] Stripe Connect linking (OAuth; provider credentials required)
-- [ ] Student checkout via teacher's payment method
-- [ ] Payment confirmation webhooks (PayPal/Stripe)
-- [ ] Teacher earnings summary (read-only, from provider)
+- [x] Student checkout via teacher's payment method (PayFast / PayPal)
+- [x] Payment confirmation webhooks (PayPal/PayFast lesson ITN)
+- [x] Teacher earnings summary (read-only, from verified payment attempts)
+- [ ] Skrill checkout (deferred)
+- [ ] Wise checkout (not applicable — payouts only)
 
 ---
 

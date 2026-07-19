@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { OnboardingWizard } from "@/features/teacher-onboarding/components/onboarding-wizard";
+import { isLessonCurrency } from "@/lib/currencies";
 import { getTeacherOnboardingData } from "@/server/teachers/onboarding";
 
 export const metadata: Metadata = {
@@ -67,6 +68,10 @@ export default async function TeacherOnboardingPage() {
               profile && profile.hourlyRateCents > 0
                 ? String(profile.hourlyRateCents / 100)
                 : "",
+            currency:
+              profile?.currency && isLessonCurrency(profile.currency)
+                ? profile.currency
+                : "USD",
             subjectIds: profile?.subjects.map((subject) => subject.subjectId) ?? [],
             subjectSpecialties: Object.fromEntries(
               (profile?.subjects ?? [])

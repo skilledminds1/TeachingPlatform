@@ -178,7 +178,7 @@ export default async function TeacherDashboardPage() {
             href="/dashboard/teacher/payments"
             icon={WalletCards}
             label="Student payments"
-            description={checks.paymentLinked ? "Provider connected" : "Connect Stripe or PayPal"}
+            description={checks.paymentLinked ? "Provider connected" : "Connect PayFast or PayPal"}
           />
           <DashboardLink
             href="/dashboard/teacher/team"

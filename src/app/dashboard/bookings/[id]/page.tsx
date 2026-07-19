@@ -6,20 +6,26 @@ import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { CancelBookingButton } from "@/features/bookings/components/cancel-booking-button";
+import { BookingCheckoutButtons } from "@/features/payments/components/booking-checkout-buttons";
 import { ReviewForm } from "@/features/reviews/components/review-form";
-import { ConfirmVideoBookingButton } from "@/features/video/components/confirm-video-booking-button";
 import { formatCurrency, formatDateTime, formatStatus } from "@/lib/format";
+import { routeLessonProviders } from "@/lib/payments/routing";
 import { requireAuth } from "@/server/auth/session";
 import { getBookingForUser } from "@/server/bookings/calendar";
+import { expireAbandonedPayments } from "@/server/payments/confirm";
 
 export const metadata: Metadata = { title: "Booking details" };
 
 export default async function BookingDetailsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ payment?: string }>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
+  await expireAbandonedPayments().catch(() => 0);
   const [booking, user] = await Promise.all([getBookingForUser(id), requireAuth()]);
   if (!booking) notFound();
   const isTeacher = booking.teacherId === user.id;
@@ -27,6 +33,10 @@ export default async function BookingDetailsPage({
   const upcoming =
     booking.startsAt > new Date() &&
     (booking.status === "pending_payment" || booking.status === "confirmed");
+  const providers = routeLessonProviders({
+    currency: booking.currency,
+    linkedProviders: booking.teacher.teacherPaymentAccounts.map((account) => account.provider),
+  });
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -77,13 +87,25 @@ export default async function BookingDetailsPage({
           <section className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">
             <p className="font-medium">Payment pending</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Your time is reserved. Direct Stripe or PayPal checkout will be connected in the
-              teacher-payments phase.
+              {isTeacher
+                ? "Waiting for the student to complete checkout. The lesson confirms automatically after a verified payment."
+                : `Your time is reserved${
+                    booking.paymentExpiresAt
+                      ? ` until ${formatDateTime(booking.paymentExpiresAt, user.timezone)}`
+                      : ""
+                  }. Pay the teacher directly — Amazing Skills takes no commission.`}
             </p>
-            {isTeacher ? (
-              <div className="mt-4">
-                <ConfirmVideoBookingButton bookingId={booking.id} />
-              </div>
+            {query.payment === "cancelled" ? (
+              <p className="mt-2 text-sm text-destructive">Checkout was cancelled. You can try again.</p>
+            ) : null}
+            {query.payment === "return" ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                If you completed payment, confirmation can take a few seconds while we verify the
+                provider webhook.
+              </p>
+            ) : null}
+            {!isTeacher ? (
+              <BookingCheckoutButtons bookingId={booking.id} providers={providers} />
             ) : null}
           </section>
         ) : null}

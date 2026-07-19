@@ -12,7 +12,7 @@ User ────────────── OrganizationMember ────�
  ├── TeacherProfile ── Subject(s)                │
  │        │                                       │
  │        ├── ProfileApproval (platform admin)    │
- │        ├── TeacherPaymentAccount (PayPal/Stripe)│
+ │        ├── TeacherPaymentAccount (PayFast/PayPal)│
  │        └── Review                              │
  │                                                │
  ├── Availability / AvailabilityException         │
@@ -86,7 +86,7 @@ Teacher-linked payout methods — **not platform-controlled**.
 |-------|------|-------|
 | id | UUID | PK |
 | userId | UUID | FK → User |
-| provider | Enum | paypal, stripe |
+| provider | Enum | payfast, paypal (legacy stripe enum value retained for migration compatibility) |
 | providerAccountId | String | Encrypted OAuth/account id |
 | isDefault | Boolean | |
 | isActive | Boolean | |
@@ -115,7 +115,7 @@ Weekly recurring slots + one-off blocks.
 | status | Enum | pending_payment, confirmed, cancelled, completed, no_show |
 | hourlyRateCents | Int | Snapshot at booking time |
 | currency | String | |
-| paymentProvider | Enum? | paypal, stripe |
+| paymentProvider | Enum? | payfast, paypal |
 | paymentExternalId | String? | Provider transaction id |
 | cancellationReason | String? | |
 | createdAt / updatedAt | DateTime | |

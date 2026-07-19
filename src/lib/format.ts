@@ -2,10 +2,22 @@ export function formatCurrency(
   cents: number,
   currency = "USD",
 ): string {
-  return new Intl.NumberFormat(currency === "USD" ? "en-US" : "en-ZA", {
+  const locale =
+    currency === "ZAR"
+      ? "en-ZA"
+      : currency === "GBP"
+        ? "en-GB"
+        : currency === "EUR"
+          ? "en-IE"
+          : currency === "AUD"
+            ? "en-AU"
+            : currency === "CAD"
+              ? "en-CA"
+              : "en-US";
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
   }).format(cents / 100);
 }
 

@@ -30,6 +30,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Provider-neutral lesson payments with PayFast Split Payments (ZAR + Apple Pay/Google Pay) and PayPal multiparty checkout
+- Teacher-selected lesson currencies (ZAR, USD, EUR, GBP, AUD, CAD) snapshotted onto bookings
+- PaymentAttempt / PaymentEvent ledger with idempotent webhooks, payment-window expiry, and refund tracking
+- Student booking checkout UI and teacher earnings summary from verified payment attempts
+- Lesson payment feature flags and documentation in `docs/LessonPayments.md`
+- Cron-friendly unpaid booking expiry job at `/api/v1/jobs/expire-pending-payments`
 - Teacher↔student in-app messaging with conversation threads and unread indicators
 - Notification center for booking updates, lesson reminders, and new messages
 - Resend-backed transactional emails for booking creation, confirmation, and session reminders (skipped when `RESEND_API_KEY` is unset)
@@ -41,7 +47,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Private LiveKit Cloud rooms with deterministic provisioning and two-participant limits
 - Participant-only, short-lived LiveKit JWTs with teacher room-admin permissions
 - Video lesson lobby with teacher start/end controls, secure embedded room, and scheduled/live/ended lifecycle
-- Teacher booking confirmation that provisions a room until Phase 7 payment webhooks take over
+- Automatic lesson confirmation after verified student payment webhooks (manual teacher bypass removed)
 - Post-session student reviews with 1–5 star validation and moderation queue submission
 - Teacher weekly availability editor with multiple daily windows, blocked dates, and extra-hour exceptions
 - Timezone-aware 60-minute marketplace slots with two-hour notice, booking-conflict exclusion, and viewer-local display
@@ -57,7 +63,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Concurrency-safe active-student enforcement that blocks only new students at the plan limit
 - Hashed, expiring organization invitations with acceptance and revocation flows
 - Teacher qualification capture, submission gating, persistence, and admin moderation visibility
-- Stripe Connect and PayPal OAuth account-linking foundations for direct teacher payments
+- PayPal OAuth account-linking foundation for direct teacher payments
 - Four-step teacher onboarding flow with profile photo, personal details, 100-word biography, subjects, hourly rate, and review
 - Secure Supabase avatar uploads with size, MIME, and binary-signature validation
 - Teacher marketplace-readiness checklist and profile submission gating for verified email, payment account, and qualifying plan
@@ -89,7 +95,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Middleware now refreshes Supabase sessions on all matched routes and protects app routes
 - Configured Supabase project URL and publishable key in `.env.local`
 - Fixed Prisma CLI to load `.env.local` via dotenv-cli; added database URL templates
-- Unified payment model: PayFast (platform subscriptions only), PayPal/Stripe (student→teacher)
+- Unified payment model: PayFast and PayPal for direct student-to-teacher payments
 - Replaced 8-phase LMS roadmap with 9-phase marketplace roadmap (video-first, courses deferred)
 - Added docs/PayFast.md and docs/PlatformAdmin.md
 - Updated PROJECT.md, TODO.md, all docs/, and .cursor/ rule files for consistency

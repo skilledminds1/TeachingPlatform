@@ -1,10 +1,16 @@
 import { z } from "zod";
 
+import { LESSON_CURRENCIES } from "@/lib/currencies";
+
 function wordCount(value: string): number {
   return value.trim().split(/\s+/).filter(Boolean).length;
 }
 
 const currentYear = new Date().getFullYear();
+const lessonCurrencyCodes = LESSON_CURRENCIES.map((item) => item.code) as [
+  (typeof LESSON_CURRENCIES)[number]["code"],
+  ...(typeof LESSON_CURRENCIES)[number]["code"][],
+];
 
 export const teacherOnboardingSchema = z.object({
   name: z.string().trim().min(2, "Enter your full name").max(100),
@@ -20,7 +26,8 @@ export const teacherOnboardingSchema = z.object({
     .string()
     .trim()
     .regex(/^\d+(\.\d{1,2})?$/, "Enter a valid hourly rate")
-    .refine((value) => Number(value) > 0, "Enter an hourly rate greater than $0"),
+    .refine((value) => Number(value) > 0, "Enter an hourly rate greater than 0"),
+  currency: z.enum(lessonCurrencyCodes, { message: "Select a lesson currency" }),
   subjectIds: z.array(z.uuid()).min(1, "Select at least one subject").max(3),
   subjectSpecialties: z.record(z.uuid(), z.array(z.string().trim().min(1).max(80)).max(8)),
   qualifications: z

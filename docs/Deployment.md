@@ -10,7 +10,7 @@ Deploy on **Vercel** with **Supabase** (PostgreSQL, Auth, Storage, Realtime).
 Vercel (Next.js)
   ├── Supabase (Auth, DB, Storage, Realtime)
   ├── PayFast (platform subscriptions)
-  ├── PayPal + Stripe (student→teacher payments)
+  ├── PayFast + PayPal (student→teacher payments)
   └── LiveKit Cloud (video sessions)
 ```
 
@@ -47,9 +47,6 @@ PAYFAST_SANDBOX=true
 # Teacher payment providers
 PAYPAL_CLIENT_ID=
 PAYPAL_CLIENT_SECRET=
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 
 # Video
 LIVEKIT_URL=wss://your-project.livekit.cloud
@@ -104,13 +101,24 @@ Deploy: Vercel auto-deploy on merge.
 | API p95 | < 500ms |
 | Uptime | 99.9% |
 
+## Live URLs
+
+- Production: https://www.amazing-skills.com (also https://amazing-skills.com)
+- Vercel preview alias: https://amazing-skills.vercel.app
+- Health: `/api/v1/health`
+- PayPal webhook: `/api/v1/webhooks/paypal`
+- PayFast ITN: `/api/v1/webhooks/payfast`
+
 ## Launch Checklist
 
-- [ ] Production Supabase configured
-- [ ] PayFast live credentials (subscriptions)
-- [ ] PayPal/Stripe apps configured (teacher linking)
-- [ ] LiveKit Cloud URL and production API credentials
-- [ ] All env vars in Vercel
-- [ ] Migrations applied
+- [x] Production Supabase configured (Site URL + redirect URLs)
+- [x] PayFast live credentials (subscriptions)
+- [ ] PayFast Split Payments and PayPal partner app configured (teacher linking)
+- [x] LiveKit Cloud URL and production API credentials
+- [x] All env vars in Vercel
+- [x] Domain DNS pointed at Vercel (GoDaddy A `@` → `76.76.21.21`, CNAME `www` → `cname.vercel-dns.com`)
+- [x] PayPal webhook registered (`PAYPAL_WEBHOOK_ID`)
+- [ ] Migrations applied / verified on production DB
 - [ ] Platform admin seeded
+- [ ] Rotate PayPal client secret (shared in chat)
 - [ ] Security checklist complete

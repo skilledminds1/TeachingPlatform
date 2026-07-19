@@ -36,6 +36,23 @@ export async function getBookingForUser(bookingId: string) {
       id: bookingId,
       OR: [{ teacherId: user.id }, { studentId: user.id }],
     },
-    include: bookingInclude,
+    include: {
+      ...bookingInclude,
+      teacher: {
+        select: {
+          id: true,
+          name: true,
+          avatarUrl: true,
+          teacherPaymentAccounts: {
+            where: {
+              isActive: true,
+              onboardingStatus: "complete",
+              provider: { in: ["payfast", "paypal"] },
+            },
+            select: { provider: true },
+          },
+        },
+      },
+    },
   });
 }

@@ -133,7 +133,10 @@ export async function getTeacherModerationQueue() {
           email: true,
           avatarUrl: true,
           teacherPaymentAccounts: {
-            where: { isActive: true },
+            where: {
+              isActive: true,
+              provider: { in: ["payfast", "paypal"] },
+            },
             select: { provider: true },
           },
         },

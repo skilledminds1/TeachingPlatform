@@ -205,7 +205,7 @@ export async function saveTeacherOnboarding(
     bio: parsed.data.bio,
     headline: parsed.data.headline,
     hourlyRateCents: Math.round(Number(parsed.data.hourlyRate) * 100),
-    currency: "USD",
+    currency: parsed.data.currency,
     status:
       existing?.status === "rejected"
         ? ("draft" as const)

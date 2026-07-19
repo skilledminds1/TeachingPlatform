@@ -12,6 +12,42 @@ function paymentsRedirect(request: NextRequest, result: "connected" | "error") {
 }
 
 export async function GET(request: NextRequest) {
+  const trackingId = request.nextUrl.searchParams.get("tracking_id");
+  const merchantId =
+    request.nextUrl.searchParams.get("merchantId") ||
+    request.nextUrl.searchParams.get("merchant_id");
+
+  // Partner Referrals return path
+  if (trackingId || merchantId) {
+    try {
+      const user = await requireTeacher();
+      const account = await db.teacherPaymentAccount.findUnique({
+        where: { userId_provider: { userId: user.id, provider: "paypal" } },
+      });
+      if (!account) return paymentsRedirect(request, "error");
+
+      await db.teacherPaymentAccount.update({
+        where: { id: account.id },
+        data: {
+          providerAccountId: merchantId || account.providerAccountId,
+          onboardingStatus: merchantId ? "complete" : "pending",
+          isActive: true,
+          capabilities: merchantId ? ["payments", "refunds"] : [],
+          metadata: {
+            ...(typeof account.metadata === "object" && account.metadata
+              ? (account.metadata as object)
+              : {}),
+            trackingId: trackingId ?? undefined,
+            merchantId: merchantId ?? undefined,
+          },
+        },
+      });
+      return paymentsRedirect(request, "connected");
+    } catch {
+      return paymentsRedirect(request, "error");
+    }
+  }
+
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   const cookieStore = await cookies();
@@ -81,12 +117,19 @@ export async function GET(request: NextRequest) {
     });
     await db.teacherPaymentAccount.upsert({
       where: { userId_provider: { userId: user.id, provider: "paypal" } },
-      update: { providerAccountId, isActive: true },
+      update: {
+        providerAccountId,
+        isActive: true,
+        onboardingStatus: "complete",
+        capabilities: ["payments"],
+      },
       create: {
         userId: user.id,
         provider: "paypal",
         providerAccountId,
         isDefault: existingAccounts === 0,
+        onboardingStatus: "complete",
+        capabilities: ["payments"],
       },
     });
 

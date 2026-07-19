@@ -31,6 +31,7 @@ import {
   type TeacherOnboardingInput,
 } from "@/lib/validations/teacher-onboarding";
 import { TIMEZONE_OPTIONS } from "@/lib/timezone";
+import { LESSON_CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { cn } from "@/lib/utils";
 
 import { AvatarUploader } from "./avatar-uploader";
@@ -54,7 +55,7 @@ const steps = [
 const stepFields: Array<Array<keyof TeacherOnboardingInput>> = [
   ["name", "timezone", "avatarUrl"],
   ["headline", "bio", "qualifications"],
-  ["hourlyRate", "subjectIds"],
+  ["hourlyRate", "currency", "subjectIds"],
   [],
 ];
 
@@ -82,6 +83,7 @@ export function OnboardingWizard({
   const bio = useWatch({ control: form.control, name: "bio" });
   const headline = useWatch({ control: form.control, name: "headline" });
   const hourlyRate = useWatch({ control: form.control, name: "hourlyRate" });
+  const currency = useWatch({ control: form.control, name: "currency" }) ?? "USD";
   const selectedSubjects =
     useWatch({ control: form.control, name: "subjectIds" }) ?? [];
   const subjectSpecialties =
@@ -283,7 +285,7 @@ export function OnboardingWizard({
                   <FieldLabel htmlFor="hourlyRate">Hourly lesson rate</FieldLabel>
                   <div className="relative max-w-xs">
                     <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">
-                      $
+                      {currencySymbol(currency)}
                     </span>
                     <Input
                       id="hourlyRate"
@@ -295,9 +297,30 @@ export function OnboardingWizard({
                     />
                   </div>
                   <FieldDescription>
-                    Students pay you directly. Amazing Skills does not deduct commission.
+                    Students pay you directly in your chosen currency. Amazing Skills does not
+                    deduct commission.
                   </FieldDescription>
                   <FieldError errors={[form.formState.errors.hourlyRate]} />
+                </Field>
+                <Field data-invalid={!!form.formState.errors.currency || undefined}>
+                  <FieldLabel htmlFor="currency">Lesson currency</FieldLabel>
+                  <select
+                    id="currency"
+                    className="h-9 w-full max-w-xs rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    aria-invalid={!!form.formState.errors.currency}
+                    {...form.register("currency")}
+                  >
+                    {LESSON_CURRENCIES.map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                  <FieldDescription>
+                    ZAR teachers can use PayFast (including Apple Pay / Google Pay). Other
+                    currencies use PayPal when linked.
+                  </FieldDescription>
+                  <FieldError errors={[form.formState.errors.currency]} />
                 </Field>
               </FieldGroup>
             </div>
@@ -315,7 +338,10 @@ export function OnboardingWizard({
                 <ReviewItem label="Name" value={name} />
                 <ReviewItem label="Organization" value={organizationName} />
                 <ReviewItem label="Headline" value={headline} />
-                <ReviewItem label="Hourly rate" value={`$${hourlyRate}/hour`} />
+                <ReviewItem
+                  label="Hourly rate"
+                  value={`${currencySymbol(currency)}${hourlyRate}/hour (${currency})`}
+                />
                 <ReviewItem
                   label="Subjects"
                   value={subjects

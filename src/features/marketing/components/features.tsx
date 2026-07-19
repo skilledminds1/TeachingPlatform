@@ -18,7 +18,7 @@ const features = [
     icon: CreditCard,
     title: "Direct payments",
     description:
-      "Students pay teachers directly through the teacher's own PayPal or Stripe account. No middleman, no payout delays.",
+      "Students pay teachers directly through the teacher's own PayPal or PayFast account. No middleman, no payout delays.",
   },
   {
     icon: CalendarClock,
