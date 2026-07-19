@@ -23,17 +23,45 @@ const optionalSubjectIdSchema = z
   .optional()
   .transform((value) => value || null);
 
+export const COURSE_MEDIA_BUCKET = "course-media";
+export const COURSE_VIDEO_MAX_BYTES = 500 * 1024 * 1024;
+export const COURSE_RESOURCE_MAX_BYTES = 80 * 1024 * 1024;
+
+export const courseVideoMimeTypes = ["video/mp4", "video/webm"] as const;
+export const courseResourceMimeTypes = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/zip",
+  "application/x-zip-compressed",
+  "text/plain",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+
 export const createCourseSchema = z.object({
   title: z.string().trim().min(2, "Enter a course title").max(150),
   description: z.string().trim().max(10_000).default(""),
   subjectId: optionalSubjectIdSchema,
-  priceCents: z.coerce.number().int().min(0, "Price cannot be negative"),
-  currency: courseCurrencySchema,
+  priceCents: z.coerce.number().int().min(0, "Price cannot be negative").default(0),
+  currency: courseCurrencySchema.default("USD"),
   level: courseLevelSchema.default("all_levels"),
 });
 
-export const updateCourseSchema = createCourseSchema.partial().extend({
+export const updateCourseSchema = z.object({
   courseId: z.uuid("Invalid course"),
+  title: z.string().trim().min(2, "Enter a course title").max(150).optional(),
+  description: z.string().trim().max(10_000).optional(),
+  subjectId: optionalSubjectIdSchema,
+  priceCents: z.coerce.number().int().min(0, "Price cannot be negative").optional(),
+  currency: courseCurrencySchema.optional(),
+  level: courseLevelSchema.optional(),
+  certificateEnabled: z.boolean().optional(),
 });
 
 export const createModuleSchema = z.object({
@@ -64,6 +92,7 @@ export const updateLessonSchema = createLessonSchema
 export const courseIdSchema = z.object({ courseId: z.uuid("Invalid course") });
 export const moduleIdSchema = z.object({ moduleId: z.uuid("Invalid module") });
 export const lessonIdSchema = z.object({ lessonId: z.uuid("Invalid lesson") });
+export const assetIdSchema = z.object({ assetId: z.uuid("Invalid asset") });
 
 export const reorderModulesSchema = z.object({
   courseId: z.uuid("Invalid course"),
@@ -87,7 +116,29 @@ export const courseCoverFileSchema = z
 export const lessonFileSchema = z
   .instanceof(File)
   .refine((file) => file.size > 0, "Choose a file")
-  .refine((file) => file.size <= 50 * 1024 * 1024, "File must be smaller than 50 MB");
+  .refine((file) => file.size <= COURSE_RESOURCE_MAX_BYTES, "File must be smaller than 80 MB");
+
+export const courseMediaUploadRequestSchema = z.object({
+  lessonId: z.uuid("Invalid lesson"),
+  kind: z.enum(["video", "resource"]),
+  fileName: z.string().trim().min(1).max(200),
+  contentType: z.string().trim().min(1).max(120),
+  size: z.number().int().positive(),
+});
+
+export const courseMediaConfirmSchema = z.object({
+  lessonId: z.uuid("Invalid lesson"),
+  kind: z.enum(["video", "resource"]),
+  path: z.string().trim().min(1).max(500),
+  contentType: z.string().trim().min(1).max(120),
+  fileName: z.string().trim().min(1).max(200),
+  size: z.number().int().positive(),
+});
+
+export const rejectCourseSchema = z.object({
+  courseId: z.uuid("Invalid course"),
+  reason: z.string().trim().min(5, "Provide a rejection reason").max(500),
+});
 
 export type CreateCourseInput = z.infer<typeof createCourseSchema>;
 export type UpdateCourseInput = z.infer<typeof updateCourseSchema>;

@@ -175,6 +175,9 @@ export async function getCourseForTeacherEdit(courseId: string, teacherId: strin
         include: {
           lessons: {
             orderBy: { sortOrder: "asc" },
+            include: {
+              assets: { orderBy: [{ kind: "asc" }, { sortOrder: "asc" }] },
+            },
           },
         },
       },
@@ -197,7 +200,12 @@ export async function getStudentEnrollments(studentId: string) {
           description: true,
           coverImageUrl: true,
           level: true,
+          certificateEnabled: true,
           teacher: { select: { id: true, name: true, avatarUrl: true } },
+          certificates: {
+            where: { studentId },
+            select: { id: true, verificationCode: true, issuedAt: true },
+          },
           modules: {
             select: {
               lessons: {
@@ -233,7 +241,12 @@ export async function getEnrolledCourseDetail(courseId: string, studentId: strin
       description: true,
       coverImageUrl: true,
       level: true,
+      certificateEnabled: true,
       teacher: { select: { id: true, name: true, avatarUrl: true } },
+      certificates: {
+        where: { studentId },
+        select: { id: true, verificationCode: true, issuedAt: true },
+      },
       modules: {
         orderBy: { sortOrder: "asc" },
         select: {
@@ -250,6 +263,17 @@ export async function getEnrolledCourseDetail(courseId: string, studentId: strin
               fileName: true,
               fileMimeType: true,
               sortOrder: true,
+              assets: {
+                orderBy: [{ kind: "asc" }, { sortOrder: "asc" }],
+                select: {
+                  id: true,
+                  kind: true,
+                  fileName: true,
+                  mimeType: true,
+                  sizeBytes: true,
+                  sortOrder: true,
+                },
+              },
               progress: {
                 where: { studentId },
                 select: { completedAt: true },
@@ -258,6 +282,67 @@ export async function getEnrolledCourseDetail(courseId: string, studentId: strin
           },
         },
       },
+    },
+  });
+}
+
+export async function getCourseModerationQueue() {
+  return db.course.findMany({
+    where: { status: "pending_approval", deletedAt: null },
+    orderBy: [{ submittedAt: "asc" }, { updatedAt: "asc" }],
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      coverImageUrl: true,
+      priceCents: true,
+      currency: true,
+      level: true,
+      status: true,
+      submittedAt: true,
+      updatedAt: true,
+      certificateEnabled: true,
+      subject: { select: { id: true, name: true, slug: true } },
+      teacher: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          teacherProfile: { select: { slug: true, headline: true } },
+        },
+      },
+      _count: { select: { modules: true, enrollments: true } },
+    },
+  });
+}
+
+export async function getCourseForAdminReview(courseId: string) {
+  return db.course.findFirst({
+    where: { id: courseId, deletedAt: null },
+    include: {
+      subject: { select: { id: true, name: true, slug: true } },
+      teacher: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
+          teacherProfile: { select: { slug: true, headline: true, bio: true } },
+        },
+      },
+      modules: {
+        orderBy: { sortOrder: "asc" },
+        include: {
+          lessons: {
+            orderBy: { sortOrder: "asc" },
+            include: {
+              assets: { orderBy: [{ kind: "asc" }, { sortOrder: "asc" }] },
+            },
+          },
+        },
+      },
+      _count: { select: { enrollments: true, purchases: true, certificates: true } },
     },
   });
 }

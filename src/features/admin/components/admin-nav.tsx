@@ -2,6 +2,7 @@
 
 import {
   BarChart3,
+  BookOpen,
   Building2,
   ClipboardCheck,
   LayoutDashboard,
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 const items = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/admin/teachers", label: "Teacher approvals", icon: ClipboardCheck },
+  { href: "/admin/courses", label: "Course approvals", icon: BookOpen },
   { href: "/admin/reviews", label: "Review moderation", icon: Star },
   { href: "/admin/organizations", label: "Organizations", icon: Building2 },
   { href: "/admin/users", label: "Users", icon: Users },

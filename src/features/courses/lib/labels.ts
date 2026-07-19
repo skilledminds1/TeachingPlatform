@@ -10,6 +10,8 @@ export function courseStatusTone(
 ): "success" | "warning" | "neutral" | "danger" | "info" {
   if (status === "published") return "success";
   if (status === "draft") return "warning";
+  if (status === "pending_approval") return "info";
+  if (status === "rejected") return "danger";
   if (status === "archived") return "neutral";
   return "neutral";
 }

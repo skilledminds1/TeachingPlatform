@@ -5,10 +5,12 @@ import { redirect } from "next/navigation";
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import {
+  changePasswordSchema,
   registerRoleSchema,
   resetPasswordSchema,
   signInSchema,
   signUpSchema,
+  updateRecoveredPasswordSchema,
   type RegisterRole,
 } from "@/lib/validations/auth";
 import { getPostAuthRedirect, syncUserFromAuth } from "@/server/auth/session";
@@ -134,7 +136,7 @@ export async function resetPassword(input: unknown): Promise<ActionResult<{ sent
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: appUrl("/auth/callback?next=/dashboard"),
+    redirectTo: appUrl("/auth/callback?next=/reset-password"),
   });
 
   if (error) {
@@ -143,6 +145,70 @@ export async function resetPassword(input: unknown): Promise<ActionResult<{ sent
 
   // Always succeed from the client perspective to avoid email enumeration.
   return ok({ sent: true });
+}
+
+export async function changePassword(
+  input: unknown,
+): Promise<ActionResult<{ changed: true }>> {
+  const parsed = changePasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) {
+    return fail("Your session has expired. Sign in again.", "UNAUTHORIZED");
+  }
+
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: parsed.data.currentPassword,
+  });
+  if (verifyError) {
+    return fail("Current password is incorrect.", "UNAUTHORIZED");
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.newPassword,
+  });
+  if (error) {
+    return fail(error.message, "VALIDATION_ERROR");
+  }
+
+  return ok({ changed: true });
+}
+
+export async function updateRecoveredPassword(
+  input: unknown,
+): Promise<ActionResult<{ changed: true }>> {
+  const parsed = updateRecoveredPasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return fail(
+      "This reset link is invalid or has expired. Request a new one.",
+      "UNAUTHORIZED",
+    );
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.newPassword,
+  });
+  if (error) {
+    return fail(error.message, "VALIDATION_ERROR");
+  }
+
+  await supabase.auth.signOut();
+  return ok({ changed: true });
 }
 
 export async function signInWithGoogle(

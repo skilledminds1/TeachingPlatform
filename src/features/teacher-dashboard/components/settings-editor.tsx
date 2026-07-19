@@ -1,13 +1,14 @@
 "use client";
 
-import { Eye, EyeOff, Mail, Share2, Trash2 } from "lucide-react";
+import { Mail, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
 import { cn } from "@/lib/utils";
 
 const sections = [
@@ -50,40 +51,6 @@ function Toggle({
         )}
       />
     </button>
-  );
-}
-
-function PasswordField({
-  id,
-  label,
-  autoComplete,
-}: {
-  id: string;
-  label: string;
-  autoComplete: string;
-}) {
-  const [visible, setVisible] = useState(false);
-
-  return (
-    <Field>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <div className="relative">
-        <Input
-          id={id}
-          type={visible ? "text" : "password"}
-          autoComplete={autoComplete}
-          className="pr-10"
-        />
-        <button
-          type="button"
-          onClick={() => setVisible((value) => !value)}
-          className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          aria-label={visible ? `Hide ${label}` : `Show ${label}`}
-        >
-          {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-        </button>
-      </div>
-    </Field>
   );
 }
 
@@ -154,34 +121,7 @@ export function SettingsEditor({
             <h2 className="font-heading text-2xl font-semibold tracking-tight">
               Change Password
             </h2>
-            <FieldGroup className="max-w-md space-y-5">
-              <div className="space-y-2">
-                <PasswordField
-                  id="current-password"
-                  label="Current password"
-                  autoComplete="current-password"
-                />
-                <Link
-                  href="/forgot-password"
-                  className="inline-block text-sm text-primary underline-offset-4 hover:underline"
-                >
-                  Forgot your password?
-                </Link>
-              </div>
-              <PasswordField
-                id="new-password"
-                label="New password"
-                autoComplete="new-password"
-              />
-              <PasswordField
-                id="verify-password"
-                label="Verify password"
-                autoComplete="new-password"
-              />
-            </FieldGroup>
-            <Button type="button" size="lg" className="w-full max-w-md" disabled>
-              Save changes
-            </Button>
+            <ChangePasswordForm />
           </div>
         ) : null}
 

@@ -2,6 +2,7 @@ import {
   CalendarDays,
   GraduationCap,
   Search,
+  Settings,
   Star,
   UserRound,
   Video,
@@ -62,6 +63,14 @@ export default async function StudentDashboardPage() {
             </Button>
             <Button variant="ghost" size="sm" render={<Link href="/find-tutor" />}>
               Find Tutor
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              render={<Link href="/dashboard/settings" aria-label="Account settings" />}
+            >
+              <Settings className="size-4" aria-hidden />
+              <span className="hidden lg:inline">Settings</span>
             </Button>
             <form action={signOut}>
               <Button type="submit" variant="outline" size="sm" className="ml-2">

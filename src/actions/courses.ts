@@ -7,11 +7,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   courseCoverFileSchema,
   courseIdSchema,
+  courseMediaConfirmSchema,
+  courseMediaUploadRequestSchema,
   createCourseSchema,
   createLessonSchema,
   createModuleSchema,
   lessonFileSchema,
   lessonIdSchema,
+  assetIdSchema,
   moduleIdSchema,
   reorderLessonsSchema,
   reorderModulesSchema,
@@ -22,10 +25,18 @@ import {
 import { requireAuth } from "@/server/auth/session";
 import {
   assertCourseOwnership,
-  canPublishCourse,
+  canSubmitCourse,
   getCourseUsage,
   getTeacherCourseContext,
 } from "@/server/courses/access";
+import { issueCertificateIfEligible } from "@/server/courses/certificates";
+import {
+  courseMediaPathOwnedBy,
+  createCourseMediaPath,
+  ensureCourseMediaBucket,
+  hasValidCourseMediaSignature,
+  validateCourseMediaMetadata,
+} from "@/server/courses/media";
 import { getLessonDownloadAccess } from "@/server/courses/queries";
 import { fail, ok, type ActionResult } from "@/types/action";
 import { slugify } from "@/utils/slugify";
@@ -69,7 +80,9 @@ function revalidateCoursePaths(courseId?: string, slug?: string) {
   revalidatePath("/dashboard/teacher/courses");
   revalidatePath("/dashboard/courses");
   revalidatePath("/courses");
+  revalidatePath("/admin/courses");
   if (courseId) revalidatePath(`/dashboard/teacher/courses/${courseId}`);
+  if (courseId) revalidatePath(`/admin/courses/${courseId}`);
   if (slug) revalidatePath(`/courses/${slug}`);
 }
 
@@ -182,8 +195,39 @@ export async function updateCourse(
     return validationFailure("Select a valid subject.");
   }
 
-  const { courseId, ...data } = parsed.data;
-  await db.course.update({ where: { id: courseId }, data });
+  const current = await db.course.findUniqueOrThrow({
+    where: { id: course.id },
+    select: {
+      title: true,
+      description: true,
+      subjectId: true,
+      priceCents: true,
+      currency: true,
+      level: true,
+      certificateEnabled: true,
+    },
+  });
+  const { courseId, ...parsedData } = parsed.data;
+  const hasSubjectId =
+    Boolean(input) &&
+    typeof input === "object" &&
+    Object.prototype.hasOwnProperty.call(input, "subjectId");
+  const data = {
+    ...parsedData,
+    subjectId: hasSubjectId ? parsedData.subjectId : undefined,
+  };
+  const substantiveChange = (Object.keys(data) as (keyof typeof data)[]).some((key) => {
+    return data[key] !== undefined && data[key] !== current[key];
+  });
+  await db.course.update({
+    where: { id: courseId },
+    data: {
+      ...data,
+      ...(course.status === "published" && substantiveChange
+        ? { status: "draft", publishedAt: null }
+        : {}),
+    },
+  });
   revalidateCoursePaths(courseId, course.slug);
   return ok({ updated: true });
 }
@@ -203,24 +247,39 @@ export async function archiveCourse(
   return ok({ archived: true });
 }
 
-export async function publishCourse(
+export async function submitCourseForReview(
   input: unknown,
-): Promise<ActionResult<{ published: true }>> {
+): Promise<ActionResult<{ submitted: true }>> {
   const parsed = courseIdSchema.safeParse(input);
   if (!parsed.success) return validationFailure(parsed.error.issues[0]?.message);
   const user = await requireAuth();
   const planFailure = await courseAuthoringPlanFailure(user.id);
   if (planFailure) return planFailure;
   const course = await assertCourseOwnership(parsed.data.courseId, user.id);
-  const readiness = await canPublishCourse(course.id, user.id);
+  const readiness = await canSubmitCourse(course.id, user.id);
   if (!readiness.allowed) {
-    return fail(readiness.reasons[0] ?? "Course is not ready to publish.", "VALIDATION_ERROR");
+    return fail(readiness.reasons[0] ?? "Course is not ready for review.", "VALIDATION_ERROR");
   }
   await db.course.update({
     where: { id: course.id },
-    data: { status: "published", publishedAt: new Date() },
+    data: {
+      status: "pending_approval",
+      submittedAt: new Date(),
+      reviewedAt: null,
+      rejectionReason: null,
+      publishedAt: null,
+    },
   });
   revalidateCoursePaths(course.id, course.slug);
+  return ok({ submitted: true });
+}
+
+/** @deprecated Use submitCourseForReview. */
+export async function publishCourse(
+  input: unknown,
+): Promise<ActionResult<{ published: true }>> {
+  const result = await submitCourseForReview(input);
+  if (!result.success) return result;
   return ok({ published: true });
 }
 
@@ -474,6 +533,253 @@ export async function uploadCourseCover(
   return ok({ coverImageUrl: publicUrl });
 }
 
+export async function createCourseMediaUpload(
+  input: unknown,
+): Promise<ActionResult<{ path: string; token: string; contentType: string }>> {
+  const parsed = courseMediaUploadRequestSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error.issues[0]?.message);
+  const metadataError = validateCourseMediaMetadata(parsed.data);
+  if (metadataError) return validationFailure(metadataError);
+
+  const user = await requireAuth();
+  const planFailure = await courseAuthoringPlanFailure(user.id);
+  if (planFailure) return planFailure;
+  const lesson = await getOwnedLesson(parsed.data.lessonId, user.id);
+  if (!lesson) return fail("Lesson not found.", "NOT_FOUND");
+
+  try {
+    const supabase = await ensureCourseMediaBucket();
+    const path = createCourseMediaPath({
+      userId: user.id,
+      courseId: lesson.module.courseId,
+      lessonId: lesson.id,
+      kind: parsed.data.kind,
+      fileName: parsed.data.fileName,
+    });
+    const { data, error } = await supabase.storage
+      .from("course-media")
+      .createSignedUploadUrl(path);
+    if (error || !data) return fail(error?.message ?? "Could not prepare the media upload.");
+    return ok({ path: data.path, token: data.token, contentType: parsed.data.contentType });
+  } catch (error) {
+    return fail(
+      error instanceof Error
+        ? error.message
+        : "Could not prepare the media upload. Check Supabase storage configuration.",
+    );
+  }
+}
+
+export async function confirmCourseMediaUpload(
+  input: unknown,
+): Promise<ActionResult<{ assetId: string }>> {
+  const parsed = courseMediaConfirmSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error.issues[0]?.message);
+  const metadataError = validateCourseMediaMetadata(parsed.data);
+  if (metadataError) return validationFailure(metadataError);
+
+  const user = await requireAuth();
+  const planFailure = await courseAuthoringPlanFailure(user.id);
+  if (planFailure) return planFailure;
+  const lesson = await getOwnedLesson(parsed.data.lessonId, user.id);
+  if (!lesson) return fail("Lesson not found.", "NOT_FOUND");
+  if (
+    !courseMediaPathOwnedBy(
+      parsed.data.path,
+      user.id,
+      lesson.module.courseId,
+      lesson.id,
+    )
+  ) {
+    return fail("Invalid course media path.", "FORBIDDEN");
+  }
+
+  const supabase = await ensureCourseMediaBucket();
+  const slash = parsed.data.path.lastIndexOf("/");
+  const folder = parsed.data.path.slice(0, slash);
+  const objectName = parsed.data.path.slice(slash + 1);
+  const { data: listed, error: listError } = await supabase.storage
+    .from("course-media")
+    .list(folder, { search: objectName, limit: 10 });
+  if (listError) return fail("Could not verify the uploaded media.");
+  const object = listed?.find((item) => item.name === objectName);
+  if (!object) return fail("Uploaded media was not found.", "NOT_FOUND");
+
+  const objectMetadata =
+    object.metadata && typeof object.metadata === "object"
+      ? (object.metadata as Record<string, unknown>)
+      : null;
+  const actualSize =
+    objectMetadata && typeof objectMetadata.size === "number"
+      ? objectMetadata.size
+      : parsed.data.size;
+  const actualType =
+    objectMetadata && typeof objectMetadata.mimetype === "string"
+      ? objectMetadata.mimetype
+      : parsed.data.contentType;
+  const actualMetadataError = validateCourseMediaMetadata({
+    kind: parsed.data.kind,
+    contentType: actualType,
+    size: actualSize,
+  });
+  if (
+    actualMetadataError ||
+    actualSize !== parsed.data.size ||
+    actualType !== parsed.data.contentType
+  ) {
+    await supabase.storage.from("course-media").remove([parsed.data.path]);
+    return validationFailure(actualMetadataError ?? "Uploaded media does not match the request.");
+  }
+
+  const { data: signed, error: signedError } = await supabase.storage
+    .from("course-media")
+    .createSignedUrl(parsed.data.path, 60);
+  if (signedError || !signed?.signedUrl) return fail("Could not verify the uploaded media.");
+  const response = await fetch(signed.signedUrl, { headers: { Range: "bytes=0-31" } });
+  if (!response.ok) return fail("Could not verify the uploaded media.");
+  const header = new Uint8Array(await response.arrayBuffer());
+  if (!hasValidCourseMediaSignature(header, actualType)) {
+    await supabase.storage.from("course-media").remove([parsed.data.path]);
+    return validationFailure("The uploaded file signature does not match its file type.");
+  }
+
+  const duplicate = await db.courseLessonAsset.findFirst({
+    where: { lessonId: lesson.id, storagePath: parsed.data.path },
+    select: { id: true },
+  });
+  if (duplicate) return ok({ assetId: duplicate.id });
+
+  const previousVideos =
+    parsed.data.kind === "video"
+      ? await db.courseLessonAsset.findMany({
+          where: { lessonId: lesson.id, kind: "video" },
+          select: { id: true, storagePath: true },
+        })
+      : [];
+  const last = await db.courseLessonAsset.aggregate({
+    where: { lessonId: lesson.id, kind: parsed.data.kind },
+    _max: { sortOrder: true },
+  });
+  const asset = await db.$transaction(async (tx) => {
+    if (previousVideos.length > 0) {
+      await tx.courseLessonAsset.deleteMany({
+        where: { id: { in: previousVideos.map((item) => item.id) } },
+      });
+    }
+    return tx.courseLessonAsset.create({
+      data: {
+        lessonId: lesson.id,
+        kind: parsed.data.kind,
+        storagePath: parsed.data.path,
+        fileName: parsed.data.fileName,
+        mimeType: actualType,
+        sizeBytes: actualSize,
+        sortOrder: parsed.data.kind === "video" ? 0 : (last._max.sortOrder ?? -1) + 1,
+      },
+      select: { id: true },
+    });
+  });
+  if (previousVideos.length > 0) {
+    await supabase.storage
+      .from("course-media")
+      .remove(previousVideos.map((item) => item.storagePath))
+      .catch(() => undefined);
+  }
+  revalidateCoursePaths(lesson.module.courseId, lesson.module.course.slug);
+  return ok({ assetId: asset.id });
+}
+
+export async function removeCourseLessonAsset(
+  input: unknown,
+): Promise<ActionResult<{ removed: true }>> {
+  const parsed = assetIdSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error.issues[0]?.message);
+  const user = await requireAuth();
+  const asset = await db.courseLessonAsset.findUnique({
+    where: { id: parsed.data.assetId },
+    select: {
+      id: true,
+      storagePath: true,
+      lesson: {
+        select: {
+          id: true,
+          module: {
+            select: {
+              course: { select: { id: true, slug: true, teacherId: true, deletedAt: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  const course = asset?.lesson.module.course;
+  if (!asset || !course || course.deletedAt) return fail("Course asset not found.", "NOT_FOUND");
+  if (course.teacherId !== user.id) return fail("You cannot remove this asset.", "FORBIDDEN");
+
+  await db.courseLessonAsset.delete({ where: { id: asset.id } });
+  await (await ensureCourseMediaBucket()).storage
+    .from("course-media")
+    .remove([asset.storagePath])
+    .catch(() => undefined);
+  revalidateCoursePaths(course.id, course.slug);
+  return ok({ removed: true });
+}
+
+export async function getCourseAssetSignedUrl(
+  input: unknown,
+): Promise<
+  ActionResult<{ signedUrl: string; fileName: string; kind: "video" | "resource" }>
+> {
+  const parsed = assetIdSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error.issues[0]?.message);
+  const user = await requireAuth();
+  const asset = await db.courseLessonAsset.findUnique({
+    where: { id: parsed.data.assetId },
+    select: {
+      storagePath: true,
+      fileName: true,
+      kind: true,
+      lesson: {
+        select: {
+          module: {
+            select: {
+              course: {
+                select: {
+                  teacherId: true,
+                  deletedAt: true,
+                  enrollments: {
+                    where: { studentId: user.id, revokedAt: null },
+                    select: { id: true },
+                    take: 1,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!asset || asset.lesson.module.course.deletedAt) {
+    return fail("Course asset not found.", "NOT_FOUND");
+  }
+  const course = asset.lesson.module.course;
+  if (
+    course.teacherId !== user.id &&
+    course.enrollments.length === 0 &&
+    !user.isPlatformAdmin
+  ) {
+    return fail("Enroll in this course to access its media.", "FORBIDDEN");
+  }
+
+  const bucket = (await ensureCourseMediaBucket()).storage.from("course-media");
+  const { data, error } = await bucket.createSignedUrl(asset.storagePath, 300, {
+    download: asset.kind === "resource" ? asset.fileName : false,
+  });
+  if (error || !data.signedUrl) return fail("Could not create the media link.");
+  return ok({ signedUrl: data.signedUrl, fileName: asset.fileName, kind: asset.kind });
+}
+
 export async function uploadLessonFile(
   formData: FormData,
 ): Promise<ActionResult<{ fileName: string }>> {
@@ -536,7 +842,7 @@ export async function getLessonFileSignedUrl(
 
 export async function markLessonComplete(
   input: unknown,
-): Promise<ActionResult<{ completed: true }>> {
+): Promise<ActionResult<{ completed: true; certificateIssued: boolean }>> {
   const parsed = lessonIdSchema.safeParse(input);
   if (!parsed.success) return validationFailure(parsed.error.issues[0]?.message);
   const user = await requireAuth();
@@ -551,6 +857,7 @@ export async function markLessonComplete(
               id: true,
               slug: true,
               deletedAt: true,
+              certificateEnabled: true,
               enrollments: {
                 where: { studentId: user.id, revokedAt: null },
                 select: { id: true },
@@ -573,9 +880,25 @@ export async function markLessonComplete(
     create: { lessonId: lesson.id, studentId: user.id, completedAt: new Date() },
     update: { completedAt: new Date() },
   });
+
+  let certificateIssued = false;
+  if (lesson.module.course.certificateEnabled) {
+    const before = await db.courseCertificate.findUnique({
+      where: {
+        courseId_studentId: {
+          courseId: lesson.module.course.id,
+          studentId: user.id,
+        },
+      },
+      select: { id: true },
+    });
+    const issued = await issueCertificateIfEligible(lesson.module.course.id, user.id);
+    certificateIssued = Boolean(issued) && !before;
+  }
+
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/courses");
   revalidatePath(`/dashboard/courses/${lesson.module.course.id}`);
   revalidatePath(`/courses/${lesson.module.course.slug}`);
-  return ok({ completed: true });
+  return ok({ completed: true, certificateIssued });
 }

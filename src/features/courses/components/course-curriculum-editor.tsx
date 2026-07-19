@@ -3,7 +3,6 @@
 import {
   ChevronDown,
   ChevronUp,
-  FileUp,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -20,11 +19,20 @@ import {
   reorderModules,
   updateLesson,
   updateModule,
-  uploadLessonFile,
 } from "@/actions/courses";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { LessonMediaUploader } from "@/features/courses/components/lesson-media-uploader";
+
+type Asset = {
+  id: string;
+  kind: "video" | "resource";
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  sortOrder: number;
+};
 
 type Lesson = {
   id: string;
@@ -33,6 +41,7 @@ type Lesson = {
   videoUrl: string | null;
   fileName: string | null;
   sortOrder: number;
+  assets: Asset[];
 };
 
 type Module = {
@@ -54,15 +63,14 @@ export function CourseCurriculumEditor({
   const [moduleTitle, setModuleTitle] = useState("");
   const [expandedLessonId, setExpandedLessonId] = useState<string | null>(null);
   const [lessonDrafts, setLessonDrafts] = useState<
-    Record<string, { title: string; content: string; videoUrl: string }>
+    Record<string, { title: string; content: string }>
   >(() => {
-    const drafts: Record<string, { title: string; content: string; videoUrl: string }> = {};
+    const drafts: Record<string, { title: string; content: string }> = {};
     for (const courseModule of initialModules) {
       for (const lesson of courseModule.lessons) {
         drafts[lesson.id] = {
           title: lesson.title,
           content: lesson.content,
-          videoUrl: lesson.videoUrl ?? "",
         };
       }
     }
@@ -115,11 +123,12 @@ export function CourseCurriculumEditor({
   }
 
   return (
-    <div className="space-y-5 rounded-xl border border-border bg-card p-5 shadow-sm">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold">Curriculum</h2>
+        <h2 className="font-heading text-2xl font-semibold tracking-tight">Curriculum</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Add modules and lessons. Publish requires at least one lesson.
+          Organize sections and lectures. Add a private video and downloadable resources to each
+          lesson.
         </p>
       </div>
 
@@ -127,8 +136,8 @@ export function CourseCurriculumEditor({
         <Input
           value={moduleTitle}
           onChange={(event) => setModuleTitle(event.target.value)}
-          placeholder="New module title"
-          aria-label="New module title"
+          placeholder="New section title"
+          aria-label="New section title"
         />
         <Button
           type="button"
@@ -139,32 +148,34 @@ export function CourseCurriculumEditor({
               const result = await addModule({ courseId, title });
               if (result.success) setModuleTitle("");
               return result;
-            }, "Module added.");
+            }, "Section added.");
           }}
         >
           <Plus className="size-4" aria-hidden />
-          Add module
+          Add section
         </Button>
       </div>
 
       {initialModules.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No modules yet. Create one to get started.</p>
+        <p className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          No sections yet. Create one to start adding lectures.
+        </p>
       ) : (
         <ul className="space-y-4">
           {initialModules.map((module, moduleIndex) => (
-            <li key={module.id} className="rounded-lg border border-border p-4">
+            <li key={module.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex-1 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Module {moduleIndex + 1}
+                  <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    Section {moduleIndex + 1}
                   </p>
                   <Input
                     defaultValue={module.title}
-                    aria-label={`Module ${moduleIndex + 1} title`}
+                    aria-label={`Section ${moduleIndex + 1} title`}
                     onBlur={(event) => {
                       const title = event.target.value.trim();
                       if (!title || title === module.title) return;
-                      run(() => updateModule({ moduleId: module.id, title }), "Module updated.");
+                      run(() => updateModule({ moduleId: module.id, title }), "Section updated.");
                     }}
                   />
                 </div>
@@ -175,7 +186,7 @@ export function CourseCurriculumEditor({
                     variant="ghost"
                     disabled={isPending || moduleIndex === 0}
                     onClick={() => moveModule(module.id, -1)}
-                    aria-label="Move module up"
+                    aria-label="Move section up"
                   >
                     <ChevronUp className="size-4" />
                   </Button>
@@ -185,7 +196,7 @@ export function CourseCurriculumEditor({
                     variant="ghost"
                     disabled={isPending || moduleIndex === initialModules.length - 1}
                     onClick={() => moveModule(module.id, 1)}
-                    aria-label="Move module down"
+                    aria-label="Move section down"
                   >
                     <ChevronDown className="size-4" />
                   </Button>
@@ -195,10 +206,10 @@ export function CourseCurriculumEditor({
                     variant="ghost"
                     disabled={isPending}
                     onClick={() => {
-                      if (!window.confirm("Delete this module and all of its lessons?")) return;
-                      run(() => deleteModule({ moduleId: module.id }), "Module deleted.");
+                      if (!window.confirm("Delete this section and all of its lessons?")) return;
+                      run(() => deleteModule({ moduleId: module.id }), "Section deleted.");
                     }}
-                    aria-label="Delete module"
+                    aria-label="Delete section"
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -210,11 +221,13 @@ export function CourseCurriculumEditor({
                   const draft = lessonDrafts[lesson.id] ?? {
                     title: lesson.title,
                     content: lesson.content,
-                    videoUrl: lesson.videoUrl ?? "",
                   };
                   const expanded = expandedLessonId === lesson.id;
+                  const video =
+                    lesson.assets.find((asset) => asset.kind === "video") ?? null;
+                  const resources = lesson.assets.filter((asset) => asset.kind === "resource");
                   return (
-                    <li key={lesson.id} className="space-y-2 rounded-md bg-muted/30 p-3">
+                    <li key={lesson.id} className="space-y-2 rounded-lg bg-muted/30 p-3">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <button
                           type="button"
@@ -223,10 +236,16 @@ export function CourseCurriculumEditor({
                             setExpandedLessonId(expanded ? null : lesson.id)
                           }
                         >
-                          {lessonIndex + 1}. {lesson.title}
-                          {lesson.fileName ? (
+                          Lecture {lessonIndex + 1}. {lesson.title}
+                          {video ? (
                             <span className="ml-2 text-xs font-normal text-muted-foreground">
-                              · {lesson.fileName}
+                              · video
+                            </span>
+                          ) : null}
+                          {resources.length > 0 ? (
+                            <span className="ml-2 text-xs font-normal text-muted-foreground">
+                              · {resources.length} resource
+                              {resources.length === 1 ? "" : "s"}
                             </span>
                           ) : null}
                         </button>
@@ -237,7 +256,7 @@ export function CourseCurriculumEditor({
                             variant="ghost"
                             disabled={isPending || lessonIndex === 0}
                             onClick={() => moveLesson(module.id, lesson.id, -1)}
-                            aria-label="Move lesson up"
+                            aria-label="Move lecture up"
                           >
                             <ChevronUp className="size-4" />
                           </Button>
@@ -249,7 +268,7 @@ export function CourseCurriculumEditor({
                               isPending || lessonIndex === module.lessons.length - 1
                             }
                             onClick={() => moveLesson(module.id, lesson.id, 1)}
-                            aria-label="Move lesson down"
+                            aria-label="Move lecture down"
                           >
                             <ChevronDown className="size-4" />
                           </Button>
@@ -259,13 +278,13 @@ export function CourseCurriculumEditor({
                             variant="ghost"
                             disabled={isPending}
                             onClick={() => {
-                              if (!window.confirm("Delete this lesson?")) return;
+                              if (!window.confirm("Delete this lecture?")) return;
                               run(
                                 () => deleteLesson({ lessonId: lesson.id }),
-                                "Lesson deleted.",
+                                "Lecture deleted.",
                               );
                             }}
-                            aria-label="Delete lesson"
+                            aria-label="Delete lecture"
                           >
                             <Trash2 className="size-4" />
                           </Button>
@@ -273,7 +292,7 @@ export function CourseCurriculumEditor({
                       </div>
 
                       {expanded ? (
-                        <div className="space-y-3 pt-1">
+                        <div className="space-y-4 pt-1">
                           <Input
                             value={draft.title}
                             onChange={(event) =>
@@ -282,7 +301,7 @@ export function CourseCurriculumEditor({
                                 [lesson.id]: { ...draft, title: event.target.value },
                               }))
                             }
-                            aria-label="Lesson title"
+                            aria-label="Lecture title"
                           />
                           <Textarea
                             value={draft.content}
@@ -292,67 +311,33 @@ export function CourseCurriculumEditor({
                                 [lesson.id]: { ...draft, content: event.target.value },
                               }))
                             }
-                            placeholder="Lesson content"
-                            aria-label="Lesson content"
+                            placeholder="Lecture notes or written content"
+                            aria-label="Lecture content"
                           />
-                          <Input
-                            value={draft.videoUrl}
-                            onChange={(event) =>
-                              setLessonDrafts((current) => ({
-                                ...current,
-                                [lesson.id]: { ...draft, videoUrl: event.target.value },
-                              }))
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={isPending}
+                            onClick={() =>
+                              run(
+                                () =>
+                                  updateLesson({
+                                    lessonId: lesson.id,
+                                    title: draft.title.trim(),
+                                    content: draft.content,
+                                  }),
+                                "Lecture saved.",
+                              )
                             }
-                            placeholder="Optional video URL"
-                            aria-label="Lesson video URL"
+                          >
+                            Save lecture
+                          </Button>
+                          <LessonMediaUploader
+                            lessonId={lesson.id}
+                            video={video}
+                            resources={resources}
+                            onChanged={refresh}
                           />
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              disabled={isPending}
-                              onClick={() =>
-                                run(
-                                  () =>
-                                    updateLesson({
-                                      lessonId: lesson.id,
-                                      title: draft.title.trim(),
-                                      content: draft.content,
-                                      videoUrl: draft.videoUrl.trim() || null,
-                                    }),
-                                  "Lesson saved.",
-                                )
-                              }
-                            >
-                              Save lesson
-                            </Button>
-                            <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-sm font-medium hover:bg-muted disabled:pointer-events-none disabled:opacity-50">
-                              <FileUp className="size-3.5" aria-hidden />
-                              Upload file
-                              <input
-                                type="file"
-                                className="sr-only"
-                                disabled={isPending}
-                                onChange={(event) => {
-                                  const file = event.target.files?.[0];
-                                  if (!file) return;
-                                  startTransition(async () => {
-                                    const formData = new FormData();
-                                    formData.set("lessonId", lesson.id);
-                                    formData.set("file", file);
-                                    const result = await uploadLessonFile(formData);
-                                    if (!result.success) {
-                                      toast.error(result.error);
-                                      return;
-                                    }
-                                    toast.success("File uploaded.");
-                                    refresh();
-                                  });
-                                  event.target.value = "";
-                                }}
-                              />
-                            </label>
-                          </div>
                         </div>
                       ) : null}
                     </li>
@@ -369,8 +354,8 @@ export function CourseCurriculumEditor({
                       [module.id]: event.target.value,
                     }))
                   }
-                  placeholder="New lesson title"
-                  aria-label={`New lesson for module ${moduleIndex + 1}`}
+                  placeholder="New lecture title"
+                  aria-label={`New lecture for section ${moduleIndex + 1}`}
                 />
                 <Button
                   type="button"
@@ -384,11 +369,11 @@ export function CourseCurriculumEditor({
                         setNewLessonTitles((current) => ({ ...current, [module.id]: "" }));
                       }
                       return result;
-                    }, "Lesson added.");
+                    }, "Lecture added.");
                   }}
                 >
                   <Plus className="size-4" aria-hidden />
-                  Add lesson
+                  Add lecture
                 </Button>
               </div>
             </li>

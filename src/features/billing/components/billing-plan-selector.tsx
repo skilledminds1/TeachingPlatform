@@ -231,7 +231,7 @@ export function BillingPlanSelector({
                   ? "Course selling not included"
                   : plan.courseLimit === null
                   ? "Unlimited courses"
-                  : `${plan.courseLimit} course`}
+                  : `Up to ${plan.courseLimit} course${plan.courseLimit === 1 ? "" : "s"}`}
               </p>
               <ul className="mt-4 flex-1 space-y-2">
                 {plan.features
@@ -260,7 +260,7 @@ export function BillingPlanSelector({
                   : plan.slug === "free"
                     ? "Free"
                     : isPending && pendingPlan === plan.slug
-                      ? "Opening PayFast…"
+                      ? "Redirecting to checkout…"
                       : `Choose ${plan.name}`}
               </Button>
             </div>

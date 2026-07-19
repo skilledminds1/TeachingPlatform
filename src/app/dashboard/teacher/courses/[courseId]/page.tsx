@@ -4,14 +4,14 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { CourseCurriculumEditor } from "@/features/courses/components/course-curriculum-editor";
-import { CourseEditForm } from "@/features/courses/components/course-edit-form";
+import { CourseStudio } from "@/features/courses/components/course-studio";
 import { getCourseUsage } from "@/server/billing/entitlements";
+import { canSubmitCourse } from "@/server/courses/access";
 import { getCourseForTeacherEdit } from "@/server/courses/queries";
 import { getMarketplaceSubjects } from "@/server/marketplace/teachers";
 import { getTeacherProfileReadiness } from "@/server/teachers/onboarding";
 
-export const metadata: Metadata = { title: "Edit course" };
+export const metadata: Metadata = { title: "Course studio" };
 
 export default async function TeacherCourseEditPage({
   params,
@@ -36,24 +36,27 @@ export default async function TeacherCourseEditPage({
   }
   if (!course) notFound();
 
+  const submitReadiness = await canSubmitCourse(course.id, user.id);
+
   return (
     <div className="min-h-screen bg-muted/20">
       <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-16 max-w-4xl items-center px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6">
           <Button variant="ghost" render={<Link href="/dashboard/teacher/courses" />}>
             <ArrowLeft className="size-4" aria-hidden />
             Back to courses
           </Button>
+          <p className="truncate text-sm text-muted-foreground">{course.title}</p>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl space-y-8 px-6 py-10">
+      <main className="mx-auto max-w-6xl space-y-8 px-6 py-10">
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Edit course</p>
-          <h1 className="text-3xl font-semibold tracking-tight">{course.title}</h1>
+          <p className="text-sm text-muted-foreground">Course studio</p>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">{course.title}</h1>
         </div>
 
-        <CourseEditForm
+        <CourseStudio
           course={{
             id: course.id,
             slug: course.slug,
@@ -65,11 +68,26 @@ export default async function TeacherCourseEditPage({
             level: course.level,
             status: course.status,
             subjectId: course.subjectId,
+            certificateEnabled: course.certificateEnabled,
+            rejectionReason: course.rejectionReason,
+            modules: course.modules.map((module) => ({
+              ...module,
+              lessons: module.lessons.map((lesson) => ({
+                ...lesson,
+                assets: lesson.assets.map((asset) => ({
+                  id: asset.id,
+                  kind: asset.kind,
+                  fileName: asset.fileName,
+                  mimeType: asset.mimeType,
+                  sizeBytes: asset.sizeBytes,
+                  sortOrder: asset.sortOrder,
+                })),
+              })),
+            })),
           }}
           subjects={subjects}
+          readinessReasons={submitReadiness.reasons}
         />
-
-        <CourseCurriculumEditor courseId={course.id} modules={course.modules} />
       </main>
     </div>
   );

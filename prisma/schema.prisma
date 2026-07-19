@@ -137,10 +137,19 @@ enum StudentRelationshipStatus {
 
 enum CourseStatus {
   draft
+  pending_approval
   published
+  rejected
   archived
 
   @@map("course_status")
+}
+
+enum CourseLessonAssetKind {
+  video
+  resource
+
+  @@map("course_lesson_asset_kind")
 }
 
 enum CourseLevel {
@@ -196,6 +205,8 @@ model User {
   courseSales            CoursePurchase[]         @relation("CoursePurchaseTeacher")
   courseEnrollments      CourseEnrollment[]
   courseLessonProgress   CourseLessonProgress[]
+  courseCertificates     CourseCertificate[]      @relation("CourseCertificateStudent")
+  courseCertificatesIssued CourseCertificate[]    @relation("CourseCertificateTeacher")
   calendarConnections    CalendarConnection[]
   bookingCalendarEvents  BookingCalendarEvent[]
   rescheduleProposals    BookingRescheduleProposal[] @relation("RescheduleProposer")
@@ -588,29 +599,34 @@ model PaymentAttempt {
 // ─── Courses ─────────────────────────────────────────────────────────────────
 
 model Course {
-  id               String      @id @default(uuid()) @db.Uuid
-  teacherId        String      @map("teacher_id") @db.Uuid
-  organizationId   String      @map("organization_id") @db.Uuid
-  subjectId        String?     @map("subject_id") @db.Uuid
-  slug             String      @unique
-  title            String
-  description      String      @default("")
-  coverImageUrl    String?     @map("cover_image_url")
-  priceCents       Int         @map("price_cents")
-  currency         String      @default("USD")
-  level            CourseLevel @default(all_levels)
-  status           CourseStatus @default(draft)
-  publishedAt      DateTime?   @map("published_at")
-  createdAt        DateTime    @default(now()) @map("created_at")
-  updatedAt        DateTime    @updatedAt @map("updated_at")
-  deletedAt        DateTime?   @map("deleted_at")
+  id                 String       @id @default(uuid()) @db.Uuid
+  teacherId          String       @map("teacher_id") @db.Uuid
+  organizationId     String       @map("organization_id") @db.Uuid
+  subjectId          String?      @map("subject_id") @db.Uuid
+  slug               String       @unique
+  title              String
+  description        String       @default("")
+  coverImageUrl      String?      @map("cover_image_url")
+  priceCents         Int          @map("price_cents")
+  currency           String       @default("USD")
+  level              CourseLevel  @default(all_levels)
+  status             CourseStatus @default(draft)
+  certificateEnabled Boolean      @default(false) @map("certificate_enabled")
+  submittedAt        DateTime?    @map("submitted_at")
+  reviewedAt         DateTime?    @map("reviewed_at")
+  rejectionReason    String?      @map("rejection_reason")
+  publishedAt        DateTime?    @map("published_at")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+  deletedAt          DateTime?    @map("deleted_at")
 
-  teacher      User              @relation("CourseTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  subject      Subject?          @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  teacher      User                @relation("CourseTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subject      Subject?            @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   modules      CourseModule[]
   purchases    CoursePurchase[]
   enrollments  CourseEnrollment[]
+  certificates CourseCertificate[]
 
   @@index([teacherId])
   @@index([organizationId])
@@ -650,9 +666,52 @@ model CourseLesson {
 
   module   CourseModule           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   progress CourseLessonProgress[]
+  assets   CourseLessonAsset[]
 
   @@index([moduleId, sortOrder])
   @@map("course_lessons")
+}
+
+model CourseLessonAsset {
+  id          String                @id @default(uuid()) @db.Uuid
+  lessonId    String                @map("lesson_id") @db.Uuid
+  kind        CourseLessonAssetKind
+  storagePath String                @map("storage_path")
+  fileName    String                @map("file_name")
+  mimeType    String                @map("mime_type")
+  sizeBytes   Int                   @map("size_bytes")
+  sortOrder   Int                   @default(0) @map("sort_order")
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
+
+  lesson CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, kind, sortOrder])
+  @@index([storagePath])
+  @@map("course_lesson_assets")
+}
+
+model CourseCertificate {
+  id               String   @id @default(uuid()) @db.Uuid
+  courseId         String   @map("course_id") @db.Uuid
+  studentId        String   @map("student_id") @db.Uuid
+  teacherId        String   @map("teacher_id") @db.Uuid
+  verificationCode String   @unique @map("verification_code")
+  studentName      String   @map("student_name")
+  courseTitle      String   @map("course_title")
+  teacherName      String   @map("teacher_name")
+  issuedAt         DateTime @default(now()) @map("issued_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student User   @relation("CourseCertificateStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  teacher User   @relation("CourseCertificateTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([verificationCode])
+  @@map("course_certificates")
 }
 
 model CoursePurchase {

@@ -88,13 +88,14 @@ export async function getCourseUsage(organizationId: string) {
   };
 }
 
-export async function canPublishCourse(courseId: string, userId: string) {
+export async function canSubmitCourse(courseId: string, userId: string) {
   const course = await db.course.findFirst({
     where: { id: courseId, teacherId: userId, deletedAt: null },
     select: {
       id: true,
       title: true,
       description: true,
+      coverImageUrl: true,
       priceCents: true,
       teacher: {
         select: {
@@ -107,7 +108,17 @@ export async function canPublishCourse(courseId: string, userId: string) {
         },
       },
       modules: {
-        select: { lessons: { select: { id: true }, take: 1 } },
+        select: {
+          lessons: {
+            select: {
+              id: true,
+              content: true,
+              videoUrl: true,
+              fileStoragePath: true,
+              assets: { select: { id: true }, take: 1 },
+            },
+          },
+        },
       },
     },
   });
@@ -118,14 +129,26 @@ export async function canPublishCourse(courseId: string, userId: string) {
   if (course.teacher.teacherProfile?.status !== "approved") {
     reasons.push("Your teacher profile must be approved.");
   }
-  if (course.teacher.teacherPaymentAccounts.length === 0) {
-    reasons.push("Link a payment account before publishing.");
+  if (course.priceCents > 0 && course.teacher.teacherPaymentAccounts.length === 0) {
+    reasons.push("Link a payment account before submitting a paid course.");
   }
-  if (!course.modules.some((module) => module.lessons.length > 0)) {
+  const lessons = course.modules.flatMap((module) => module.lessons);
+  if (lessons.length === 0) {
     reasons.push("Add at least one lesson.");
+  } else if (
+    !lessons.some(
+      (lesson) =>
+        Boolean(lesson.content.trim()) ||
+        Boolean(lesson.videoUrl) ||
+        Boolean(lesson.fileStoragePath) ||
+        lesson.assets.length > 0,
+    )
+  ) {
+    reasons.push("Add content, a video, or a resource to at least one lesson.");
   }
   if (!course.title.trim()) reasons.push("Add a course title.");
   if (!course.description.trim()) reasons.push("Add a course description.");
+  if (!course.coverImageUrl) reasons.push("Add a course cover image.");
   if (!Number.isInteger(course.priceCents) || course.priceCents < 0) {
     reasons.push("Set a valid course price.");
   }
@@ -135,3 +158,6 @@ export async function canPublishCourse(courseId: string, userId: string) {
     reasons,
   };
 }
+
+/** @deprecated Use canSubmitCourse for the moderation workflow. */
+export const canPublishCourse = canSubmitCourse;

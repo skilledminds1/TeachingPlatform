@@ -99,6 +99,61 @@ export async function notifyTeacherProfileApproved(profileId: string) {
   });
 }
 
+export async function notifyCourseApproved(courseId: string) {
+  const course = await db.course.findUnique({
+    where: { id: courseId },
+    select: {
+      title: true,
+      slug: true,
+      teacher: { select: { id: true, name: true, email: true } },
+    },
+  });
+  if (!course) return;
+
+  const href = `/courses/${course.slug}`;
+  await createNotification({
+    userId: course.teacher.id,
+    type: "course.approved",
+    title: "Your course is approved",
+    body: `${course.title} is now published and available to students.`,
+    href,
+    metadata: { courseId },
+    email: {
+      to: course.teacher.email,
+      subject: `${course.title} is now published`,
+      html: `<p>Hi ${course.teacher.name},</p><p>Your course <strong>${course.title}</strong> has been approved and published.</p><p><a href="${env.NEXT_PUBLIC_APP_URL}${href}">View your course</a></p>`,
+    },
+  });
+}
+
+export async function notifyCourseRejected(courseId: string) {
+  const course = await db.course.findUnique({
+    where: { id: courseId },
+    select: {
+      title: true,
+      rejectionReason: true,
+      teacher: { select: { id: true, name: true, email: true } },
+    },
+  });
+  if (!course) return;
+
+  const href = `/dashboard/teacher/courses/${courseId}`;
+  const reason = course.rejectionReason ?? "Review the course details and submit it again.";
+  await createNotification({
+    userId: course.teacher.id,
+    type: "course.rejected",
+    title: "Course changes requested",
+    body: `${course.title}: ${reason}`,
+    href,
+    metadata: { courseId, reason },
+    email: {
+      to: course.teacher.email,
+      subject: `Changes requested for ${course.title}`,
+      html: `<p>Hi ${course.teacher.name},</p><p>Changes were requested for <strong>${course.title}</strong>.</p><p>${reason}</p><p><a href="${env.NEXT_PUBLIC_APP_URL}${href}">Edit your course</a></p>`,
+    },
+  });
+}
+
 export async function notifyBookingConfirmed(bookingId: string) {
   const booking = await db.booking.findUnique({
     where: { id: bookingId },

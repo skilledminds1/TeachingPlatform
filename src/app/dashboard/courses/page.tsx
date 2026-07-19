@@ -69,6 +69,9 @@ export default async function StudentCoursesPage() {
                       </p>
                       <p className="mt-auto pt-2 text-xs text-muted-foreground">
                         {completed} / {lessons.length} lessons complete
+                        {enrollment.course.certificates.length > 0
+                          ? " · Certificate earned"
+                          : ""}
                       </p>
                     </div>
                   </Link>
