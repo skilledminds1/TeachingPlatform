@@ -1,8 +1,5 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { BillingPlanSelector } from "@/features/billing/components/billing-plan-selector";
 import { formatDate, formatStatus } from "@/lib/format";
 import { getBillingSettings } from "@/server/billing/settings";
@@ -24,15 +21,6 @@ export default async function TeacherBillingPage({
 
   return (
     <div className="min-h-screen bg-muted/20">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-16 max-w-7xl items-center px-6">
-          <Button variant="ghost" render={<Link href="/dashboard/teacher" />}>
-            <ArrowLeft className="size-4" aria-hidden />
-            Teacher dashboard
-          </Button>
-        </div>
-      </header>
-
       <main className="mx-auto max-w-7xl space-y-8 px-6 py-10">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Plans & billing</h1>

@@ -29,7 +29,8 @@ export function formatDate(date: Date): string {
   }).format(date);
 }
 
-export function formatDateTime(date: Date, timeZone?: string): string {
+export function formatDateTime(date: Date | string, timeZone?: string): string {
+  const value = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-ZA", {
     day: "numeric",
     month: "short",
@@ -37,7 +38,7 @@ export function formatDateTime(date: Date, timeZone?: string): string {
     hour: "2-digit",
     minute: "2-digit",
     timeZone,
-  }).format(date);
+  }).format(value);
 }
 
 export function formatStatus(status: string): string {

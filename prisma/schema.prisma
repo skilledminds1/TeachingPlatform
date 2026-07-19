@@ -78,6 +78,16 @@ enum BookingStatus {
   @@map("booking_status")
 }
 
+enum RescheduleProposalStatus {
+  pending
+  accepted
+  declined
+  expired
+  cancelled
+
+  @@map("reschedule_proposal_status")
+}
+
 enum VideoSessionStatus {
   scheduled
   live
@@ -186,6 +196,9 @@ model User {
   courseSales            CoursePurchase[]         @relation("CoursePurchaseTeacher")
   courseEnrollments      CourseEnrollment[]
   courseLessonProgress   CourseLessonProgress[]
+  calendarConnections    CalendarConnection[]
+  bookingCalendarEvents  BookingCalendarEvent[]
+  rescheduleProposals    BookingRescheduleProposal[] @relation("RescheduleProposer")
 
   @@index([email])
   @@map("users")
@@ -433,6 +446,7 @@ model AvailabilityException {
   startTime    DateTime @map("start_time") @db.Time()
   endTime      DateTime @map("end_time") @db.Time()
   isBlocked    Boolean  @default(true) @map("is_blocked")
+  title        String?
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -459,12 +473,14 @@ model Booking {
   createdAt          DateTime         @default(now()) @map("created_at")
   updatedAt          DateTime         @updatedAt @map("updated_at")
 
-  teacher         User             @relation("TeacherBookings", fields: [teacherId], references: [id])
-  student         User             @relation("StudentBookings", fields: [studentId], references: [id])
-  organization    Organization     @relation(fields: [organizationId], references: [id])
+  teacher         User                  @relation("TeacherBookings", fields: [teacherId], references: [id])
+  student         User                  @relation("StudentBookings", fields: [studentId], references: [id])
+  organization    Organization          @relation(fields: [organizationId], references: [id])
   videoSession    VideoSession?
   review          Review?
   paymentAttempts PaymentAttempt[]
+  calendarEvents  BookingCalendarEvent[]
+  rescheduleProposals BookingRescheduleProposal[]
 
   @@index([teacherId])
   @@index([studentId])
@@ -473,6 +489,63 @@ model Booking {
   @@index([status])
   @@index([paymentExpiresAt])
   @@map("bookings")
+}
+
+model BookingRescheduleProposal {
+  id               String                   @id @default(uuid()) @db.Uuid
+  bookingId        String                   @map("booking_id") @db.Uuid
+  proposedById     String                   @map("proposed_by_id") @db.Uuid
+  proposedStartsAt DateTime                 @map("proposed_starts_at")
+  proposedEndsAt   DateTime                 @map("proposed_ends_at")
+  reason           String?
+  status           RescheduleProposalStatus @default(pending)
+  expiresAt        DateTime                 @map("expires_at")
+  respondedAt      DateTime?                @map("responded_at")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  proposedBy User    @relation("RescheduleProposer", fields: [proposedById], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, status])
+  @@index([proposedById])
+  @@index([proposedStartsAt, proposedEndsAt])
+  @@index([status, expiresAt])
+  @@map("booking_reschedule_proposals")
+}
+
+model CalendarConnection {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  provider       String   @default("google")
+  accessToken    String   @map("access_token")
+  refreshToken   String   @map("refresh_token")
+  tokenExpiresAt DateTime @map("token_expires_at")
+  googleEmail    String?  @map("google_email")
+  calendarId     String   @default("primary") @map("calendar_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("calendar_connections")
+}
+
+model BookingCalendarEvent {
+  id              String   @id @default(uuid()) @db.Uuid
+  bookingId       String   @map("booking_id") @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  externalEventId String   @map("external_event_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, userId])
+  @@index([userId])
+  @@map("booking_calendar_events")
 }
 
 model PaymentAttempt {

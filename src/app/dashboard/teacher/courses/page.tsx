@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Plus } from "lucide-react";
+import { BookOpen, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -30,31 +30,10 @@ export default async function TeacherCoursesPage() {
 
   return (
     <div className="min-h-screen bg-muted/20">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Button variant="ghost" render={<Link href="/dashboard/teacher" />}>
-            <ArrowLeft className="size-4" aria-hidden />
-            Teacher dashboard
-          </Button>
-          {!canAuthorCourses || usage.atLimit ? (
-            <Button disabled>
-              <Plus className="size-4" aria-hidden />
-              Create course
-            </Button>
-          ) : (
-            <Button render={<Link href="/dashboard/teacher/courses/new" />}>
-              <Plus className="size-4" aria-hidden />
-              Create course
-            </Button>
-          )}
-        </div>
-      </header>
-
       <main className="mx-auto max-w-6xl space-y-6 px-6 py-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Teacher dashboard</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Courses</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">My Courses</h1>
             <p className="text-sm text-muted-foreground">
               {usage.courseCount}
               {usage.limit === null ? "" : ` / ${usage.limit}`} course

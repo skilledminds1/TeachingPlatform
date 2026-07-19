@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { TeacherNav } from "@/features/teacher-dashboard/components/teacher-nav";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 import {
   getCurrentUser,
@@ -25,5 +26,10 @@ export default async function TeacherDashboardLayout({
     throw error;
   }
 
-  return children;
+  return (
+    <div className="min-h-screen bg-muted/30">
+      <TeacherNav />
+      <main>{children}</main>
+    </div>
+  );
 }

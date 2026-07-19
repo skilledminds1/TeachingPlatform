@@ -7,7 +7,6 @@ import {
   Clock3,
   CreditCard,
   ExternalLink,
-  GraduationCap,
   MessageSquare,
   Users,
   Video,
@@ -16,7 +15,6 @@ import {
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { signOut } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { SubmitProfileButton } from "@/features/teacher-onboarding/components/submit-profile-button";
@@ -47,44 +45,7 @@ export default async function TeacherDashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-lg">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <GraduationCap className="size-4" aria-hidden />
-            </span>
-            <span className="hidden sm:inline">Amazing Skills</span>
-          </Link>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" render={<Link href="/dashboard/teacher/courses" />}>
-              My Courses
-            </Button>
-            <Button variant="ghost" size="sm" render={<Link href="/find-tutor" />}>
-              Find Tutor
-            </Button>
-            <Button variant="ghost" size="sm" render={<Link href="/dashboard/teacher/profile" />}>
-              Profile
-            </Button>
-            <Button variant="ghost" size="sm" render={<Link href="/dashboard/classroom" />}>
-              Classroom
-            </Button>
-            <Button variant="ghost" size="sm" render={<Link href="/dashboard/messages" />}>
-              Messages
-            </Button>
-            <Button variant="ghost" size="sm" render={<Link href="/dashboard/notifications" />}>
-              Notifications
-            </Button>
-            <form action={signOut}>
-              <Button type="submit" variant="outline" size="sm" className="ml-2">
-                Sign out
-              </Button>
-            </form>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-8 md:py-12">
+    <div className="mx-auto max-w-6xl space-y-8 px-6 py-8 md:py-12">
         <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
           <div
             className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent"
@@ -264,7 +225,6 @@ export default async function TeacherDashboardPage() {
             </div>
           </div>
         </section>
-      </main>
     </div>
   );
 }

@@ -17,6 +17,7 @@ export type ActionFailure = {
   success: false;
   error: string;
   code: ErrorCode;
+  details?: unknown;
 };
 
 export type ActionResult<T> = ActionSuccess<T> | ActionFailure;
@@ -25,6 +26,12 @@ export function ok<T>(data: T): ActionSuccess<T> {
   return { success: true, data };
 }
 
-export function fail(error: string, code: ErrorCode = "INTERNAL_ERROR"): ActionFailure {
-  return { success: false, error, code };
+export function fail(
+  error: string,
+  code: ErrorCode = "INTERNAL_ERROR",
+  details?: unknown,
+): ActionFailure {
+  return details === undefined
+    ? { success: false, error, code }
+    : { success: false, error, code, details };
 }

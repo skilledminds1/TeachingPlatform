@@ -36,7 +36,7 @@ export async function getAvailableSlots(
   const exceptionStart = DateTime.fromISO(localStart.toISODate()!, { zone: "utc" }).toJSDate();
   const exceptionEnd = DateTime.fromISO(localEnd.toISODate()!, { zone: "utc" }).toJSDate();
 
-  const [weekly, exceptions, bookings] = await Promise.all([
+  const [weekly, exceptions, bookings, proposals] = await Promise.all([
     db.availability.findMany({
       where: { userId: profile.userId },
       orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
@@ -56,6 +56,16 @@ export async function getAvailableSlots(
         endsAt: { gt: rangeStart },
       },
       select: { startsAt: true, endsAt: true },
+    }),
+    db.bookingRescheduleProposal.findMany({
+      where: {
+        status: "pending",
+        expiresAt: { gt: new Date() },
+        proposedStartsAt: { lt: rangeEnd },
+        proposedEndsAt: { gt: rangeStart },
+        booking: { teacherId: profile.userId },
+      },
+      select: { proposedStartsAt: true, proposedEndsAt: true },
     }),
   ]);
 
@@ -121,7 +131,13 @@ export async function getAvailableSlots(
           start: booking.startsAt,
           end: booking.endsAt,
         }));
-        if (!blocked && !booked && cursor >= now) {
+        const held = proposals.some((proposal) =>
+          overlaps(candidate, {
+            start: proposal.proposedStartsAt,
+            end: proposal.proposedEndsAt,
+          }),
+        );
+        if (!blocked && !booked && !held && cursor >= now) {
           results.push({
             startsAt: cursor.toISO()!,
             endsAt: end.toISO()!,

@@ -130,6 +130,10 @@ export async function confirmBookingPayment(input: {
     if (result.confirmed && result.bookingId) {
       await ensureVideoSessionForBooking(result.bookingId);
       await notifyBookingConfirmed(result.bookingId).catch(() => undefined);
+      const { syncBookingToConnectedCalendars } = await import(
+        "@/server/integrations/google-calendar"
+      );
+      await syncBookingToConnectedCalendars(result.bookingId).catch(() => undefined);
     }
     return result;
   });

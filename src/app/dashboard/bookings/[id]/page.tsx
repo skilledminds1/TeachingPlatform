@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { CancelBookingButton } from "@/features/bookings/components/cancel-booking-button";
+import { RescheduleResponseCard } from "@/features/bookings/components/reschedule-response-card";
 import { BookingCheckoutButtons } from "@/features/payments/components/booking-checkout-buttons";
 import { ReviewForm } from "@/features/reviews/components/review-form";
 import { formatCurrency, formatDateTime, formatStatus } from "@/lib/format";
@@ -108,6 +109,16 @@ export default async function BookingDetailsPage({
               <BookingCheckoutButtons bookingId={booking.id} providers={providers} />
             ) : null}
           </section>
+        ) : null}
+
+        {booking.rescheduleProposals[0] ? (
+          <RescheduleResponseCard
+            proposalId={booking.rescheduleProposals[0].id}
+            currentStartsAt={booking.startsAt}
+            proposedStartsAt={booking.rescheduleProposals[0].proposedStartsAt}
+            timeZone={user.timezone}
+            viewer={isTeacher ? "teacher" : "student"}
+          />
         ) : null}
 
         {booking.status === "confirmed" && booking.videoSession ? (

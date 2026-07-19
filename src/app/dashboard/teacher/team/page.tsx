@@ -1,8 +1,6 @@
-import { ArrowLeft, Users } from "lucide-react";
-import Link from "next/link";
+import { Users } from "lucide-react";
 import { redirect } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { RevokeInviteButton } from "@/features/organizations/components/revoke-invite-button";
 import { TeamInviteForm } from "@/features/organizations/components/team-invite-form";
 import { formatDate, formatStatus } from "@/lib/format";
@@ -14,15 +12,6 @@ export default async function TeacherTeamPage() {
 
   return (
     <div className="min-h-screen bg-muted/20">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-16 max-w-5xl items-center px-6">
-          <Button variant="ghost" render={<Link href="/dashboard/teacher" />}>
-            <ArrowLeft className="size-4" aria-hidden />
-            Teacher dashboard
-          </Button>
-        </div>
-      </header>
-
       <main className="mx-auto max-w-5xl space-y-8 px-6 py-10">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-tight">Team</h1>

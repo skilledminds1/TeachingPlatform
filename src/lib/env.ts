@@ -48,6 +48,8 @@ const envSchema = z.object({
       )
       .optional(),
   ),
+  GOOGLE_CALENDAR_CLIENT_ID: optionalSecret,
+  GOOGLE_CALENDAR_CLIENT_SECRET: optionalSecret,
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -79,6 +81,8 @@ function parseEnv(): Env {
     LIVEKIT_API_SECRET: process.env.LIVEKIT_API_SECRET,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
+    GOOGLE_CALENDAR_CLIENT_ID: process.env.GOOGLE_CALENDAR_CLIENT_ID,
+    GOOGLE_CALENDAR_CLIENT_SECRET: process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
   });
 }
 
@@ -149,4 +153,23 @@ export function requireLiveKitEnv(): {
     apiKey: env.LIVEKIT_API_KEY,
     apiSecret: env.LIVEKIT_API_SECRET,
   };
+}
+
+export function requireGoogleCalendarEnv(): {
+  clientId: string;
+  clientSecret: string;
+} {
+  if (!env.GOOGLE_CALENDAR_CLIENT_ID || !env.GOOGLE_CALENDAR_CLIENT_SECRET) {
+    throw new Error(
+      "Missing Google Calendar variables. Set GOOGLE_CALENDAR_CLIENT_ID and GOOGLE_CALENDAR_CLIENT_SECRET.",
+    );
+  }
+  return {
+    clientId: env.GOOGLE_CALENDAR_CLIENT_ID,
+    clientSecret: env.GOOGLE_CALENDAR_CLIENT_SECRET,
+  };
+}
+
+export function hasGoogleCalendarEnv(): boolean {
+  return Boolean(env.GOOGLE_CALENDAR_CLIENT_ID && env.GOOGLE_CALENDAR_CLIENT_SECRET);
 }

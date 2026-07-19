@@ -114,3 +114,46 @@ export async function startConversationWithTeacher(
   });
   return ok({ conversationId: conversation.id });
 }
+
+export async function startConversationWithStudent(
+  studentUserId: string,
+): Promise<ActionResult<{ conversationId: string }>> {
+  const teacher = await requireAuth();
+  if (!hasTeacherMembership(teacher)) {
+    return fail("Only teachers can message students this way.", "FORBIDDEN");
+  }
+  if (studentUserId === teacher.id) {
+    return fail("You cannot message yourself.", "VALIDATION_ERROR");
+  }
+
+  const allowed = await db.studentRelationship.findFirst({
+    where: {
+      teacherId: teacher.id,
+      studentId: studentUserId,
+      status: "active",
+    },
+    select: { id: true },
+  });
+  const sharedBooking = allowed
+    ? null
+    : await db.booking.findFirst({
+        where: {
+          teacherId: teacher.id,
+          studentId: studentUserId,
+        },
+        select: { id: true },
+      });
+
+  if (!allowed && !sharedBooking) {
+    return fail("You can only message your students.", "FORBIDDEN");
+  }
+
+  const conversation = await db.conversation.upsert({
+    where: {
+      teacherId_studentId: { teacherId: teacher.id, studentId: studentUserId },
+    },
+    update: {},
+    create: { teacherId: teacher.id, studentId: studentUserId },
+  });
+  return ok({ conversationId: conversation.id });
+}

@@ -1,7 +1,5 @@
-import { AlertCircle, ArrowLeft, ShieldCheck } from "lucide-react";
-import Link from "next/link";
+import { AlertCircle, ShieldCheck } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { PaymentProviderCard } from "@/features/payments/components/payment-provider-card";
 import { getTeacherEarningsSummary } from "@/server/teachers/earnings";
 import { getTeacherPaymentSettings } from "@/server/teachers/payments";
@@ -20,15 +18,6 @@ export default async function TeacherPaymentsPage({
 
   return (
     <div className="min-h-screen bg-muted/20">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-16 max-w-4xl items-center px-6">
-          <Button variant="ghost" render={<Link href="/dashboard/teacher" />}>
-            <ArrowLeft className="size-4" aria-hidden />
-            Teacher dashboard
-          </Button>
-        </div>
-      </header>
-
       <main className="mx-auto max-w-4xl space-y-8 px-6 py-10">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Student payments</h1>

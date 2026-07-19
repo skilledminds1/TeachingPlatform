@@ -174,3 +174,118 @@ export async function notifyNewMessage(input: {
     href: `/dashboard/messages/${input.conversationId}`,
   });
 }
+
+export async function notifyRescheduleProposed(proposalId: string) {
+  const proposal = await db.bookingRescheduleProposal.findUnique({
+    where: { id: proposalId },
+    include: {
+      booking: {
+        include: {
+          teacher: { select: { id: true, name: true, email: true } },
+          student: { select: { id: true, name: true, email: true, timezone: true } },
+        },
+      },
+    },
+  });
+  if (!proposal || proposal.status !== "pending") return;
+
+  const when = formatDateTime(proposal.proposedStartsAt, proposal.booking.student.timezone);
+  const current = formatDateTime(proposal.booking.startsAt, proposal.booking.student.timezone);
+  const href = `/dashboard/bookings/${proposal.booking.id}`;
+
+  await createNotification({
+    userId: proposal.booking.student.id,
+    type: "booking.reschedule_proposed",
+    title: "Reschedule requested",
+    body: `${proposal.booking.teacher.name} proposed moving your lesson from ${current} to ${when}.`,
+    href,
+    metadata: {
+      bookingId: proposal.booking.id,
+      proposalId: proposal.id,
+      proposedStartsAt: proposal.proposedStartsAt.toISOString(),
+    },
+    email: {
+      to: proposal.booking.student.email,
+      subject: `Reschedule request from ${proposal.booking.teacher.name}`,
+      html: `<p>${proposal.booking.teacher.name} proposed moving your lesson from <strong>${current}</strong> to <strong>${when}</strong>.</p><p><a href="${env.NEXT_PUBLIC_APP_URL}${href}">Accept or decline</a></p>`,
+    },
+  });
+}
+
+export async function notifyRescheduleAccepted(proposalId: string) {
+  const proposal = await db.bookingRescheduleProposal.findUnique({
+    where: { id: proposalId },
+    include: {
+      booking: {
+        include: {
+          teacher: { select: { id: true, name: true, email: true, timezone: true } },
+          student: { select: { id: true, name: true, email: true, timezone: true } },
+        },
+      },
+    },
+  });
+  if (!proposal) return;
+
+  const href = `/dashboard/bookings/${proposal.booking.id}`;
+  const whenTeacher = formatDateTime(
+    proposal.booking.startsAt,
+    proposal.booking.teacher.timezone,
+  );
+  const whenStudent = formatDateTime(
+    proposal.booking.startsAt,
+    proposal.booking.student.timezone,
+  );
+
+  await Promise.all([
+    createNotification({
+      userId: proposal.booking.teacher.id,
+      type: "booking.reschedule_accepted",
+      title: "Reschedule accepted",
+      body: `${proposal.booking.student.name} accepted the new lesson time: ${whenTeacher}.`,
+      href,
+      email: {
+        to: proposal.booking.teacher.email,
+        subject: `${proposal.booking.student.name} accepted your reschedule`,
+        html: `<p>${proposal.booking.student.name} accepted the new lesson time: <strong>${whenTeacher}</strong>.</p><p><a href="${env.NEXT_PUBLIC_APP_URL}${href}">View booking</a></p>`,
+      },
+    }),
+    createNotification({
+      userId: proposal.booking.student.id,
+      type: "booking.reschedule_accepted",
+      title: "Lesson rescheduled",
+      body: `Your lesson with ${proposal.booking.teacher.name} is now at ${whenStudent}.`,
+      href,
+    }),
+  ]);
+}
+
+export async function notifyRescheduleDeclined(proposalId: string) {
+  const proposal = await db.bookingRescheduleProposal.findUnique({
+    where: { id: proposalId },
+    include: {
+      booking: {
+        include: {
+          teacher: { select: { id: true, name: true, email: true, timezone: true } },
+          student: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+  if (!proposal) return;
+
+  const current = formatDateTime(proposal.booking.startsAt, proposal.booking.teacher.timezone);
+  const href = `/dashboard/bookings/${proposal.booking.id}`;
+
+  await createNotification({
+    userId: proposal.booking.teacher.id,
+    type: "booking.reschedule_declined",
+    title: "Reschedule declined",
+    body: `${proposal.booking.student.name} declined the new time. The lesson remains at ${current}.`,
+    href,
+    email: {
+      to: proposal.booking.teacher.email,
+      subject: `${proposal.booking.student.name} declined your reschedule`,
+      html: `<p>${proposal.booking.student.name} declined the proposed time. The lesson remains at <strong>${current}</strong>.</p><p><a href="${env.NEXT_PUBLIC_APP_URL}${href}">View booking</a></p>`,
+    },
+  });
+}
