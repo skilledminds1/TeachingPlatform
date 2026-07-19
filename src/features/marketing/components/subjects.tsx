@@ -9,12 +9,12 @@ import {
 import Link from "next/link";
 
 const subjects = [
-  { icon: Calculator, name: "Mathematics", href: "/teachers?subject=mathematics" },
-  { icon: BookText, name: "English", href: "/teachers?subject=english" },
-  { icon: FlaskConical, name: "Science", href: "/teachers?subject=science" },
-  { icon: Languages, name: "Afrikaans", href: "/teachers?subject=afrikaans" },
-  { icon: Code2, name: "Computer Science", href: "/teachers?subject=computer-science" },
-  { icon: MoreHorizontal, name: "And more", href: "/teachers" },
+  { icon: Calculator, name: "Mathematics", href: "/find-tutor?subject=mathematics" },
+  { icon: BookText, name: "English", href: "/find-tutor?subject=english" },
+  { icon: FlaskConical, name: "Science", href: "/find-tutor?subject=science" },
+  { icon: Languages, name: "Afrikaans", href: "/find-tutor?subject=afrikaans" },
+  { icon: Code2, name: "Computer Science", href: "/find-tutor?subject=computer-science" },
+  { icon: MoreHorizontal, name: "And more", href: "/find-tutor" },
 ] as const;
 
 export function Subjects() {

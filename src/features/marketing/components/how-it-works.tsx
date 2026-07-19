@@ -6,7 +6,7 @@ const steps = [
     step: "01",
     title: "Discover tutors",
     description:
-      "Browse verified teachers by subject, rating, and availability on our marketplace.",
+      "Browse verified teachers by subject, rating, and availability.",
   },
   {
     icon: Calendar,

@@ -1,4 +1,5 @@
 import {
+  ArrowUpRight,
   Bell,
   CalendarDays,
   CheckCircle2,
@@ -6,6 +7,7 @@ import {
   Clock3,
   CreditCard,
   ExternalLink,
+  GraduationCap,
   MessageSquare,
   Users,
   Video,
@@ -41,34 +43,40 @@ export default async function TeacherDashboardPage() {
     { label: "Profile information complete", complete: profileComplete },
     { label: "Email address verified", complete: checks.emailVerified },
     { label: "Payment account linked", complete: checks.paymentLinked },
-    { label: "Marketplace plan active", complete: checks.qualifyingPlan },
+    { label: "Listing plan active", complete: checks.qualifyingPlan },
   ];
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <header className="border-b border-border bg-background">
+    <div className="min-h-screen bg-muted/30">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-lg">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="font-semibold tracking-tight">
-            Amazing Skills
+          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <GraduationCap className="size-4" aria-hidden />
+            </span>
+            <span className="hidden sm:inline">Amazing Skills</span>
           </Link>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" render={<Link href="/teachers" />}>
-              Marketplace
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" render={<Link href="/dashboard/teacher/courses" />}>
+              My Courses
             </Button>
-            <Button variant="ghost" render={<Link href="/dashboard/teacher/profile" />}>
+            <Button variant="ghost" size="sm" render={<Link href="/find-tutor" />}>
+              Find Tutor
+            </Button>
+            <Button variant="ghost" size="sm" render={<Link href="/dashboard/teacher/profile" />}>
               Profile
             </Button>
-            <Button variant="ghost" render={<Link href="/dashboard/classroom" />}>
+            <Button variant="ghost" size="sm" render={<Link href="/dashboard/classroom" />}>
               Classroom
             </Button>
-            <Button variant="ghost" render={<Link href="/dashboard/messages" />}>
+            <Button variant="ghost" size="sm" render={<Link href="/dashboard/messages" />}>
               Messages
             </Button>
-            <Button variant="ghost" render={<Link href="/dashboard/notifications" />}>
+            <Button variant="ghost" size="sm" render={<Link href="/dashboard/notifications" />}>
               Notifications
             </Button>
             <form action={signOut}>
-              <Button type="submit" variant="ghost">
+              <Button type="submit" variant="outline" size="sm" className="ml-2">
                 Sign out
               </Button>
             </form>
@@ -76,19 +84,32 @@ export default async function TeacherDashboardPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-10 md:py-14">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Teacher dashboard</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Welcome, {user.name}</h1>
+      <main className="mx-auto max-w-6xl space-y-8 px-6 py-8 md:py-12">
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+          <div
+            className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent"
+            aria-hidden
+          />
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-2">
+              <p className="text-xs font-medium tracking-wide text-primary uppercase">
+                Teacher dashboard
+              </p>
+              <h1 className="font-heading text-3xl font-semibold tracking-tight md:text-4xl">
+                Welcome, {user.name}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Manage your lessons, courses, and students from one place.
+              </p>
+            </div>
+            <StatusBadge tone={statusTone(profile.status)}>
+              {formatStatus(profile.status)}
+            </StatusBadge>
           </div>
-          <StatusBadge tone={statusTone(profile.status)}>
-            {formatStatus(profile.status)}
-          </StatusBadge>
         </div>
 
         {profile.status === "pending_approval" ? (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
             <Clock3 className="mt-0.5 size-5 shrink-0 text-amber-500" aria-hidden />
             <div>
               <p className="font-medium">Profile review in progress</p>
@@ -100,7 +121,7 @@ export default async function TeacherDashboardPage() {
         ) : null}
 
         {studentUsage.atLimit ? (
-          <div className="flex flex-col gap-4 rounded-xl border border-primary/30 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-medium">
                 You&apos;ve reached the limit of {studentUsage.limit} active student
@@ -118,7 +139,7 @@ export default async function TeacherDashboardPage() {
         ) : null}
 
         {liveLessonUsage.atLimit ? (
-          <div className="flex flex-col gap-4 rounded-xl border border-primary/30 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-medium">
                 You&apos;ve used all {liveLessonUsage.limit! / 60} live lesson hours for this
@@ -135,7 +156,13 @@ export default async function TeacherDashboardPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+              Quick actions
+            </h2>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <DashboardLink
             href="/dashboard/classroom"
             icon={Video}
@@ -178,7 +205,7 @@ export default async function TeacherDashboardPage() {
             href="/dashboard/teacher/payments"
             icon={WalletCards}
             label="Student payments"
-            description={checks.paymentLinked ? "Provider connected" : "Connect PayFast or PayPal"}
+            description={checks.paymentLinked ? "PayPal connected" : "Connect PayPal"}
           />
           <DashboardLink
             href="/dashboard/teacher/team"
@@ -186,35 +213,42 @@ export default async function TeacherDashboardPage() {
             label="Team"
             description="Members and invitations"
           />
-        </div>
+          </div>
+        </section>
 
-        <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Marketplace readiness</h2>
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <div className="border-b border-border/60 px-6 py-5">
+            <h2 className="font-heading text-lg font-semibold">Profile readiness</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Complete every item before submitting for approval.
             </p>
-            <ul className="mt-5 space-y-3">
+          </div>
+          <div className="p-6">
+            <ul className="grid gap-3 sm:grid-cols-2">
               {checklist.map((item) => (
-                <li key={item.label} className="flex items-center gap-2.5 text-sm">
+                <li
+                  key={item.label}
+                  className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm"
+                >
                   {item.complete ? (
-                    <CheckCircle2 className="size-4 text-emerald-500" aria-hidden />
+                    <CheckCircle2 className="size-4 shrink-0 text-emerald-500" aria-hidden />
                   ) : (
-                    <Circle className="size-4 text-muted-foreground" aria-hidden />
+                    <Circle className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   )}
-                  <span className={item.complete ? undefined : "text-muted-foreground"}>
+                  <span className={item.complete ? "font-medium" : "text-muted-foreground"}>
                     {item.label}
                   </span>
                 </li>
               ))}
             </ul>
 
-            <div className="mt-6 space-y-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               {readyToSubmit && profile.status === "draft" ? (
                 <SubmitProfileButton />
               ) : null}
               {!checks.qualifyingPlan ? (
                 <Button variant="outline" render={<Link href="/#pricing" />}>
-                  View marketplace plans
+                  View listing plans
                   <ExternalLink className="size-3.5" aria-hidden />
                 </Button>
               ) : null}
@@ -228,6 +262,7 @@ export default async function TeacherDashboardPage() {
                 </Button>
               ) : null}
             </div>
+          </div>
         </section>
       </main>
     </div>
@@ -248,13 +283,19 @@ function DashboardLink({
   return (
     <Link
       href={href}
-      className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40"
+      className="group relative flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
     >
-      <div className="rounded-lg bg-primary/10 p-2 text-primary">
-        <Icon className="size-4" aria-hidden />
+      <div className="flex items-start justify-between">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+          <Icon className="size-4.5" aria-hidden />
+        </div>
+        <ArrowUpRight
+          className="size-4 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary"
+          aria-hidden
+        />
       </div>
       <div>
-        <p className="text-sm font-medium">{label}</p>
+        <p className="text-sm font-semibold">{label}</p>
         <p className="mt-1 text-xs text-muted-foreground">{description}</p>
       </div>
     </Link>

@@ -2,22 +2,22 @@ const faqs = [
   {
     question: "How do I pay for lessons?",
     answer:
-      "You pay your teacher directly through their linked PayPal or PayFast account when you book. Amazing Skills never holds your money, and there's no platform fee added to lesson prices.",
+      "You pay your teacher directly through their linked PayPal account when you book. Amazing Skills never holds your money, and there's no platform fee added to lesson prices.",
   },
   {
     question: "Is it free for students?",
     answer:
-      "Yes — browsing the marketplace, messaging teachers, and booking lessons is completely free for students. You only pay the teacher's advertised lesson rate.",
+      "Yes — browsing courses and tutors, messaging teachers, and booking lessons is completely free for students. You only pay the teacher's advertised lesson or course rate.",
   },
   {
     question: "How are teachers verified?",
     answer:
-      "Every teacher profile is manually reviewed before it appears on the marketplace. We check qualifications, profile completeness, and that a valid payment account is linked.",
+      "Every teacher profile is manually reviewed before it appears on Find Tutor. We check qualifications, profile completeness, and that a valid payment account is linked.",
   },
   {
     question: "What do teachers pay?",
     answer:
-      "Teachers can start free, then unlock more tools from $9/month. Monthly and annual subscriptions use PayFast, and we take zero commission on lesson earnings.",
+      "Teachers can start free for live tutoring. Course creation and sales require Professional or Business, with zero commission on lesson and course earnings. Subscriptions use PayFast.",
   },
   {
     question: "What happens if a lesson is cancelled?",
@@ -41,17 +41,14 @@ export function Faq() {
             Everything you need to know before your first lesson
           </p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 md:gap-6">
+        <ul className="space-y-6">
           {faqs.map((faq) => (
-            <div
-              key={faq.question}
-              className="space-y-2 rounded-xl border border-border bg-card p-6 shadow-sm"
-            >
-              <h3 className="font-semibold">{faq.question}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{faq.answer}</p>
-            </div>
+            <li key={faq.question} className="space-y-2 border-b border-border/60 pb-6 last:border-0">
+              <h3 className="text-lg font-semibold">{faq.question}</h3>
+              <p className="text-muted-foreground">{faq.answer}</p>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </section>
   );

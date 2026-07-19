@@ -317,8 +317,7 @@ export function OnboardingWizard({
                     ))}
                   </select>
                   <FieldDescription>
-                    ZAR teachers can use PayFast (including Apple Pay / Google Pay). Other
-                    currencies use PayPal when linked.
+                    Students pay you via PayPal in this currency once your account is linked.
                   </FieldDescription>
                   <FieldError errors={[form.formState.errors.currency]} />
                 </Field>

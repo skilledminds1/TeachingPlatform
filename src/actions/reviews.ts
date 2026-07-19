@@ -53,7 +53,7 @@ export async function submitReview(
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/bookings/${booking.id}`);
   if (booking.teacher.teacherProfile?.slug) {
-    revalidatePath(`/teachers/${booking.teacher.teacherProfile.slug}`);
+    revalidatePath(`/find-tutor/${booking.teacher.teacherProfile.slug}`);
   }
   return ok({ reviewId: review.id });
 }

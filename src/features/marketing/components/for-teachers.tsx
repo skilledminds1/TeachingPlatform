@@ -8,7 +8,7 @@ const benefits = [
     icon: Banknote,
     title: "Keep 100% of your lesson fees",
     description:
-      "Students pay you directly via your own PayPal or PayFast account. We never touch your earnings — you only pay a flat subscription.",
+      "Students pay you directly via your own PayPal account. We never touch your earnings — you only pay a flat subscription.",
   },
   {
     icon: CalendarRange,
@@ -20,7 +20,7 @@ const benefits = [
     icon: BadgeCheck,
     title: "A profile that sells for you",
     description:
-      "Verified badge, moderated reviews, and marketplace search put your practice in front of new students.",
+      "Verified badge, moderated reviews, and Find Tutor search put your practice in front of new students.",
   },
   {
     icon: TrendingUp,

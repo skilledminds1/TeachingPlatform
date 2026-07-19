@@ -20,8 +20,7 @@ const plans = [
     features: [
       "1 active student",
       "2 live lesson hours / month",
-      "1 course",
-      "Teacher profile & marketplace listing",
+      "Teacher profile & public listing",
       "Booking calendar",
       "Direct messaging",
       "One-on-one lessons",
@@ -41,7 +40,6 @@ const plans = [
     features: [
       "5 active students",
       "20 live lesson hours / month",
-      "Unlimited courses",
       "Everything in Free",
       "Homework & file sharing",
       "Student notes",
@@ -62,11 +60,12 @@ const plans = [
     features: [
       "15 active students",
       "75 live lesson hours / month",
-      "Unlimited courses",
+      "Unlimited course creation & sales",
+      "0% commission on course sales",
       "Quizzes, assignments & certificates",
       "Group lessons",
       "Calendar sync",
-      "HD LiveKit video lessons",
+      "HD video lessons",
       "Advanced analytics & priority support",
     ],
   },
@@ -82,7 +81,8 @@ const plans = [
     features: [
       "Unlimited students",
       "Unlimited live lessons (fair use)",
-      "Unlimited courses",
+      "Unlimited course creation & sales",
+      "0% commission on course sales",
       "Everything in Professional",
       "Team teachers",
       "Custom branding",
@@ -102,8 +102,8 @@ export function Pricing() {
         <div className="mx-auto max-w-2xl space-y-3 text-center">
           <h2 className="text-3xl font-semibold tracking-tight">Simple, honest pricing</h2>
           <p className="text-muted-foreground">
-            Start free, then unlock new teaching tools as your business grows. No commission on
-            lesson earnings.
+            Start free, then unlock new teaching tools as your business grows. Professional and
+            Business include course selling with zero platform commission.
           </p>
           <div className="mx-auto mt-6 flex w-fit items-center rounded-lg border border-border bg-card p-1">
             <Button
@@ -190,10 +190,6 @@ export function Pricing() {
           ))}
         </div>
 
-        <p className="text-center text-sm text-muted-foreground">
-          Prices shown in USD. PayFast converts the checkout amount and settles in ZAR. Cancel
-          anytime.
-        </p>
       </div>
     </section>
   );

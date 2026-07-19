@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function TeacherProfilePage({
+export async function TeacherProfileContent({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -77,7 +77,7 @@ export default async function TeacherProfilePage({
           <Link href="/" className="font-semibold tracking-tight">
             Amazing Skills
           </Link>
-          <Button variant="ghost" render={<Link href="/teachers" />}>
+          <Button variant="ghost" render={<Link href="/find-tutor" />}>
             Back to all teachers
           </Button>
         </div>
@@ -117,7 +117,7 @@ export default async function TeacherProfilePage({
                     {teacher.subjects.map(({ subject, specialties }) => (
                       <div key={subject.slug} className="flex flex-wrap items-center gap-1.5">
                         <Link
-                          href={`/teachers?subject=${subject.slug}`}
+                          href={`/find-tutor?subject=${subject.slug}`}
                           className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                         >
                           {subject.name}
@@ -262,5 +262,23 @@ export default async function TeacherProfilePage({
         </div>
       </main>
     </div>
+  );
+}
+
+export default async function TeacherProfileRedirect({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [{ slug }, queryParams] = await Promise.all([params, searchParams]);
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(queryParams)) {
+    if (Array.isArray(value)) value.forEach((item) => query.append(key, item));
+    else if (value !== undefined) query.set(key, value);
+  }
+  permanentRedirect(
+    `/find-tutor/${encodeURIComponent(slug)}${query.size ? `?${query.toString()}` : ""}`,
   );
 }

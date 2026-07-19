@@ -31,7 +31,7 @@ export function BookingList({
         <p className="mt-1 text-sm text-muted-foreground">
           {viewer === "teacher"
             ? "Student reservations will appear here."
-            : "Browse the marketplace to reserve your first lesson."}
+            : "Browse Find Tutor to reserve your first lesson."}
         </p>
       </div>
     );

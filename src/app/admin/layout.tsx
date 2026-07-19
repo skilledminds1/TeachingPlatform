@@ -35,8 +35,8 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+    <div className="min-h-screen bg-muted/30">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-lg">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           <Link href="/admin" className="flex items-center gap-2 font-semibold tracking-tight">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">

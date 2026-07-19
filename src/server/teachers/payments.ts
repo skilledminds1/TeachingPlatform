@@ -8,7 +8,7 @@ export async function getTeacherPaymentSettings() {
   const accounts = await db.teacherPaymentAccount.findMany({
     where: {
       userId: user.id,
-      provider: { in: ["payfast", "paypal"] },
+      provider: "paypal",
       providerAccountId: { not: { startsWith: "local_" } },
     },
     orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
@@ -26,7 +26,6 @@ export async function getTeacherPaymentSettings() {
   });
 
   const configured = configuredLessonProviders();
-  // Still show cards when credentials exist even if lesson flag is off (onboarding prep)
   return {
     accounts: accounts.map((account) => ({
       ...account,
@@ -34,7 +33,6 @@ export async function getTeacherPaymentSettings() {
     })),
     configured: {
       paypal: configured.paypal || Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET),
-      payfast: configured.payfast || Boolean(env.PAYFAST_MERCHANT_ID && env.PAYFAST_MERCHANT_KEY),
     },
     lessonFlags: configured,
   };

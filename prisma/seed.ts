@@ -12,7 +12,6 @@ async function main(): Promise<void> {
     "basic_analytics",
     "community_support",
     "direct_payments",
-    "courses",
   ];
   const starterFeatures = [
     ...freeFeatures,
@@ -23,10 +22,11 @@ async function main(): Promise<void> {
     "reviews",
     "basic_reporting",
     "custom_availability",
-    "unlimited_courses",
   ];
   const professionalFeatures = [
     ...starterFeatures,
+    "courses",
+    "unlimited_courses",
     "quizzes",
     "assignments",
     "certificates",
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
       currency: "USD",
       studentLimit: 1,
       monthlyLiveLessonMinutes: 120,
-      courseLimit: 1,
+      courseLimit: 0,
       features: freeFeatures,
       marketplaceListing: true,
       videoSessions: true,
@@ -60,7 +60,7 @@ async function main(): Promise<void> {
       currency: "USD",
       studentLimit: 5,
       monthlyLiveLessonMinutes: 1200,
-      courseLimit: null,
+      courseLimit: 0,
       features: starterFeatures,
       marketplaceListing: true,
       videoSessions: true,

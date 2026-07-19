@@ -188,7 +188,7 @@ export async function createBooking(
 
       revalidatePath("/dashboard");
       revalidatePath("/dashboard/teacher/bookings");
-      revalidatePath(`/teachers/${parsed.data.teacherSlug}`);
+      revalidatePath(`/find-tutor/${parsed.data.teacherSlug}`);
       await notifyBookingCreated(result.booking.id).catch(() => undefined);
       revalidatePath("/dashboard/notifications");
       return ok({ bookingId: result.booking.id });

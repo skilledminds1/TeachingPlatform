@@ -271,7 +271,7 @@ export async function saveTeacherOnboarding(
   revalidatePath("/dashboard/teacher/profile");
   revalidatePath("/onboarding/teacher");
   if (existing?.slug) {
-    revalidatePath(`/teachers/${existing.slug}`);
+    revalidatePath(`/find-tutor/${existing.slug}`);
   }
   return ok({ saved: true });
 }

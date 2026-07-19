@@ -103,7 +103,7 @@ export function SlotPicker({
       ) : (
         <Button
           className="w-full"
-          render={<Link href={`/login?redirect=/teachers/${teacherSlug}`} />}
+          render={<Link href={`/login?redirect=/find-tutor/${teacherSlug}`} />}
         >
           Sign in to book
         </Button>

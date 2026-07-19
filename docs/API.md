@@ -42,7 +42,7 @@
 `createSubscriptionCheckout` (hosted PayFast for Free→paid; in-place PayFast update for paid upgrades)
 
 ### Teacher Payments — `src/actions/payment-linking.ts`
-`startPayPalConnect`, `linkPayFastMerchant`, `disconnectPaymentAccount`
+`startPayPalConnect`, `disconnectPaymentAccount`
 
 ### Reviews — `src/actions/reviews.ts`
 `submitReview`; moderation is handled by `moderateReview` in `src/actions/admin.ts`

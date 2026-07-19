@@ -26,7 +26,7 @@ export default async function TeacherProfileSettingsPage() {
             Dashboard
           </Button>
           {profile.status === "approved" ? (
-            <Button variant="outline" render={<Link href={`/teachers/${profile.slug}`} />}>
+            <Button variant="outline" render={<Link href={`/find-tutor/${profile.slug}`} />}>
               View public profile
               <ExternalLink className="size-4" aria-hidden />
             </Button>

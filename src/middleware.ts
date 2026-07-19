@@ -8,12 +8,16 @@ const publicExact = new Set([
   "/register",
   "/forgot-password",
   "/teachers",
+  "/find-tutor",
+  "/courses",
   "/subscribe",
 ]);
 
 function isPublicRoute(pathname: string): boolean {
   if (publicExact.has(pathname)) return true;
   if (pathname.startsWith("/teachers/")) return true;
+  if (pathname.startsWith("/find-tutor/")) return true;
+  if (pathname.startsWith("/courses/")) return true;
   if (pathname.startsWith("/auth/")) return true;
   if (pathname.startsWith("/api/v1/webhooks")) return true;
   if (pathname.startsWith("/api/v1/health")) return true;

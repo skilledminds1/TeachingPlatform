@@ -92,19 +92,23 @@ export async function createPayPalSellerReferral(input: {
 
 export async function createPayPalOrder(input: {
   attemptId: string;
-  bookingId: string;
   amountCents: number;
   currency: string;
   teacherMerchantId: string;
   description: string;
+  target: { type: "booking" | "course"; id: string };
 }): Promise<{ orderId: string; approveUrl: string }> {
   const token = await getPayPalAccessToken();
+  const targetPath =
+    input.target.type === "booking"
+      ? `/dashboard/bookings/${input.target.id}`
+      : `/dashboard/courses/purchases/${input.target.id}`;
   const returnUrl = new URL(
-    `/dashboard/bookings/${input.bookingId}?payment=return&provider=paypal`,
+    `${targetPath}?payment=return&provider=paypal`,
     env.NEXT_PUBLIC_APP_URL,
   ).toString();
   const cancelUrl = new URL(
-    `/dashboard/bookings/${input.bookingId}?payment=cancelled`,
+    `${targetPath}?payment=cancelled`,
     env.NEXT_PUBLIC_APP_URL,
   ).toString();
 
@@ -114,7 +118,7 @@ export async function createPayPalOrder(input: {
       {
         reference_id: input.attemptId,
         description: input.description.slice(0, 127),
-        custom_id: input.bookingId,
+        custom_id: input.target.id,
         amount: {
           currency_code: input.currency,
           value: amountFromCents(input.amountCents),

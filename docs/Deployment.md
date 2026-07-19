@@ -113,12 +113,12 @@ Deploy: Vercel auto-deploy on merge.
 
 - [x] Production Supabase configured (Site URL + redirect URLs)
 - [x] PayFast live credentials (subscriptions)
-- [ ] PayFast Split Payments and PayPal partner app configured (teacher linking)
+- [ ] PayPal partner app configured (teacher lesson linking)
 - [x] LiveKit Cloud URL and production API credentials
 - [x] All env vars in Vercel
 - [x] Domain DNS pointed at Vercel (GoDaddy A `@` → `76.76.21.21`, CNAME `www` → `cname.vercel-dns.com`)
 - [x] PayPal webhook registered (`PAYPAL_WEBHOOK_ID`)
-- [ ] Migrations applied / verified on production DB
+- [x] Migrations applied / verified on production DB
 - [ ] Platform admin seeded
 - [ ] Rotate PayPal client secret (shared in chat)
 - [ ] Security checklist complete

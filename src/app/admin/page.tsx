@@ -58,14 +58,16 @@ export default async function AdminDashboardPage() {
       <section className="grid gap-4 md:grid-cols-3" aria-label="Action required">
         <Link
           href="/admin/teachers"
-          className="group rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40"
+          className="group rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
         >
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Teacher approvals</p>
-              <p className="text-2xl font-semibold">{metrics.pendingTeacherCount}</p>
+              <p className="font-heading text-2xl font-semibold">{metrics.pendingTeacherCount}</p>
             </div>
-            <Clock3 className="size-5 text-amber-500" aria-hidden />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
+              <Clock3 className="size-4.5 text-amber-500" aria-hidden />
+            </div>
           </div>
           <p className="mt-4 flex items-center gap-1 text-sm font-medium text-primary">
             Review queue
@@ -74,14 +76,16 @@ export default async function AdminDashboardPage() {
         </Link>
         <Link
           href="/admin/reviews"
-          className="group rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40"
+          className="group rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
         >
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Pending reviews</p>
-              <p className="text-2xl font-semibold">{metrics.pendingReviewCount}</p>
+              <p className="font-heading text-2xl font-semibold">{metrics.pendingReviewCount}</p>
             </div>
-            <Star className="size-5 text-amber-500" aria-hidden />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
+              <Star className="size-4.5 text-amber-500" aria-hidden />
+            </div>
           </div>
           <p className="mt-4 flex items-center gap-1 text-sm font-medium text-primary">
             Moderate reviews
@@ -90,14 +94,16 @@ export default async function AdminDashboardPage() {
         </Link>
         <Link
           href="/admin/analytics"
-          className="group rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40"
+          className="group rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
         >
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">All bookings</p>
-              <p className="text-2xl font-semibold">{metrics.bookingCount}</p>
+              <p className="font-heading text-2xl font-semibold">{metrics.bookingCount}</p>
             </div>
-            <CalendarCheck className="size-5 text-primary" aria-hidden />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+              <CalendarCheck className="size-4.5 text-primary" aria-hidden />
+            </div>
           </div>
           <p className="mt-4 flex items-center gap-1 text-sm font-medium text-primary">
             View analytics
@@ -107,10 +113,10 @@ export default async function AdminDashboardPage() {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
             <div>
-              <h2 className="font-semibold">Recent users</h2>
+              <h2 className="font-heading font-semibold">Recent users</h2>
               <p className="text-xs text-muted-foreground">Latest account registrations</p>
             </div>
             <Button size="sm" variant="ghost" render={<Link href="/admin/users" />}>
@@ -153,10 +159,10 @@ export default async function AdminDashboardPage() {
           )}
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
             <div>
-              <h2 className="font-semibold">Admin activity</h2>
+              <h2 className="font-heading font-semibold">Admin activity</h2>
               <p className="text-xs text-muted-foreground">Latest moderation actions</p>
             </div>
             <Button size="sm" variant="ghost" render={<Link href="/admin/audit-log" />}>

@@ -84,17 +84,17 @@ export async function notifyTeacherProfileApproved(profileId: string) {
   });
   if (!profile) return;
 
-  const href = `/teachers/${profile.slug}`;
+  const href = `/find-tutor/${profile.slug}`;
   await createNotification({
     userId: profile.user.id,
     type: "teacher_profile.approved",
     title: "Your teacher profile is approved",
-    body: "Your profile is now live in the marketplace and students can contact you.",
+    body: "Your profile is now live on Find Tutor and students can contact you.",
     href,
     email: {
       to: profile.user.email,
       subject: "Your Amazing Skills profile is approved",
-      html: `<p>Hi ${profile.user.name},</p><p>Your teacher profile has been approved and is now live in the marketplace.</p><p><a href="${env.NEXT_PUBLIC_APP_URL}${href}">View your profile</a></p>`,
+      html: `<p>Hi ${profile.user.name},</p><p>Your teacher profile has been approved and is now live on Find Tutor.</p><p><a href="${env.NEXT_PUBLIC_APP_URL}${href}">View your profile</a></p>`,
     },
   });
 }

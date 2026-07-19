@@ -19,7 +19,7 @@ type TeacherCardData = {
 export function TeacherCard({ teacher }: { teacher: TeacherCardData }) {
   return (
     <Link
-      href={`/teachers/${teacher.slug}`}
+      href={`/find-tutor/${teacher.slug}`}
       className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40"
     >
       <div className="flex items-start justify-between gap-3">

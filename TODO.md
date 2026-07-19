@@ -26,14 +26,17 @@ Check off items as they are completed.
 
 ---
 
-# Phase 3 — Marketplace
+# Phase 3 — Find Tutor & Courses
 
 - [x] Teacher Profiles (public page: bio, subjects, qualifications, availability, rate)
-- [x] Marketplace listing page (`/teachers`)
+- [x] Find Tutor listing page (`/find-tutor`)
 - [x] Search (name, subject, keyword)
 - [x] Filters (subject, price, rating) + sorting (rating, price, newest)
 - [x] Reviews & ratings (approved reviews with aggregates and teacher responses)
 - [x] Profile approval workflow (admin moderation; only approved profiles listed)
+- [x] Courses catalogue (`/courses`) with filters and course sales pages
+- [x] Teacher course authoring (modules, lessons, publish/archive, plan limits)
+- [x] Course purchase via teacher PayPal + enrollment + student library
 
 ---
 
@@ -73,8 +76,8 @@ Check off items as they are completed.
 # Phase 7 — Teacher Payments
 
 - [x] PayPal account linking (OAuth foundation; provider credentials required)
-- [x] Student checkout via teacher's payment method (PayFast / PayPal)
-- [x] Payment confirmation webhooks (PayPal/PayFast lesson ITN)
+- [x] Student checkout via teacher's PayPal account
+- [x] Payment confirmation webhooks (PayPal lesson payments)
 - [x] Teacher earnings summary (read-only, from verified payment attempts)
 - [ ] Skrill checkout (deferred)
 - [ ] Wise checkout (not applicable — payouts only)
@@ -100,7 +103,7 @@ Check off items as they are completed.
 
 # Future (Post-v1)
 
-- [ ] Courses & lessons (light LMS)
+- [x] Courses & lessons (self-paced LMS with purchase and enrollment)
 - [ ] Homework & assignments
 - [ ] Quizzes
 - [ ] Group classes

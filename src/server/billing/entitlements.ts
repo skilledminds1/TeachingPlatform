@@ -171,6 +171,45 @@ export async function getStudentUsage(organizationId: string) {
   };
 }
 
+export async function getCourseUsage(organizationId: string) {
+  const [entitlements, courseCount] = await Promise.all([
+    getOrganizationEntitlements(organizationId),
+    db.course.count({
+      where: {
+        organizationId,
+        deletedAt: null,
+      },
+    }),
+  ]);
+
+  const limit = entitlements.plan.courseLimit;
+  const atLimit = limit !== null && courseCount >= limit;
+  const recommendedPlan = atLimit
+    ? await db.plan.findFirst({
+        where: {
+          OR: [{ courseLimit: { gt: courseCount } }, { courseLimit: null }],
+        },
+        orderBy: { monthlyPriceCents: "asc" },
+        select: {
+          name: true,
+          slug: true,
+          courseLimit: true,
+          monthlyPriceCents: true,
+          currency: true,
+        },
+      })
+    : null;
+
+  return {
+    courseCount,
+    limit,
+    remaining: limit === null ? null : Math.max(0, limit - courseCount),
+    atLimit,
+    plan: entitlements.plan,
+    recommendedPlan,
+  };
+}
+
 export async function canAcceptStudent(input: {
   organizationId: string;
   teacherId: string;

@@ -3,11 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { majorUnitsToCents } from "@/lib/payments/routing";
-import {
-  confirmBookingPayment,
-  markAttemptFailed,
-} from "@/server/payments/confirm";
 import { createPayfastSignature } from "@/services/payfast/signature";
 
 function nextPeriodEnd(current: Date | null, interval: "monthly" | "annual"): Date {
@@ -17,6 +12,7 @@ function nextPeriodEnd(current: Date | null, interval: "monthly" | "annual"): Da
   return date;
 }
 
+/** PayFast ITN — platform teacher subscriptions only (not student lesson payments). */
 export async function POST(request: NextRequest) {
   if (!env.PAYFAST_MERCHANT_ID || !env.PAYFAST_PASSPHRASE) {
     return new NextResponse("PayFast is not configured", { status: 503 });
@@ -52,56 +48,12 @@ export async function POST(request: NextRequest) {
     return new NextResponse("PayFast validation failed", { status: 400 });
   }
 
-  const lessonFlag = params.get("custom_str1");
-  if (lessonFlag === "lesson") {
-    return handleLessonItn(params);
+  // Ignore any legacy lesson Split Payment ITNs — student payments use PayPal only.
+  if (params.get("custom_str1") === "lesson") {
+    return new NextResponse("OK");
   }
 
   return handleSubscriptionItn(params);
-}
-
-async function handleLessonItn(params: URLSearchParams) {
-  const attemptId = params.get("custom_str2") || params.get("m_payment_id");
-  const bookingId = params.get("custom_str3");
-  const teacherMerchantId = params.get("custom_str4");
-  const providerEventId = params.get("pf_payment_id");
-  const paymentStatus = params.get("payment_status");
-  const amount = params.get("amount_gross") || params.get("amount");
-
-  if (!attemptId || !bookingId || !teacherMerchantId || !providerEventId || !paymentStatus || !amount) {
-    return new NextResponse("Missing lesson payment metadata", { status: 400 });
-  }
-
-  const attempt = await db.paymentAttempt.findUnique({ where: { id: attemptId } });
-  if (!attempt || attempt.bookingId !== bookingId) {
-    return new NextResponse("Payment attempt not found", { status: 404 });
-  }
-
-  const payload = Object.fromEntries(params);
-
-  if (paymentStatus === "COMPLETE") {
-    await confirmBookingPayment({
-      attemptId,
-      providerPaymentId: providerEventId,
-      providerEventId: `payfast:${providerEventId}`,
-      eventType: paymentStatus,
-      payload,
-      amountCents: majorUnitsToCents(amount),
-      currency: "ZAR",
-      teacherMerchantId,
-    });
-  } else {
-    await markAttemptFailed({
-      attemptId,
-      providerEventId: `payfast:${providerEventId}:${paymentStatus}`,
-      eventType: paymentStatus,
-      payload,
-      failureCode: paymentStatus,
-      failureMessage: `PayFast status ${paymentStatus}`,
-    });
-  }
-
-  return new NextResponse("OK");
 }
 
 async function handleSubscriptionItn(params: URLSearchParams) {

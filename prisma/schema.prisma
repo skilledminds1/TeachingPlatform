@@ -125,6 +125,32 @@ enum StudentRelationshipStatus {
   @@map("student_relationship_status")
 }
 
+enum CourseStatus {
+  draft
+  published
+  archived
+
+  @@map("course_status")
+}
+
+enum CourseLevel {
+  beginner
+  intermediate
+  advanced
+  all_levels
+
+  @@map("course_level")
+}
+
+enum CoursePurchaseStatus {
+  pending
+  succeeded
+  refunded
+  cancelled
+
+  @@map("course_purchase_status")
+}
+
 // ─── Users & Organizations ───────────────────────────────────────────────────
 
 model User {
@@ -155,6 +181,11 @@ model User {
   conversationsAsStudent Conversation[]           @relation("ConversationStudent")
   messagesSent           Message[]                @relation("MessageSender")
   notifications          Notification[]
+  coursesTaught          Course[]                 @relation("CourseTeacher")
+  coursePurchases        CoursePurchase[]         @relation("CoursePurchaseStudent")
+  courseSales            CoursePurchase[]         @relation("CoursePurchaseTeacher")
+  courseEnrollments      CourseEnrollment[]
+  courseLessonProgress   CourseLessonProgress[]
 
   @@index([email])
   @@map("users")
@@ -181,6 +212,7 @@ model Organization {
   invitations          OrganizationInvitation[]
   studentRelationships StudentRelationship[]
   billingEvents        BillingEvent[]
+  courses              Course[]
 
   @@index([slug])
   @@index([planId])
@@ -291,6 +323,7 @@ model Subject {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   teachers TeacherSubject[]
+  courses  Course[]
 
   @@index([slug])
   @@map("subjects")
@@ -444,7 +477,8 @@ model Booking {
 
 model PaymentAttempt {
   id                    String               @id @default(uuid()) @db.Uuid
-  bookingId             String               @map("booking_id") @db.Uuid
+  bookingId             String?              @map("booking_id") @db.Uuid
+  coursePurchaseId      String?              @map("course_purchase_id") @db.Uuid
   provider              PaymentProvider
   status                PaymentAttemptStatus @default(pending)
   amountCents           Int                  @map("amount_cents")
@@ -463,15 +497,151 @@ model PaymentAttempt {
   createdAt             DateTime             @default(now()) @map("created_at")
   updatedAt             DateTime             @updatedAt @map("updated_at")
 
-  booking Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  events  PaymentEvent[]
+  booking        Booking?        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  coursePurchase CoursePurchase? @relation(fields: [coursePurchaseId], references: [id], onDelete: Cascade)
+  events         PaymentEvent[]
 
   @@index([bookingId])
+  @@index([coursePurchaseId])
   @@index([provider, status])
   @@index([providerCheckoutId])
   @@index([providerPaymentId])
   @@index([expiresAt])
   @@map("payment_attempts")
+}
+
+// ─── Courses ─────────────────────────────────────────────────────────────────
+
+model Course {
+  id               String      @id @default(uuid()) @db.Uuid
+  teacherId        String      @map("teacher_id") @db.Uuid
+  organizationId   String      @map("organization_id") @db.Uuid
+  subjectId        String?     @map("subject_id") @db.Uuid
+  slug             String      @unique
+  title            String
+  description      String      @default("")
+  coverImageUrl    String?     @map("cover_image_url")
+  priceCents       Int         @map("price_cents")
+  currency         String      @default("USD")
+  level            CourseLevel @default(all_levels)
+  status           CourseStatus @default(draft)
+  publishedAt      DateTime?   @map("published_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  deletedAt        DateTime?   @map("deleted_at")
+
+  teacher      User              @relation("CourseTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subject      Subject?          @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  modules      CourseModule[]
+  purchases    CoursePurchase[]
+  enrollments  CourseEnrollment[]
+
+  @@index([teacherId])
+  @@index([organizationId])
+  @@index([subjectId])
+  @@index([status])
+  @@index([slug])
+  @@map("courses")
+}
+
+model CourseModule {
+  id        String   @id @default(uuid()) @db.Uuid
+  courseId  String   @map("course_id") @db.Uuid
+  title     String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons CourseLesson[]
+
+  @@index([courseId, sortOrder])
+  @@map("course_modules")
+}
+
+model CourseLesson {
+  id              String   @id @default(uuid()) @db.Uuid
+  moduleId        String   @map("module_id") @db.Uuid
+  title           String
+  content         String   @default("")
+  videoUrl        String?  @map("video_url")
+  fileStoragePath String?  @map("file_storage_path")
+  fileName        String?  @map("file_name")
+  fileMimeType    String?  @map("file_mime_type")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  module   CourseModule           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress CourseLessonProgress[]
+
+  @@index([moduleId, sortOrder])
+  @@map("course_lessons")
+}
+
+model CoursePurchase {
+  id                String               @id @default(uuid()) @db.Uuid
+  courseId          String               @map("course_id") @db.Uuid
+  studentId         String               @map("student_id") @db.Uuid
+  teacherId         String               @map("teacher_id") @db.Uuid
+  amountCents       Int                  @map("amount_cents")
+  currency          String
+  status            CoursePurchaseStatus @default(pending)
+  paymentProvider   PaymentProvider?     @map("payment_provider")
+  paymentExternalId String?              @map("payment_external_id")
+  paymentExpiresAt  DateTime?            @map("payment_expires_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student         User             @relation("CoursePurchaseStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  teacher         User             @relation("CoursePurchaseTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  paymentAttempts PaymentAttempt[]
+  enrollment      CourseEnrollment?
+
+  @@index([courseId])
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([status])
+  @@index([paymentExpiresAt])
+  @@map("course_purchases")
+}
+
+model CourseEnrollment {
+  id          String    @id @default(uuid()) @db.Uuid
+  courseId    String    @map("course_id") @db.Uuid
+  studentId   String    @map("student_id") @db.Uuid
+  purchaseId  String    @unique @map("purchase_id") @db.Uuid
+  enrolledAt  DateTime  @default(now()) @map("enrolled_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  course   Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student  User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  purchase CoursePurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+  @@index([studentId])
+  @@index([courseId])
+  @@map("course_enrollments")
+}
+
+model CourseLessonProgress {
+  id          String    @id @default(uuid()) @db.Uuid
+  lessonId    String    @map("lesson_id") @db.Uuid
+  studentId   String    @map("student_id") @db.Uuid
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  lesson  CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  student User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, studentId])
+  @@index([studentId])
+  @@map("course_lesson_progress")
 }
 
 model PaymentEvent {

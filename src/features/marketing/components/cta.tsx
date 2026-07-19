@@ -16,11 +16,11 @@ export function Cta() {
               Ready to start your next lesson?
             </h2>
             <p className="mx-auto max-w-xl text-muted-foreground">
-              Join students and teachers across South Africa and beyond. Create a free account in
-              under a minute.
+              Join students and teachers across the world. Create a free account in under a
+              minute.
             </p>
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button size="lg" render={<Link href="/register" />}>
+              <Button size="lg" render={<Link href="/find-tutor" />}>
                 Find a tutor
               </Button>
               <Button size="lg" variant="outline" render={<Link href="/register?role=teacher" />}>

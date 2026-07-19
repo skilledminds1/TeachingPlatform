@@ -11,14 +11,14 @@ import { cn } from "@/lib/utils";
 
 const featureLabels: Record<string, string> = {
   teacher_profile: "Teacher profile",
-  marketplace_listing: "Marketplace listing",
+  marketplace_listing: "Find Tutor & Courses listing",
   booking_calendar: "Booking calendar",
   direct_messaging: "Direct messaging",
   one_on_one_lessons: "One-on-one lessons",
   basic_analytics: "Basic analytics",
   community_support: "Community support",
   direct_payments: "Direct payment linking",
-  courses: "1 course",
+  courses: "Course creation & sales",
   homework: "Homework",
   file_sharing: "File sharing",
   student_notes: "Student notes",
@@ -26,13 +26,13 @@ const featureLabels: Record<string, string> = {
   reviews: "Reviews",
   basic_reporting: "Basic reporting",
   custom_availability: "Custom availability",
-  unlimited_courses: "Unlimited courses",
+  unlimited_courses: "Unlimited courses · 0% commission",
   quizzes: "Quizzes",
   assignments: "Assignments",
   certificates: "Certificates",
   group_lessons: "Group lessons",
   calendar_sync: "Calendar sync",
-  video_integrations: "HD LiveKit video lessons",
+  video_integrations: "HD video lessons",
   advanced_analytics: "Advanced analytics",
   priority_support: "Priority support",
   team_teachers: "Team teachers",
@@ -227,7 +227,9 @@ export function BillingPlanSelector({
                   : `${plan.monthlyLiveLessonMinutes / 60} live lesson hours / month`}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {plan.courseLimit === null
+                {plan.courseLimit === 0
+                  ? "Course selling not included"
+                  : plan.courseLimit === null
                   ? "Unlimited courses"
                   : `${plan.courseLimit} course`}
               </p>

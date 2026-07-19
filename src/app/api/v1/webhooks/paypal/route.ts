@@ -5,6 +5,7 @@ import { majorUnitsToCents } from "@/lib/payments/routing";
 import {
   applyRefundToAttempt,
   confirmBookingPayment,
+  confirmCoursePayment,
   markAttemptFailed,
 } from "@/server/payments/confirm";
 import { verifyPayPalWebhookSignature } from "@/services/paypal/checkout";
@@ -60,7 +61,11 @@ export async function POST(request: NextRequest) {
     const currency = capture?.amount?.currency_code ?? unit?.amount?.currency_code;
 
     if (attemptId && teacherMerchantId && amount && currency && capture?.id) {
-      await confirmBookingPayment({
+      const attempt = await db.paymentAttempt.findUnique({
+        where: { id: attemptId },
+        select: { bookingId: true, coursePurchaseId: true },
+      });
+      const confirmation = {
         attemptId,
         providerPaymentId: capture.id,
         providerEventId: event.id,
@@ -69,7 +74,12 @@ export async function POST(request: NextRequest) {
         amountCents: majorUnitsToCents(amount),
         currency,
         teacherMerchantId,
-      });
+      };
+      if (attempt?.bookingId) {
+        await confirmBookingPayment(confirmation);
+      } else if (attempt?.coursePurchaseId) {
+        await confirmCoursePayment(confirmation);
+      }
     }
   }
 

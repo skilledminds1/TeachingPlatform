@@ -38,27 +38,33 @@ export default async function StudentDashboardPage() {
     await getStudentDashboardData();
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <header className="border-b border-border bg-background">
+    <div className="min-h-screen bg-muted/30">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-lg">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="font-semibold tracking-tight">
-            Amazing Skills
+          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <GraduationCap className="size-4" aria-hidden />
+            </span>
+            <span className="hidden sm:inline">Amazing Skills</span>
           </Link>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" render={<Link href="/dashboard/classroom" />}>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" render={<Link href="/dashboard/classroom" />}>
               Classroom
             </Button>
-            <Button variant="ghost" render={<Link href="/dashboard/messages" />}>
+            <Button variant="ghost" size="sm" render={<Link href="/dashboard/messages" />}>
               Messages
             </Button>
-            <Button variant="ghost" render={<Link href="/dashboard/notifications" />}>
+            <Button variant="ghost" size="sm" render={<Link href="/dashboard/notifications" />}>
               Notifications
             </Button>
-            <Button variant="ghost" render={<Link href="/teachers" />}>
-              Find tutors
+            <Button variant="ghost" size="sm" render={<Link href="/dashboard/courses" />}>
+              My Courses
+            </Button>
+            <Button variant="ghost" size="sm" render={<Link href="/find-tutor" />}>
+              Find Tutor
             </Button>
             <form action={signOut}>
-              <Button type="submit" variant="outline" size="sm">
+              <Button type="submit" variant="outline" size="sm" className="ml-2">
                 Sign out
               </Button>
             </form>
@@ -66,10 +72,23 @@ export default async function StudentDashboardPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-10 md:py-14">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Student dashboard</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Welcome, {user.name}</h1>
+      <main className="mx-auto max-w-6xl space-y-8 px-6 py-8 md:py-12">
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+          <div
+            className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent"
+            aria-hidden
+          />
+          <div className="relative space-y-2">
+            <p className="text-xs font-medium tracking-wide text-primary uppercase">
+              Student dashboard
+            </p>
+            <h1 className="font-heading text-3xl font-semibold tracking-tight md:text-4xl">
+              Welcome, {user.name}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Track your lessons, teachers, and courses in one place.
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -87,7 +106,7 @@ export default async function StudentDashboardPage() {
         </div>
 
         {reviewsDue > 0 ? (
-          <div className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-5">
+          <div className="flex items-start gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-5">
             <Star className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
             <div>
               <p className="font-medium">
@@ -102,9 +121,9 @@ export default async function StudentDashboardPage() {
 
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
           <div className="space-y-6">
-            <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-              <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <h2 className="font-semibold">Upcoming lessons</h2>
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+              <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
+                <h2 className="font-heading font-semibold">Upcoming lessons</h2>
                 <div className="flex items-center gap-1">
                   <Button
                     size="sm"
@@ -161,14 +180,14 @@ export default async function StudentDashboardPage() {
                 <EmptyState
                   icon={CalendarDays}
                   title="No upcoming lessons"
-                  description="Browse the marketplace to find a teacher and book your first session."
+                  description="Browse Find Tutor to find a teacher and book your first session."
                 />
               )}
             </section>
 
-            <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-              <div className="border-b border-border px-5 py-4">
-                <h2 className="font-semibold">Recent lessons</h2>
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+              <div className="border-b border-border/60 px-5 py-4">
+                <h2 className="font-heading font-semibold">Recent lessons</h2>
               </div>
               {recentBookings.length > 0 ? (
                 <ul className="divide-y divide-border">
@@ -208,9 +227,9 @@ export default async function StudentDashboardPage() {
           </div>
 
           <div className="space-y-6">
-            <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-              <div className="border-b border-border px-5 py-4">
-                <h2 className="font-semibold">My teachers</h2>
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+              <div className="border-b border-border/60 px-5 py-4">
+                <h2 className="font-heading font-semibold">My teachers</h2>
               </div>
               {teachers.length > 0 ? (
                 <ul className="divide-y divide-border">
@@ -248,16 +267,32 @@ export default async function StudentDashboardPage() {
               )}
             </section>
 
-            <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Search className="size-4" aria-hidden />
+            <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <div
+                className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent"
+                aria-hidden
+              />
+              <div className="relative flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Search className="size-5" aria-hidden />
               </div>
-              <h2 className="mt-4 font-semibold">Find your next teacher</h2>
+              <h2 className="relative mt-4 font-heading font-semibold">Find your next teacher</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Browse verified teachers by subject, rate, and availability.
               </p>
-              <Button className="mt-5 w-full" render={<Link href="/teachers" />}>
-                Browse the marketplace
+              <Button className="relative mt-5 w-full" render={<Link href="/find-tutor" />}>
+                Find a tutor
+              </Button>
+            </section>
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <GraduationCap className="size-5" aria-hidden />
+              </div>
+              <h2 className="mt-4 font-heading font-semibold">Explore courses</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Browse self-paced courses created and sold by teachers.
+              </p>
+              <Button className="mt-5 w-full" variant="outline" render={<Link href="/courses" />}>
+                Browse courses
               </Button>
             </section>
           </div>
@@ -277,12 +312,12 @@ function StatCard({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-5 shadow-sm">
-      <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <Icon className="size-4" aria-hidden />
+    <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+      <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <Icon className="size-5" aria-hidden />
       </div>
       <div>
-        <p className="text-2xl font-semibold tracking-tight">{value}</p>
+        <p className="font-heading text-2xl font-semibold tracking-tight">{value}</p>
         <p className="text-xs text-muted-foreground">{label}</p>
       </div>
     </div>

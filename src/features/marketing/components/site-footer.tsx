@@ -4,7 +4,8 @@ const footerColumns = [
   {
     heading: "Platform",
     links: [
-      { href: "/teachers", label: "Find tutors" },
+      { href: "/find-tutor", label: "Find tutors" },
+      { href: "/courses", label: "Courses" },
       { href: "/register?role=teacher", label: "Become a teacher" },
       { href: "/#pricing", label: "Pricing" },
       { href: "/#faq", label: "FAQ" },
@@ -28,8 +29,8 @@ export function SiteFooter() {
           <div className="space-y-3">
             <p className="text-lg font-semibold tracking-tight">Amazing Skills</p>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-              The online tutoring marketplace connecting students with expert teachers for live
-              video lessons.
+              The online tutoring platform connecting students with expert teachers for live video
+              lessons and self-paced courses.
             </p>
           </div>
           {footerColumns.map((column) => (

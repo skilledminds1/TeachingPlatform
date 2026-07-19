@@ -9,13 +9,16 @@ import { db } from "@/lib/db";
 import { routeLessonProviders } from "@/lib/payments/routing";
 import { requireAuth } from "@/server/auth/session";
 import { paymentWindowExpiry } from "@/server/payments/confirm";
-import { buildPayfastLessonCheckout } from "@/services/payfast/lessons";
 import { createPayPalOrder } from "@/services/paypal/checkout";
 import { fail, ok, type ActionResult } from "@/types/action";
 
 const startCheckoutSchema = z.object({
   bookingId: z.uuid(),
-  provider: z.enum(["payfast", "paypal"]),
+  provider: z.enum(["paypal"]),
+});
+
+const startCourseCheckoutSchema = z.object({
+  courseId: z.uuid(),
 });
 
 export async function startLessonCheckout(
@@ -39,7 +42,7 @@ export async function startLessonCheckout(
             where: {
               isActive: true,
               onboardingStatus: "complete",
-              provider: { in: ["payfast", "paypal"] },
+              provider: "paypal",
             },
             select: {
               provider: true,
@@ -101,39 +104,13 @@ export async function startLessonCheckout(
   });
 
   try {
-    if (parsed.data.provider === "payfast") {
-      if (booking.currency !== "ZAR") {
-        return fail("PayFast lesson checkout requires ZAR.", "VALIDATION_ERROR");
-      }
-      const checkout = buildPayfastLessonCheckout({
-        attemptId: attempt.id,
-        bookingId: booking.id,
-        amountCents: booking.hourlyRateCents,
-        teacherMerchantId: merchant.providerAccountId,
-        itemName: `Lesson with ${booking.teacher.name}`,
-        studentEmail: booking.student.email,
-        studentName: booking.student.name,
-      });
-      await db.paymentAttempt.update({
-        where: { id: attempt.id },
-        data: {
-          status: "requires_action",
-          checkoutUrl: checkout.url,
-          providerCheckoutId: attempt.id,
-          metadata: { fields: checkout.fields },
-        },
-      });
-      revalidatePath(`/dashboard/bookings/${booking.id}`);
-      return ok({ url: checkout.url, method: "post", fields: checkout.fields });
-    }
-
     const order = await createPayPalOrder({
       attemptId: attempt.id,
-      bookingId: booking.id,
       amountCents: booking.hourlyRateCents,
       currency: booking.currency,
       teacherMerchantId: merchant.providerAccountId,
       description: `Lesson with ${booking.teacher.name}`,
+      target: { type: "booking", id: booking.id },
     });
     await db.paymentAttempt.update({
       where: { id: attempt.id },
@@ -144,6 +121,127 @@ export async function startLessonCheckout(
       },
     });
     revalidatePath(`/dashboard/bookings/${booking.id}`);
+    return ok({ url: order.approveUrl, method: "redirect" });
+  } catch (error) {
+    await db.paymentAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        status: "failed",
+        failureMessage: error instanceof Error ? error.message : "Checkout failed",
+      },
+    });
+    return fail(
+      error instanceof Error ? error.message : "Unable to start checkout.",
+      "INTERNAL_ERROR",
+    );
+  }
+}
+
+export async function startCourseCheckout(
+  input: unknown,
+): Promise<ActionResult<{ url: string; method: "redirect" }>> {
+  const parsed = startCourseCheckoutSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "Invalid checkout request.", "VALIDATION_ERROR");
+  }
+
+  const user = await requireAuth();
+  const course = await db.course.findFirst({
+    where: {
+      id: parsed.data.courseId,
+      status: "published",
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      title: true,
+      teacherId: true,
+      priceCents: true,
+      currency: true,
+      enrollments: {
+        where: { studentId: user.id, revokedAt: null },
+        select: { id: true },
+        take: 1,
+      },
+      teacher: {
+        select: {
+          teacherPaymentAccounts: {
+            where: {
+              isActive: true,
+              onboardingStatus: "complete",
+              provider: "paypal",
+            },
+            select: { providerAccountId: true },
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+
+  if (!course) return fail("Course not found.", "NOT_FOUND");
+  if (course.teacherId === user.id) {
+    return fail("You cannot purchase your own course.", "FORBIDDEN");
+  }
+  if (course.enrollments.length > 0) {
+    return fail("You are already enrolled in this course.", "CONFLICT");
+  }
+
+  const merchant = course.teacher.teacherPaymentAccounts[0];
+  if (!merchant) {
+    return fail("This teacher has not connected PayPal yet.", "VALIDATION_ERROR");
+  }
+
+  const expiresAt = paymentWindowExpiry();
+  const { purchase, attempt } = await db.$transaction(async (tx) => {
+    const createdPurchase = await tx.coursePurchase.create({
+      data: {
+        courseId: course.id,
+        studentId: user.id,
+        teacherId: course.teacherId,
+        amountCents: course.priceCents,
+        currency: course.currency,
+        status: "pending",
+        paymentExpiresAt: expiresAt,
+      },
+      select: { id: true },
+    });
+    const createdAttempt = await tx.paymentAttempt.create({
+      data: {
+        id: randomUUID(),
+        coursePurchaseId: createdPurchase.id,
+        provider: "paypal",
+        status: "pending",
+        amountCents: course.priceCents,
+        currency: course.currency,
+        teacherMerchantId: merchant.providerAccountId,
+        expiresAt,
+        idempotencyKey: `${createdPurchase.id}:paypal`,
+        metadata: { kind: "course" },
+      },
+      select: { id: true },
+    });
+    return { purchase: createdPurchase, attempt: createdAttempt };
+  });
+
+  try {
+    const order = await createPayPalOrder({
+      attemptId: attempt.id,
+      amountCents: course.priceCents,
+      currency: course.currency,
+      teacherMerchantId: merchant.providerAccountId,
+      description: course.title,
+      target: { type: "course", id: purchase.id },
+    });
+    await db.paymentAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        status: "requires_action",
+        providerCheckoutId: order.orderId,
+        checkoutUrl: order.approveUrl,
+      },
+    });
+    revalidatePath(`/dashboard/courses/purchases/${purchase.id}`);
     return ok({ url: order.approveUrl, method: "redirect" });
   } catch (error) {
     await db.paymentAttempt.update({

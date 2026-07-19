@@ -17,7 +17,6 @@ export default async function TeacherPaymentsPage({
     searchParams,
   ]);
   const paypal = data.accounts.find((account) => account.provider === "paypal");
-  const payfast = data.accounts.find((account) => account.provider === "payfast");
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -34,18 +33,15 @@ export default async function TeacherPaymentsPage({
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Student payments</h1>
           <p className="mt-2 text-muted-foreground">
-            Link providers that match your lesson currency. Students pay you directly — Amazing
-            Skills takes no commission.
+            Connect PayPal so students can pay you directly for lessons — Amazing Skills takes no
+            commission. Teacher platform subscriptions are billed separately via PayFast.
           </p>
         </div>
 
         {query.connected ? (
           <div className="flex gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
             <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-            {query.connected === "payfast"
-                ? "PayFast"
-                : "PayPal"}{" "}
-            connected successfully.
+            PayPal connected successfully.
           </div>
         ) : null}
         {query.error ? (
@@ -55,18 +51,8 @@ export default async function TeacherPaymentsPage({
           </div>
         ) : null}
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="max-w-md">
           <PaymentProviderCard
-            provider="payfast"
-            configured={data.configured.payfast}
-            connected={Boolean(payfast?.isActive)}
-            maskedAccountId={payfast?.maskedAccountId}
-            onboardingStatus={payfast?.onboardingStatus}
-            settlementCurrency={payfast?.settlementCurrency}
-            country={payfast?.country}
-          />
-          <PaymentProviderCard
-            provider="paypal"
             configured={data.configured.paypal}
             connected={Boolean(paypal?.isActive && paypal.onboardingStatus === "complete")}
             maskedAccountId={paypal?.maskedAccountId}
@@ -76,16 +62,16 @@ export default async function TeacherPaymentsPage({
           />
         </div>
 
-        {!data.lessonFlags.payfast && !data.lessonFlags.paypal ? (
+        {!data.lessonFlags.paypal ? (
           <p className="rounded-lg border border-border bg-background p-4 text-sm text-muted-foreground">
-            Lesson payment flags are currently off. An administrator must complete provider
-            approval and set `LESSON_PAYMENTS_*_ENABLED=true` before students can checkout.
+            Lesson payments are currently off. An administrator must complete PayPal partner
+            approval and set `LESSON_PAYMENTS_PAYPAL_ENABLED=true` before students can checkout.
           </p>
         ) : null}
 
         <p className="text-sm text-muted-foreground">
-          ZAR profiles should link PayFast. Other currencies use PayPal. Provider
-          processing fees still apply.
+          Students pay you via PayPal in your chosen lesson currency. Provider processing fees still
+          apply.
         </p>
 
         <section className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm">

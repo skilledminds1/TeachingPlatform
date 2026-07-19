@@ -135,7 +135,7 @@ export async function getTeacherModerationQueue() {
           teacherPaymentAccounts: {
             where: {
               isActive: true,
-              provider: { in: ["payfast", "paypal"] },
+              provider: "paypal",
             },
             select: { provider: true },
           },

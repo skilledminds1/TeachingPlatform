@@ -3,7 +3,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
 import { cookies } from "next/headers";
-import { z } from "zod";
 
 import { env } from "@/lib/env";
 import { db } from "@/lib/db";
@@ -18,14 +17,6 @@ const stateCookieOptions = {
   maxAge: 10 * 60,
   path: "/",
 };
-
-const payfastLinkSchema = z.object({
-  merchantId: z
-    .string()
-    .trim()
-    .regex(/^\d{6,12}$/, "Enter your PayFast merchant ID"),
-  country: z.literal("ZA").default("ZA"),
-});
 
 export async function startPayPalConnect(): Promise<ActionResult<{ url: string }>> {
   const user = await requireTeacher();
@@ -90,54 +81,8 @@ export async function startPayPalConnect(): Promise<ActionResult<{ url: string }
   }
 }
 
-export async function linkPayFastMerchant(
-  input: unknown,
-): Promise<ActionResult<{ linked: true }>> {
-  const parsed = payfastLinkSchema.safeParse(input);
-  if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Invalid merchant ID.", "VALIDATION_ERROR");
-  }
-  const user = await requireTeacher();
-  if (!env.PAYFAST_MERCHANT_ID) {
-    return fail("PayFast is not configured on this platform yet.", "VALIDATION_ERROR");
-  }
-
-  const existingDefault = await db.teacherPaymentAccount.findFirst({
-    where: { userId: user.id, isDefault: true, isActive: true },
-    select: { id: true },
-  });
-
-  await db.teacherPaymentAccount.upsert({
-    where: { userId_provider: { userId: user.id, provider: "payfast" } },
-    create: {
-      id: randomUUID(),
-      userId: user.id,
-      provider: "payfast",
-      providerAccountId: parsed.data.merchantId,
-      onboardingStatus: "complete",
-      settlementCurrency: "ZAR",
-      country: "ZA",
-      capabilities: ["payments", "split_payments", "apple_pay", "google_pay"],
-      isDefault: !existingDefault,
-      isActive: true,
-      metadata: { source: "manual_merchant_id" },
-    },
-    update: {
-      providerAccountId: parsed.data.merchantId,
-      onboardingStatus: "complete",
-      settlementCurrency: "ZAR",
-      country: "ZA",
-      capabilities: ["payments", "split_payments", "apple_pay", "google_pay"],
-      isActive: true,
-      metadata: { source: "manual_merchant_id" },
-    },
-  });
-
-  return ok({ linked: true });
-}
-
 export async function disconnectPaymentAccount(
-  provider: "paypal" | "payfast",
+  provider: "paypal",
 ): Promise<ActionResult<{ disconnected: true }>> {
   const user = await requireTeacher();
   await db.teacherPaymentAccount.deleteMany({

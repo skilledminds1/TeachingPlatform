@@ -50,7 +50,7 @@ export async function saveWeeklyAvailability(
   ]);
 
   revalidatePath("/dashboard/teacher/availability");
-  revalidatePath("/teachers");
+  revalidatePath("/find-tutor");
   return ok({ saved: parsed.data.slots.length });
 }
 
@@ -88,7 +88,7 @@ export async function addAvailabilityException(
     },
   });
   revalidatePath("/dashboard/teacher/availability");
-  revalidatePath("/teachers");
+  revalidatePath("/find-tutor");
   return ok({ id: exception.id });
 }
 
@@ -103,6 +103,6 @@ export async function deleteAvailabilityException(
   if (!exception) return fail("Availability exception not found.", "NOT_FOUND");
   await db.availabilityException.delete({ where: { id: exception.id } });
   revalidatePath("/dashboard/teacher/availability");
-  revalidatePath("/teachers");
+  revalidatePath("/find-tutor");
   return ok({ deleted: true });
 }

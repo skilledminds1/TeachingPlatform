@@ -1,5 +1,5 @@
 export const LESSON_CURRENCIES = [
-  { code: "ZAR", label: "South African Rand (R)", symbol: "R", providers: ["payfast", "paypal"] as const },
+  { code: "ZAR", label: "South African Rand (R)", symbol: "R", providers: ["paypal"] as const },
   { code: "USD", label: "US Dollar ($)", symbol: "$", providers: ["paypal"] as const },
   { code: "EUR", label: "Euro (€)", symbol: "€", providers: ["paypal"] as const },
   { code: "GBP", label: "British Pound (£)", symbol: "£", providers: ["paypal"] as const },
@@ -8,7 +8,7 @@ export const LESSON_CURRENCIES = [
 ] as const;
 
 export type LessonCurrency = (typeof LESSON_CURRENCIES)[number]["code"];
-export type LessonPaymentProvider = "payfast" | "paypal";
+export type LessonPaymentProvider = "paypal";
 
 const currencySet = new Set<string>(LESSON_CURRENCIES.map((item) => item.code));
 

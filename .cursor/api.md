@@ -143,7 +143,7 @@ Use only when Server Actions are not suitable:
 | Route | Method | Auth | Purpose |
 |-------|--------|------|---------|
 | `/api/v1/health` | GET | None | Health check |
-| `/api/v1/webhooks/payfast` | POST | ITN signature | Platform subscriptions and ZAR lesson payments |
+| `/api/v1/webhooks/payfast` | POST | ITN signature | Platform subscriptions only |
 | `/api/v1/webhooks/paypal` | POST | Signature | Student→teacher booking payment |
 
 ### RESTful Conventions

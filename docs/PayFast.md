@@ -5,9 +5,8 @@
 **PayFast is used for:**
 
 1. **Platform subscriptions** — teachers paying Amazing Skills for Starter, Professional, or Business plans.
-2. **ZAR lesson payments (Split Payments)** — when `LESSON_PAYMENTS_PAYFAST_ENABLED=true`, students pay South African teachers in ZAR. Apple Pay and Google Pay appear on the PayFast hosted page when enabled in the merchant dashboard. See [`docs/LessonPayments.md`](LessonPayments.md).
 
-For non-ZAR / global teacher lesson payments use **PayPal**.
+Student lesson payments use **PayPal** only (`docs/LessonPayments.md`).
 
 ---
 

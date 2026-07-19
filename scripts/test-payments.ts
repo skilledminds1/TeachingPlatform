@@ -36,7 +36,7 @@ function testAmountMatching(): void {
 }
 
 function testCurrencyRouting(): void {
-  assert.deepEqual(providersForCurrency("ZAR"), ["payfast", "paypal"]);
+  assert.deepEqual(providersForCurrency("ZAR"), ["paypal"]);
   assert.deepEqual(providersForCurrency("USD"), ["paypal"]);
 }
 

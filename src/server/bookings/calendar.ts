@@ -47,7 +47,7 @@ export async function getBookingForUser(bookingId: string) {
             where: {
               isActive: true,
               onboardingStatus: "complete",
-              provider: { in: ["payfast", "paypal"] },
+              provider: "paypal",
             },
             select: { provider: true },
           },

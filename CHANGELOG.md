@@ -30,12 +30,27 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Provider-neutral lesson payments with PayFast Split Payments (ZAR + Apple Pay/Google Pay) and PayPal multiparty checkout
+- Self-paced courses marketplace at `/courses` with teacher authoring, PayPal checkout, enrollment, and student library
+- Course modules/lessons with text, external video links, and private downloadable files
+- Dedicated Find Tutor discovery at `/find-tutor` with teacher profiles and booking
+- PayPal multiparty lesson checkout (students pay teachers directly; zero platform commission)
 - Teacher-selected lesson currencies (ZAR, USD, EUR, GBP, AUD, CAD) snapshotted onto bookings
 - PaymentAttempt / PaymentEvent ledger with idempotent webhooks, payment-window expiry, and refund tracking
 - Student booking checkout UI and teacher earnings summary from verified payment attempts
 - Lesson payment feature flags and documentation in `docs/LessonPayments.md`
 - Cron-friendly unpaid booking expiry job at `/api/v1/jobs/expire-pending-payments`
+
+### Changed
+
+- Student lesson payments use PayPal only; PayFast is reserved for teacher platform subscriptions
+- Landing hero and header restyled with education-themed visuals, display font, and floating subject accents
+- Split product surfaces: Courses marketplace at `/courses` and tutor discovery at `/find-tutor` (old `/teachers` redirects)
+- Navigation and dashboards distinguish Courses, Find Tutor, and live lessons
+- Course authoring and uploads require Professional or Business; course sales remain commission-free
+
+### Removed
+
+- PayFast Split Payments / merchant linking for student→teacher lesson checkout
 - Teacher↔student in-app messaging with conversation threads and unread indicators
 - Notification center for booking updates, lesson reminders, and new messages
 - Resend-backed transactional emails for booking creation, confirmation, and session reminders (skipped when `RESEND_API_KEY` is unset)

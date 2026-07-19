@@ -47,7 +47,7 @@ export default async function SubscribePage({
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button render={<Link href="/teachers" />}>Find a tutor</Button>
+          <Button render={<Link href="/find-tutor" />}>Find a tutor</Button>
           <Button variant="outline" render={<Link href="/dashboard" />}>
             Student dashboard
           </Button>
