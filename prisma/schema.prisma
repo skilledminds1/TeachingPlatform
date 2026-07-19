@@ -111,6 +111,14 @@ enum BillingInterval {
   @@map("billing_interval")
 }
 
+enum PlanSaleIntervalScope {
+  monthly
+  annual
+  both
+
+  @@map("plan_sale_interval_scope")
+}
+
 enum InvitationStatus {
   pending
   accepted
@@ -210,36 +218,48 @@ model User {
   calendarConnections    CalendarConnection[]
   bookingCalendarEvents  BookingCalendarEvent[]
   rescheduleProposals    BookingRescheduleProposal[] @relation("RescheduleProposer")
+  complimentaryGrants    Organization[]              @relation("ComplimentaryGrants")
 
   @@index([email])
   @@map("users")
 }
 
 model Organization {
-  id                 String             @id @default(uuid()) @db.Uuid
-  name               String
-  slug               String             @unique
-  planId             String             @map("plan_id") @db.Uuid
-  payfastToken       String?            @map("payfast_token")
-  subscriptionStatus SubscriptionStatus @default(trialing) @map("subscription_status")
-  billingInterval    BillingInterval    @default(monthly) @map("billing_interval")
-  currentPeriodEnd   DateTime?          @map("current_period_end")
-  cancelAtPeriodEnd  Boolean            @default(false) @map("cancel_at_period_end")
-  createdAt          DateTime           @default(now()) @map("created_at")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
-  deletedAt          DateTime?          @map("deleted_at")
+  id                          String             @id @default(uuid()) @db.Uuid
+  name                        String
+  slug                        String             @unique
+  planId                      String             @map("plan_id") @db.Uuid
+  payfastToken                String?            @map("payfast_token")
+  subscriptionStatus          SubscriptionStatus @default(trialing) @map("subscription_status")
+  billingInterval             BillingInterval    @default(monthly) @map("billing_interval")
+  currentPeriodEnd            DateTime?          @map("current_period_end")
+  cancelAtPeriodEnd           Boolean            @default(false) @map("cancel_at_period_end")
+  complimentaryPlanId         String?            @map("complimentary_plan_id") @db.Uuid
+  complimentaryExpiresAt      DateTime?          @map("complimentary_expires_at")
+  complimentaryGrantedById    String?            @map("complimentary_granted_by_id") @db.Uuid
+  complimentaryGrantedAt      DateTime?          @map("complimentary_granted_at")
+  complimentaryPreviousPlanId String?            @map("complimentary_previous_plan_id") @db.Uuid
+  complimentaryNote           String?            @map("complimentary_note")
+  createdAt                   DateTime           @default(now()) @map("created_at")
+  updatedAt                   DateTime           @updatedAt @map("updated_at")
+  deletedAt                   DateTime?          @map("deleted_at")
 
-  plan                 Plan                     @relation(fields: [planId], references: [id])
-  members              OrganizationMember[]
-  teacherProfiles      TeacherProfile[]
-  bookings             Booking[]
-  invitations          OrganizationInvitation[]
-  studentRelationships StudentRelationship[]
-  billingEvents        BillingEvent[]
-  courses              Course[]
+  plan                      Plan                     @relation("OrganizationPlan", fields: [planId], references: [id])
+  complimentaryPlan         Plan?                    @relation("ComplimentaryPlan", fields: [complimentaryPlanId], references: [id])
+  complimentaryPreviousPlan Plan?                    @relation("ComplimentaryPreviousPlan", fields: [complimentaryPreviousPlanId], references: [id])
+  complimentaryGrantedBy    User?                    @relation("ComplimentaryGrants", fields: [complimentaryGrantedById], references: [id])
+  members                   OrganizationMember[]
+  teacherProfiles           TeacherProfile[]
+  bookings                  Booking[]
+  invitations               OrganizationInvitation[]
+  studentRelationships      StudentRelationship[]
+  billingEvents             BillingEvent[]
+  courses                   Course[]
 
   @@index([slug])
   @@index([planId])
+  @@index([complimentaryPlanId])
+  @@index([complimentaryExpiresAt])
   @@map("organizations")
 }
 
@@ -274,26 +294,63 @@ model OrganizationMember {
 }
 
 model Plan {
-  id                 String   @id @default(uuid()) @db.Uuid
-  name               String
-  slug               String   @unique
-  monthlyPriceCents  Int      @map("monthly_price_cents")
-  annualPriceCents   Int      @map("annual_price_cents")
-  currency           String   @default("USD")
-  studentLimit       Int?     @map("student_limit")
-  monthlyLiveLessonMinutes Int? @map("monthly_live_lesson_minutes")
-  courseLimit        Int?     @map("course_limit")
-  features           String[] @default([])
-  marketplaceListing Boolean  @default(true) @map("marketplace_listing")
-  videoSessions      Boolean  @default(true) @map("video_sessions")
-  teacherPayments    Boolean  @default(true) @map("teacher_payments")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  id                       String   @id @default(uuid()) @db.Uuid
+  name                     String
+  slug                     String   @unique
+  description              String?
+  monthlyPriceCents        Int      @map("monthly_price_cents")
+  annualPriceCents         Int      @map("annual_price_cents")
+  currency                 String   @default("USD")
+  studentLimit             Int?     @map("student_limit")
+  monthlyLiveLessonMinutes Int?     @map("monthly_live_lesson_minutes")
+  courseLimit              Int?     @map("course_limit")
+  features                 String[] @default([])
+  marketplaceListing       Boolean  @default(true) @map("marketplace_listing")
+  videoSessions            Boolean  @default(true) @map("video_sessions")
+  teacherPayments          Boolean  @default(true) @map("teacher_payments")
+  highlighted              Boolean  @default(false)
+  sortOrder                Int      @default(0) @map("sort_order")
+  isPublic                 Boolean  @default(true) @map("is_public")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
 
-  organizations Organization[]
+  organizations                   Organization[] @relation("OrganizationPlan")
+  complimentaryOrganizations      Organization[] @relation("ComplimentaryPlan")
+  complimentaryPreviousOrganizations Organization[] @relation("ComplimentaryPreviousPlan")
+  salePlans                       PlanSalePlan[]
 
   @@index([slug])
+  @@index([sortOrder])
   @@map("plans")
+}
+
+model PlanSale {
+  id            String                @id @default(uuid()) @db.Uuid
+  name          String
+  percentOff    Int                   @map("percent_off")
+  startsAt      DateTime              @map("starts_at")
+  endsAt        DateTime              @map("ends_at")
+  active        Boolean               @default(true)
+  intervalScope PlanSaleIntervalScope @default(both) @map("interval_scope")
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+
+  plans PlanSalePlan[]
+
+  @@index([active, startsAt, endsAt])
+  @@map("plan_sales")
+}
+
+model PlanSalePlan {
+  saleId String @map("sale_id") @db.Uuid
+  planId String @map("plan_id") @db.Uuid
+
+  sale PlanSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  plan Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@id([saleId, planId])
+  @@index([planId])
+  @@map("plan_sale_plans")
 }
 
 model OrganizationInvitation {

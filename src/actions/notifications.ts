@@ -5,7 +5,54 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { requireAuth } from "@/server/auth/session";
+import { getNotifications } from "@/server/notifications/list";
 import { fail, ok, type ActionResult } from "@/types/action";
+
+function revalidateNotificationViews() {
+  revalidatePath("/dashboard/notifications");
+  revalidatePath("/dashboard/teacher");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/messages");
+  revalidatePath("/dashboard/classroom");
+  revalidatePath("/admin");
+}
+
+export type NotificationInboxItem = {
+  id: string;
+  title: string;
+  body: string;
+  href: string | null;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export async function fetchNotificationInbox(
+  limit = 12,
+): Promise<
+  ActionResult<{
+    items: NotificationInboxItem[];
+    unreadCount: number;
+    timezone: string;
+  }>
+> {
+  try {
+    const { user, items, unreadCount } = await getNotifications(limit);
+    return ok({
+      unreadCount,
+      timezone: user.timezone,
+      items: items.map((item) => ({
+        id: item.id,
+        title: item.title,
+        body: item.body,
+        href: item.href,
+        readAt: item.readAt?.toISOString() ?? null,
+        createdAt: item.createdAt.toISOString(),
+      })),
+    });
+  } catch {
+    return fail("Could not load notifications.", "UNAUTHORIZED");
+  }
+}
 
 export async function markNotificationRead(
   notificationId: string,
@@ -23,7 +70,7 @@ export async function markNotificationRead(
     where: { id: notification.id },
     data: { readAt: new Date() },
   });
-  revalidatePath("/dashboard/notifications");
+  revalidateNotificationViews();
   return ok({ read: true });
 }
 
@@ -33,6 +80,6 @@ export async function markAllNotificationsRead(): Promise<ActionResult<{ updated
     where: { userId: user.id, readAt: null },
     data: { readAt: new Date() },
   });
-  revalidatePath("/dashboard/notifications");
+  revalidateNotificationViews();
   return ok({ updated: result.count });
 }

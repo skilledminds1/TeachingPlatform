@@ -12,6 +12,9 @@ const selectClassName =
 
 const maxRateOptions = [
   { value: "", label: "Any rate" },
+  { value: "500", label: "Up to $5/hour" },
+  { value: "1000", label: "Up to $10/hour" },
+  { value: "2000", label: "Up to $20/hour" },
   { value: "5000", label: "Up to $50/hour" },
   { value: "10000", label: "Up to $100/hour" },
   { value: "15000", label: "Up to $150/hour" },

@@ -58,7 +58,13 @@ export async function sendMessage(
   const isStudent = conversation.studentId === user.id;
   if (!isTeacher && !isStudent) return fail("You cannot message here.", "FORBIDDEN");
 
-  if (isStudent) {
+  const platformOwner = await db.user.findUnique({
+    where: { id: conversation.teacherId },
+    select: { isPlatformAdmin: true },
+  });
+  const isPlatformConversation = platformOwner?.isPlatformAdmin === true;
+
+  if (isStudent && !isPlatformConversation) {
     const allowed = await assertCanMessageTeacher(conversation.teacherId);
     if (!allowed.allowed) return fail(allowed.reason, "FORBIDDEN");
   }
@@ -84,11 +90,16 @@ export async function sendMessage(
     senderName: user.name,
     conversationId: conversation.id,
     preview: parsed.data.body,
+    href: isPlatformConversation && recipientId === conversation.teacherId
+      ? `/admin/messages/${conversation.id}`
+      : undefined,
   });
 
   revalidatePath("/dashboard/messages");
   revalidatePath(`/dashboard/messages/${conversation.id}`);
   revalidatePath("/dashboard/notifications");
+  revalidatePath("/admin/messages");
+  revalidatePath(`/admin/messages/${conversation.id}`);
   return ok({ conversationId: conversation.id, messageId: message.id });
 }
 

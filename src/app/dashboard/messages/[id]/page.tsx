@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,7 +10,8 @@ import {
   type ConversationListItem,
 } from "@/features/messaging/components/conversation-sidebar";
 import { MessageComposer } from "@/features/messaging/components/message-composer";
-import { TeacherNav } from "@/features/teacher-dashboard/components/teacher-nav";
+import { StudentNavWithNotifications } from "@/features/student-dashboard/components/student-nav-with-notifications";
+import { TeacherNavWithNotifications } from "@/features/teacher-dashboard/components/teacher-nav-with-notifications";
 import { formatDate, formatDateTime } from "@/lib/format";
 import {
   getConversationsForUser,
@@ -43,8 +44,11 @@ export default async function ConversationPage({
   const isTeacher = data.user.memberships.some(
     (membership) => membership.role === "admin" || membership.role === "instructor",
   );
-  const backHref = isTeacher ? "/dashboard/teacher" : "/dashboard";
-  const otherRole = isTeacher ? "student" : "teacher";
+  const otherRole = data.isPlatformConversation
+    ? "Platform Owner"
+    : isTeacher
+      ? "student"
+      : "teacher";
 
   const items: ConversationListItem[] = list.conversations.map((conversation) => ({
     id: conversation.id,
@@ -53,33 +57,14 @@ export default async function ConversationPage({
     preview: conversation.latest?.body ?? "No messages yet",
     dateLabel: formatDate(conversation.lastMessageAt),
     unread: conversation.id === data.conversation.id ? 0 : conversation.unread,
+    platformOwner: conversation.isPlatformConversation,
   }));
 
   return (
     <div className="flex h-dvh flex-col bg-muted/20">
-      {isTeacher ? (
-        <div className="shrink-0">
-          <TeacherNav />
-        </div>
-      ) : (
-        <header className="shrink-0 border-b border-border/60 bg-background">
-          <div className="flex h-16 items-center justify-between px-4 md:px-6">
-            <Button variant="ghost" size="sm" render={<Link href={backHref} />}>
-              <ArrowLeft className="size-4" aria-hidden />
-              Dashboard
-            </Button>
-            <h1 className="font-heading text-base font-semibold">Messages</h1>
-            <Button
-              variant="ghost"
-              size="sm"
-              render={<Link href="/dashboard/notifications" />}
-            >
-              <Bell className="size-4" aria-hidden />
-              <span className="hidden sm:inline">Notifications</span>
-            </Button>
-          </div>
-        </header>
-      )}
+      <div className="shrink-0">
+        {isTeacher ? <TeacherNavWithNotifications /> : <StudentNavWithNotifications />}
+      </div>
 
       <div className="flex min-h-0 flex-1">
         <div className="hidden h-full md:block">
@@ -107,8 +92,21 @@ export default async function ConversationPage({
               <AvatarFallback>{initials(data.other.name)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{data.other.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{otherRole}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="truncate text-sm font-semibold">{data.other.name}</p>
+                {data.isPlatformConversation ? (
+                  <ShieldCheck className="size-4 text-amber-600" aria-hidden />
+                ) : null}
+              </div>
+              <p
+                className={`text-xs ${
+                  data.isPlatformConversation
+                    ? "font-semibold text-amber-700 dark:text-amber-400"
+                    : "text-muted-foreground capitalize"
+                }`}
+              >
+                {otherRole}
+              </p>
             </div>
           </div>
 
@@ -116,6 +114,7 @@ export default async function ConversationPage({
             {data.conversation.messages.length > 0 ? (
               data.conversation.messages.map((message) => {
                 const mine = message.senderId === data.user.id;
+                const fromPlatformOwner = message.sender.isPlatformAdmin;
                 return (
                   <div
                     key={message.id}
@@ -123,15 +122,25 @@ export default async function ConversationPage({
                   >
                     <div
                       className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm md:max-w-[70%] ${
-                        mine
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground"
+                        fromPlatformOwner
+                          ? "border border-amber-500/40 bg-amber-500/10 text-foreground shadow-sm"
+                          : mine
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-foreground"
                       }`}
                     >
+                      {fromPlatformOwner ? (
+                        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                          <ShieldCheck className="size-3.5" aria-hidden />
+                          Platform Owner
+                        </p>
+                      ) : null}
                       <p className="whitespace-pre-wrap">{message.body}</p>
                       <p
                         className={`mt-2 text-[11px] ${
-                          mine ? "text-primary-foreground/70" : "text-muted-foreground"
+                          mine && !fromPlatformOwner
+                            ? "text-primary-foreground/70"
+                            : "text-muted-foreground"
                         }`}
                       >
                         {formatDateTime(message.createdAt, data.user.timezone)}

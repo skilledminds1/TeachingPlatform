@@ -220,13 +220,14 @@ export async function notifyNewMessage(input: {
   senderName: string;
   conversationId: string;
   preview: string;
+  href?: string;
 }) {
   await createNotification({
     userId: input.recipientId,
     type: "message.received",
     title: `Message from ${input.senderName}`,
     body: input.preview.slice(0, 140),
-    href: `/dashboard/messages/${input.conversationId}`,
+    href: input.href ?? `/dashboard/messages/${input.conversationId}`,
   });
 }
 

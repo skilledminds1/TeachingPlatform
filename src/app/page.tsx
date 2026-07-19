@@ -11,20 +11,23 @@ import { SiteFooter } from "@/features/marketing/components/site-footer";
 import { SiteHeader } from "@/features/marketing/components/site-header";
 import { Subjects } from "@/features/marketing/components/subjects";
 import { Testimonials } from "@/features/marketing/components/testimonials";
+import { getMarketingPlans } from "@/server/billing/pricing";
 
 export const metadata: Metadata = {
-  title: "Amazing Skills — Find Tutors & Book Live Lessons",
+  title: "Amazing Skills — Live Tutoring & Self-Paced Courses",
   description:
-    "Connect with expert tutors, book sessions in minutes, and learn live online. Verified teachers, direct payments, and browser-based video lessons — built for South Africa.",
+    "Book live 1-on-1 lessons with verified tutors or learn at your own pace with expert-built courses. Direct payments, honest reviews, and certificates — all in one platform.",
   openGraph: {
-    title: "Amazing Skills — Find Tutors & Book Live Lessons",
+    title: "Amazing Skills — Live Tutoring & Self-Paced Courses",
     description:
-      "Connect with expert tutors, book sessions in minutes, and learn live online. Verified teachers, direct payments, no platform markup.",
+      "Book live 1-on-1 lessons with verified tutors or learn at your own pace with expert-built courses. Direct payments, no platform markup.",
     type: "website",
   },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const plans = await getMarketingPlans();
+
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
@@ -34,7 +37,7 @@ export default function HomePage() {
         <HowItWorks />
         <Features />
         <ForTeachers />
-        <Pricing />
+        <Pricing plans={plans} />
         <Testimonials />
         <Faq />
         <Cta />

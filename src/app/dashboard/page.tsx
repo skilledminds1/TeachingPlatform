@@ -2,7 +2,6 @@ import {
   CalendarDays,
   GraduationCap,
   Search,
-  Settings,
   Star,
   UserRound,
   Video,
@@ -11,10 +10,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { signOut } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/features/admin/components/empty-state";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
+import { StudentNavWithNotifications } from "@/features/student-dashboard/components/student-nav-with-notifications";
 import { formatCurrency, formatDateTime, formatStatus } from "@/lib/format";
 import { getCurrentUser, getPostAuthRedirect } from "@/server/auth/session";
 import { getStudentDashboardData } from "@/server/students/dashboard";
@@ -40,46 +39,7 @@ export default async function StudentDashboardPage() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-lg">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <GraduationCap className="size-4" aria-hidden />
-            </span>
-            <span className="hidden sm:inline">Amazing Skills</span>
-          </Link>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" render={<Link href="/dashboard/classroom" />}>
-              Classroom
-            </Button>
-            <Button variant="ghost" size="sm" render={<Link href="/dashboard/messages" />}>
-              Messages
-            </Button>
-            <Button variant="ghost" size="sm" render={<Link href="/dashboard/notifications" />}>
-              Notifications
-            </Button>
-            <Button variant="ghost" size="sm" render={<Link href="/dashboard/courses" />}>
-              My Courses
-            </Button>
-            <Button variant="ghost" size="sm" render={<Link href="/find-tutor" />}>
-              Find Tutor
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              render={<Link href="/dashboard/settings" aria-label="Account settings" />}
-            >
-              <Settings className="size-4" aria-hidden />
-              <span className="hidden lg:inline">Settings</span>
-            </Button>
-            <form action={signOut}>
-              <Button type="submit" variant="outline" size="sm" className="ml-2">
-                Sign out
-              </Button>
-            </form>
-          </div>
-        </div>
-      </header>
+      <StudentNavWithNotifications />
 
       <main className="mx-auto max-w-6xl space-y-8 px-6 py-8 md:py-12">
         <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">

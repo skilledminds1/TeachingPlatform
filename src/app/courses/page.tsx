@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/features/admin/components/empty-state";
 import { CourseCard } from "@/features/courses/components/course-card";
 import { CourseFilters } from "@/features/courses/components/course-filters";
-import { getCurrentUser } from "@/server/auth/session";
+import { StudentNavWithNotifications } from "@/features/student-dashboard/components/student-nav-with-notifications";
+import { getCurrentUser, hasTeacherMembership } from "@/server/auth/session";
 import {
   searchPublishedCourses,
   type CourseSort,
@@ -62,33 +63,39 @@ export default async function CoursesPage({
           : "newest",
     }),
   ]);
+  const showStudentNav =
+    Boolean(user) && !user?.isPlatformAdmin && !hasTeacherMembership(user!);
 
   return (
     <div className="min-h-screen bg-muted/20">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="font-semibold tracking-tight">
-            Amazing Skills
-          </Link>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" render={<Link href="/find-tutor" />}>
-              Tutors
-            </Button>
-            {user ? (
-              <Button variant="ghost" render={<Link href="/dashboard" />}>
-                Dashboard
+      {showStudentNav ? (
+        <StudentNavWithNotifications />
+      ) : (
+        <header className="border-b border-border bg-background">
+          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+            <Link href="/" className="font-semibold tracking-tight">
+              Amazing Skills
+            </Link>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" render={<Link href="/find-tutor" />}>
+                Tutors
               </Button>
-            ) : (
-              <>
-                <Button variant="ghost" render={<Link href="/login" />}>
-                  Sign in
+              {user ? (
+                <Button variant="ghost" render={<Link href="/dashboard" />}>
+                  Dashboard
                 </Button>
-                <Button render={<Link href="/register" />}>Get started</Button>
-              </>
-            )}
+              ) : (
+                <>
+                  <Button variant="ghost" render={<Link href="/login" />}>
+                    Sign in
+                  </Button>
+                  <Button render={<Link href="/register" />}>Get started</Button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       <main className="mx-auto max-w-6xl space-y-6 px-6 py-10">
         <div className="space-y-1">

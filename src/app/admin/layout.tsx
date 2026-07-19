@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { signOut } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { AdminNav } from "@/features/admin/components/admin-nav";
+import { NotificationBellLoader } from "@/features/notifications/components/notification-bell-loader";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 import { requirePlatformAdmin } from "@/server/auth/session";
 
@@ -48,11 +49,12 @@ export default async function AdminLayout({
             </span>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium">{admin.name}</p>
               <p className="text-xs text-muted-foreground">{admin.email}</p>
             </div>
+            <NotificationBellLoader />
             <form action={signOut}>
               <Button type="submit" variant="ghost" aria-label="Sign out">
                 <LogOut className="size-4" aria-hidden />

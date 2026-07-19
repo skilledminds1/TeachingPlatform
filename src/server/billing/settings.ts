@@ -5,6 +5,7 @@ import {
   getLiveLessonUsage,
   getStudentUsage,
 } from "@/server/billing/entitlements";
+import { getBillingPlansWithPricing } from "@/server/billing/pricing";
 
 export async function getBillingSettings() {
   const user = await requireTeacher();
@@ -21,23 +22,12 @@ export async function getBillingSettings() {
         billingInterval: true,
         currentPeriodEnd: true,
         cancelAtPeriodEnd: true,
+        complimentaryPlanId: true,
+        complimentaryExpiresAt: true,
         plan: { select: { slug: true, name: true } },
       },
     }),
-    db.plan.findMany({
-      orderBy: { monthlyPriceCents: "asc" },
-      select: {
-        slug: true,
-        name: true,
-        monthlyPriceCents: true,
-        annualPriceCents: true,
-        currency: true,
-        studentLimit: true,
-        monthlyLiveLessonMinutes: true,
-        courseLimit: true,
-        features: true,
-      },
-    }),
+    getBillingPlansWithPricing(),
     getStudentUsage(membership.organizationId),
     getLiveLessonUsage(membership.organizationId),
   ]);

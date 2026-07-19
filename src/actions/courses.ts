@@ -247,6 +247,35 @@ export async function archiveCourse(
   return ok({ archived: true });
 }
 
+export async function removeCourse(
+  input: unknown,
+): Promise<ActionResult<{ removed: true }>> {
+  const parsed = courseIdSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error.issues[0]?.message);
+  const user = await requireAuth();
+  const course = await assertCourseOwnership(parsed.data.courseId, user.id);
+  const [enrollmentCount, purchaseCount] = await Promise.all([
+    db.courseEnrollment.count({ where: { courseId: course.id } }),
+    db.coursePurchase.count({ where: { courseId: course.id } }),
+  ]);
+  if (enrollmentCount > 0 || purchaseCount > 0) {
+    return fail(
+      "Courses with students or purchases cannot be removed. Archive the course instead.",
+      "CONFLICT",
+    );
+  }
+  await db.course.update({
+    where: { id: course.id },
+    data: {
+      deletedAt: new Date(),
+      status: "archived",
+      publishedAt: null,
+    },
+  });
+  revalidateCoursePaths(course.id, course.slug);
+  return ok({ removed: true });
+}
+
 export async function submitCourseForReview(
   input: unknown,
 ): Promise<ActionResult<{ submitted: true }>> {

@@ -1,8 +1,8 @@
 import {
+  BookOpen,
   CalendarClock,
   CreditCard,
-  Globe2,
-  MessageSquare,
+  GraduationCap,
   ShieldCheck,
   Star,
 } from "lucide-react";
@@ -15,10 +15,16 @@ const features = [
       "Every profile is reviewed and approved before it goes live — qualifications, rates, and payment details included.",
   },
   {
+    icon: BookOpen,
+    title: "Course marketplace",
+    description:
+      "Self-paced courses with video lessons, quizzes, assignments, and downloadable materials — created by the same verified teachers.",
+  },
+  {
     icon: CreditCard,
     title: "Direct payments",
     description:
-      "Students pay teachers directly through the teacher's own PayPal account. No middleman, no payout delays.",
+      "Students pay teachers directly through the teacher's own payment account. No middleman, no payout delays.",
   },
   {
     icon: CalendarClock,
@@ -27,22 +33,16 @@ const features = [
       "Teachers set weekly availability once. Students book open slots in their own timezone — conflicts handled automatically.",
   },
   {
+    icon: GraduationCap,
+    title: "Certificates",
+    description:
+      "Finish a course and earn a verifiable certificate you can share with schools and employers.",
+  },
+  {
     icon: Star,
     title: "Honest reviews",
     description:
       "Only students who completed a lesson can leave a review, and every review is moderated before publishing.",
-  },
-  {
-    icon: MessageSquare,
-    title: "Built-in messaging",
-    description:
-      "Discuss goals and materials before you book. Keep the whole conversation in one place.",
-  },
-  {
-    icon: Globe2,
-    title: "Learn from anywhere",
-    description:
-      "Browser-based video lessons that work on any device. South Africa first, open to the world.",
   },
 ] as const;
 
@@ -55,7 +55,8 @@ export function Features() {
             Everything you need to teach and learn
           </h2>
           <p className="text-muted-foreground">
-            A complete toolkit for live online lessons — without the busywork
+            Live lessons, self-paced courses, and payments — one complete toolkit, without
+            the busywork
           </p>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">

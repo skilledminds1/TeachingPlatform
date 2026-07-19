@@ -40,6 +40,7 @@ async function main(): Promise<void> {
     {
       name: "Free",
       slug: "free",
+      description: "Perfect for trying the platform.",
       monthlyPriceCents: 0,
       annualPriceCents: 0,
       currency: "USD",
@@ -50,10 +51,14 @@ async function main(): Promise<void> {
       marketplaceListing: true,
       videoSessions: true,
       teacherPayments: true,
+      highlighted: false,
+      sortOrder: 0,
+      isPublic: true,
     },
     {
       name: "Starter",
       slug: "starter",
+      description: "For new tutors.",
       monthlyPriceCents: 1200,
       annualPriceCents: 12000,
       currency: "USD",
@@ -64,10 +69,14 @@ async function main(): Promise<void> {
       marketplaceListing: true,
       videoSessions: true,
       teacherPayments: true,
+      highlighted: false,
+      sortOrder: 1,
+      isPublic: true,
     },
     {
       name: "Professional",
       slug: "professional",
+      description: "For growing businesses.",
       monthlyPriceCents: 2900,
       annualPriceCents: 29000,
       currency: "USD",
@@ -78,10 +87,14 @@ async function main(): Promise<void> {
       marketplaceListing: true,
       videoSessions: true,
       teacherPayments: true,
+      highlighted: true,
+      sortOrder: 2,
+      isPublic: true,
     },
     {
       name: "Business",
       slug: "business",
+      description: "For serious educators and schools.",
       monthlyPriceCents: 4900,
       annualPriceCents: 49000,
       currency: "USD",
@@ -101,13 +114,17 @@ async function main(): Promise<void> {
       marketplaceListing: true,
       videoSessions: true,
       teacherPayments: true,
+      highlighted: false,
+      sortOrder: 3,
+      isPublic: true,
     },
   ];
 
   for (const plan of plans) {
+    // Preserve admin-edited catalog values; only create missing plans.
     await prisma.plan.upsert({
       where: { slug: plan.slug },
-      update: plan,
+      update: {},
       create: plan,
     });
   }

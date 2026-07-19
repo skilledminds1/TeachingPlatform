@@ -105,6 +105,12 @@ async function handleSubscriptionItn(params: URLSearchParams) {
             payfastToken: params.get("token"),
             currentPeriodEnd: nextPeriodEnd(organization.currentPeriodEnd, interval),
             cancelAtPeriodEnd: false,
+            complimentaryPlanId: null,
+            complimentaryExpiresAt: null,
+            complimentaryGrantedById: null,
+            complimentaryGrantedAt: null,
+            complimentaryPreviousPlanId: null,
+            complimentaryNote: null,
           },
         });
       } else if (paymentStatus === "FAILED") {

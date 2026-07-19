@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 const benefits = [
   {
     icon: Banknote,
-    title: "Keep 100% of your lesson fees",
+    title: "Two income streams, 0% commission",
     description:
-      "Students pay you directly via your own PayPal account. We never touch your earnings — you only pay a flat subscription.",
+      "Earn from live lessons and course sales. Students pay you directly — we never touch your earnings, you only pay a flat subscription.",
   },
   {
     icon: CalendarRange,
@@ -20,13 +20,13 @@ const benefits = [
     icon: BadgeCheck,
     title: "A profile that sells for you",
     description:
-      "Verified badge, moderated reviews, and Find Tutor search put your practice in front of new students.",
+      "Verified badge, moderated reviews, and marketplace search put your lessons and courses in front of new students.",
   },
   {
     icon: TrendingUp,
-    title: "Grow from solo to academy",
+    title: "Teach once, earn on repeat",
     description:
-      "Start free, upgrade as you grow, and bring your whole team when you're ready for organization plans.",
+      "Record a course once and sell it forever with quizzes, assignments, and certificates — then grow from solo to academy.",
   },
 ] as const;
 
@@ -39,8 +39,9 @@ export function ForTeachers() {
             Built for teachers who mean business
           </h2>
           <p className="text-lg text-muted-foreground">
-            Stop juggling WhatsApp, spreadsheets, and bank transfers. Run your entire tutoring
-            practice from one professional platform.
+            Stop juggling WhatsApp, spreadsheets, and bank transfers. Teach live lessons,
+            sell self-paced courses, and run your entire teaching business from one
+            professional platform.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button size="lg" render={<Link href="/register?role=teacher" />}>

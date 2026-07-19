@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { CoursePurchaseButton } from "@/features/courses/components/course-purchase-button";
 import { CurriculumPreview } from "@/features/courses/components/curriculum-preview";
 import { formatCourseLevel } from "@/features/courses/lib/labels";
+import { StudentNavWithNotifications } from "@/features/student-dashboard/components/student-nav-with-notifications";
 import { formatCurrency } from "@/lib/format";
-import { getCurrentUser } from "@/server/auth/session";
+import { getCurrentUser, hasTeacherMembership } from "@/server/auth/session";
 import {
   getEnrolledCourseDetail,
   getPublishedCourseBySlug,
@@ -51,19 +52,25 @@ export default async function CourseSalesPage({
     (sum, module) => sum + module.lessons.length,
     0,
   );
+  const showStudentNav =
+    Boolean(user) && !user?.isPlatformAdmin && !hasTeacherMembership(user!);
 
   return (
     <div className="min-h-screen bg-muted/20">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="font-semibold tracking-tight">
-            Amazing Skills
-          </Link>
-          <Button variant="ghost" render={<Link href="/courses" />}>
-            Back to courses
-          </Button>
-        </div>
-      </header>
+      {showStudentNav ? (
+        <StudentNavWithNotifications />
+      ) : (
+        <header className="border-b border-border bg-background">
+          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+            <Link href="/" className="font-semibold tracking-tight">
+              Amazing Skills
+            </Link>
+            <Button variant="ghost" render={<Link href="/courses" />}>
+              Back to courses
+            </Button>
+          </div>
+        </header>
+      )}
 
       <main className="mx-auto max-w-6xl px-6 py-10">
         <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">

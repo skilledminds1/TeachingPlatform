@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/button";
 
 const trustPoints = [
   { icon: ShieldCheck, label: "Verified teachers" },
-  { icon: Video, label: "Live video lessons" },
+  { icon: Video, label: "Live 1-on-1 lessons" },
+  { icon: BookOpen, label: "Self-paced courses" },
   { icon: Star, label: "Reviewed by real students" },
 ] as const;
 
@@ -123,15 +124,15 @@ export function Hero() {
         <div className="animate-hero-fade-up mx-auto max-w-3xl space-y-6 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/12 px-3.5 py-1.5 text-sm font-medium text-foreground shadow-sm shadow-primary/10">
             <Sparkles className="size-3.5 text-primary" aria-hidden />
-            Live 1-on-1 lessons with verified tutors
+            Live tutoring and self-paced courses in one place
           </div>
 
           <h1 className="font-heading text-5xl font-bold tracking-tight text-balance md:text-7xl">
-            Find the perfect tutor.
+            One platform.
             <br />
             <span className="relative inline-block">
               <span className="bg-linear-to-r from-primary via-violet-500 to-sky-500 bg-clip-text text-transparent">
-                Learn live, online.
+                Every way to learn.
               </span>
               <svg
                 aria-hidden
@@ -151,8 +152,9 @@ export function Hero() {
           </h1>
 
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground md:text-xl">
-            Connect with expert teachers, book sessions in minutes, and join live video lessons —
-            all in one place. Pay your tutor directly, with no platform markup.
+            Book live 1-on-1 lessons with verified tutors, or learn at your own pace with
+            self-paced courses — built by the same expert teachers. Pay teachers directly,
+            with no platform markup.
           </p>
 
           <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
@@ -163,10 +165,25 @@ export function Hero() {
             >
               Find a tutor
             </Button>
-            <Button size="lg" variant="outline" render={<Link href="/register?role=teacher" />}>
-              Become a teacher
+            <Button
+              size="lg"
+              variant="outline"
+              className="transition-transform duration-200 hover:-translate-y-0.5"
+              render={<Link href="/courses" />}
+            >
+              Browse courses
             </Button>
           </div>
+
+          <p className="text-sm text-muted-foreground">
+            Are you an educator?{" "}
+            <Link
+              href="/register?role=teacher"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Teach live lessons and sell courses
+            </Link>
+          </p>
         </div>
 
         <ul className="mx-auto mt-14 flex max-w-3xl flex-wrap items-center justify-center gap-3">

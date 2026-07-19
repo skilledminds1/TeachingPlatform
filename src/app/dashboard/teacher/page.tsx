@@ -1,28 +1,30 @@
 import {
   ArrowUpRight,
-  Bell,
+  BookOpen,
+  CalendarCheck,
   CalendarDays,
   CheckCircle2,
   Circle,
+  CircleDollarSign,
   Clock3,
-  CreditCard,
   ExternalLink,
-  MessageSquare,
   Users,
   Video,
-  WalletCards,
 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { StatCard } from "@/features/admin/components/stat-card";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { SubmitProfileButton } from "@/features/teacher-onboarding/components/submit-profile-button";
-import { formatStatus } from "@/lib/format";
+import { formatCurrency, formatDateTime, formatStatus } from "@/lib/format";
 import {
   getLiveLessonUsage,
   getStudentUsage,
 } from "@/server/billing/entitlements";
+import { getClassroomLessons } from "@/server/classroom/lessons";
+import { getTeacherAnalytics } from "@/server/teachers/analytics";
 import { getTeacherProfileReadiness } from "@/server/teachers/onboarding";
 
 export default async function TeacherDashboardPage() {
@@ -32,10 +34,15 @@ export default async function TeacherDashboardPage() {
   if (!profile || !profileComplete || profile.status === "rejected") {
     redirect("/onboarding/teacher");
   }
-  const [studentUsage, liveLessonUsage] = await Promise.all([
+  const [studentUsage, liveLessonUsage, analytics, classroom] = await Promise.all([
     getStudentUsage(profile.organizationId),
     getLiveLessonUsage(profile.organizationId),
+    getTeacherAnalytics("30d"),
+    getClassroomLessons(),
   ]);
+
+  const primaryNet = analytics.earnings.byCurrency[0];
+  const upcomingLessons = [...classroom.live, ...classroom.upcoming].slice(0, 5);
 
   const checklist = [
     { label: "Profile information complete", complete: profileComplete },
@@ -119,63 +126,121 @@ export default async function TeacherDashboardPage() {
         ) : null}
 
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
-              Quick actions
+              Performance — last 30 days
             </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              render={<Link href="/dashboard/teacher/analytics" />}
+            >
+              View full analytics
+              <ArrowUpRight className="size-3.5" aria-hidden />
+            </Button>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <DashboardLink
-            href="/dashboard/classroom"
-            icon={Video}
-            label="Classroom"
-            description="Join and reconnect to live lessons"
-          />
-          <DashboardLink
-            href="/dashboard/messages"
-            icon={MessageSquare}
-            label="Messages"
-            description="Chat with your students"
-          />
-          <DashboardLink
-            href="/dashboard/notifications"
-            icon={Bell}
-            label="Notifications"
-            description="Booking and lesson alerts"
-          />
-          <DashboardLink
-            href="/dashboard/teacher/bookings"
-            icon={CalendarDays}
-            label="Bookings"
-            description="Upcoming lessons and history"
-          />
-          <DashboardLink
-            href="/dashboard/teacher/availability"
-            icon={Clock3}
-            label="Availability"
-            description="Weekly hours and time off"
-          />
-          <DashboardLink
-            href="/dashboard/teacher/billing"
-            icon={CreditCard}
-            label="Plans & billing"
-            description={`${liveLessonUsage.usedMinutes / 60} / ${
-              liveLessonUsage.limit === null ? "Unlimited" : liveLessonUsage.limit / 60
-            } live hours`}
-          />
-          <DashboardLink
-            href="/dashboard/teacher/payments"
-            icon={WalletCards}
-            label="Student payments"
-            description={checks.paymentLinked ? "PayPal connected" : "Connect PayPal"}
-          />
-          <DashboardLink
-            href="/dashboard/teacher/team"
-            icon={Users}
-            label="Team"
-            description="Members and invitations"
-          />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              label="Students"
+              value={analytics.kpis.uniqueStudents.toLocaleString("en-ZA")}
+              detail={`${analytics.kpis.newStudents} new this period`}
+              icon={Users}
+            />
+            <StatCard
+              label="Course enrollments"
+              value={analytics.kpis.enrollments.toLocaleString("en-ZA")}
+              detail={`${analytics.kpis.activeCourses} published course${
+                analytics.kpis.activeCourses === 1 ? "" : "s"
+              }`}
+              icon={BookOpen}
+            />
+            <StatCard
+              label="Completed live lessons"
+              value={analytics.kpis.completedLessons.toLocaleString("en-ZA")}
+              detail={`${liveLessonUsage.usedMinutes / 60} / ${
+                liveLessonUsage.limit === null ? "Unlimited" : liveLessonUsage.limit / 60
+              } live hours used`}
+              icon={CalendarCheck}
+            />
+            <StatCard
+              label="Net collected"
+              value={
+                primaryNet ? primaryNet.netLabel : formatCurrency(0, analytics.primaryCurrency)
+              }
+              detail={
+                primaryNet
+                  ? `${primaryNet.count} payment${primaryNet.count === 1 ? "" : "s"} received`
+                  : "No payments in this period"
+              }
+              icon={CircleDollarSign}
+            />
           </div>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <div className="flex items-center justify-between gap-4 border-b border-border/60 px-6 py-5">
+            <div>
+              <h2 className="font-heading text-lg font-semibold">Upcoming lessons</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your next confirmed live lessons.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link href="/dashboard/teacher/bookings" />}
+            >
+              <CalendarDays className="size-4" aria-hidden />
+              Open calendar
+            </Button>
+          </div>
+          {upcomingLessons.length === 0 ? (
+            <div className="px-6 py-10 text-center text-sm text-muted-foreground">
+              No upcoming lessons scheduled. Share your availability so students can book you.
+            </div>
+          ) : (
+            <ul>
+              {upcomingLessons.map((lesson) => (
+                <li
+                  key={lesson.bookingId}
+                  className="flex flex-col gap-3 border-b border-border/60 px-6 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium">{lesson.other.name}</p>
+                      {lesson.isLive ? (
+                        <StatusBadge tone="success">Live now</StatusBadge>
+                      ) : lesson.canJoin ? (
+                        <StatusBadge tone="info">Room open</StatusBadge>
+                      ) : null}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {formatDateTime(lesson.startsAt, user.timezone)}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      render={<Link href={`/dashboard/bookings/${lesson.bookingId}`} />}
+                    >
+                      Details
+                    </Button>
+                    {lesson.videoSessionId ? (
+                      <Button
+                        size="sm"
+                        variant={lesson.isLive || lesson.canJoin ? "default" : "outline"}
+                        render={<Link href={`/sessions/${lesson.videoSessionId}`} />}
+                      >
+                        <Video className="size-4" aria-hidden />
+                        {lesson.isLive ? "Join now" : lesson.canJoin ? "Join classroom" : "Open lobby"}
+                      </Button>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -230,35 +295,3 @@ export default async function TeacherDashboardPage() {
   );
 }
 
-function DashboardLink({
-  href,
-  icon: Icon,
-  label,
-  description,
-}: {
-  href: string;
-  icon: typeof CreditCard;
-  label: string;
-  description: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group relative flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-          <Icon className="size-4.5" aria-hidden />
-        </div>
-        <ArrowUpRight
-          className="size-4 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary"
-          aria-hidden
-        />
-      </div>
-      <div>
-        <p className="text-sm font-semibold">{label}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-      </div>
-    </Link>
-  );
-}

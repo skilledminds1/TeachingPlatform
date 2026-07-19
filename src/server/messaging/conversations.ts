@@ -8,12 +8,23 @@ export async function getConversationsForUser() {
     where: { OR: [{ teacherId: user.id }, { studentId: user.id }] },
     orderBy: { lastMessageAt: "desc" },
     include: {
-      teacher: { select: { id: true, name: true, avatarUrl: true } },
-      student: { select: { id: true, name: true, avatarUrl: true } },
+      teacher: {
+        select: { id: true, name: true, avatarUrl: true, isPlatformAdmin: true },
+      },
+      student: {
+        select: { id: true, name: true, avatarUrl: true, isPlatformAdmin: true },
+      },
       messages: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { id: true, body: true, createdAt: true, senderId: true, readAt: true },
+        select: {
+          id: true,
+          body: true,
+          createdAt: true,
+          senderId: true,
+          readAt: true,
+          sender: { select: { isPlatformAdmin: true } },
+        },
       },
     },
   });
@@ -28,9 +39,12 @@ export async function getConversationsForUser() {
         latest && latest.senderId !== user.id && !latest.readAt ? 1 : 0;
       return {
         id: conversation.id,
-        other,
+        other: other.isPlatformAdmin
+          ? { ...other, name: "Platform Owner" }
+          : other,
         latest,
         unread,
+        isPlatformConversation: conversation.teacher.isPlatformAdmin,
         lastMessageAt: conversation.lastMessageAt,
       };
     }),
@@ -45,12 +59,20 @@ export async function getConversationThread(conversationId: string) {
       OR: [{ teacherId: user.id }, { studentId: user.id }],
     },
     include: {
-      teacher: { select: { id: true, name: true, avatarUrl: true } },
-      student: { select: { id: true, name: true, avatarUrl: true } },
+      teacher: {
+        select: { id: true, name: true, avatarUrl: true, isPlatformAdmin: true },
+      },
+      student: {
+        select: { id: true, name: true, avatarUrl: true, isPlatformAdmin: true },
+      },
       messages: {
         orderBy: { createdAt: "asc" },
         take: 200,
-        include: { sender: { select: { id: true, name: true } } },
+        include: {
+          sender: {
+            select: { id: true, name: true, isPlatformAdmin: true },
+          },
+        },
       },
     },
   });
@@ -69,7 +91,12 @@ export async function getConversationThread(conversationId: string) {
     user,
     conversation,
     other:
-      conversation.teacherId === user.id ? conversation.student : conversation.teacher,
+      conversation.teacherId === user.id
+        ? conversation.student
+        : conversation.teacher.isPlatformAdmin
+          ? { ...conversation.teacher, name: "Platform Owner" }
+          : conversation.teacher,
+    isPlatformConversation: conversation.teacher.isPlatformAdmin,
   };
 }
 

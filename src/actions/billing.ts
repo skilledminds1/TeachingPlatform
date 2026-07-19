@@ -7,6 +7,10 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { requireTeacher } from "@/server/auth/session";
+import {
+  getActiveSalesForPlans,
+  getEffectivePlanPrice,
+} from "@/server/billing/pricing";
 import { createPayfastSignature } from "@/services/payfast/signature";
 import { updatePayfastSubscription } from "@/services/payfast/subscriptions";
 import { fail, ok, type ActionResult } from "@/types/action";
@@ -15,6 +19,15 @@ const checkoutSchema = z.object({
   planSlug: z.enum(["starter", "professional", "business"]),
   interval: z.enum(["monthly", "annual"]),
 });
+
+const clearComplimentary = {
+  complimentaryPlanId: null,
+  complimentaryExpiresAt: null,
+  complimentaryGrantedById: null,
+  complimentaryGrantedAt: null,
+  complimentaryPreviousPlanId: null,
+  complimentaryNote: null,
+} as const;
 
 export async function createSubscriptionCheckout(
   input: unknown,
@@ -54,6 +67,7 @@ export async function createSubscriptionCheckout(
     where: { id: membership.organizationId },
     select: {
       payfastToken: true,
+      complimentaryPlanId: true,
       plan: {
         select: {
           slug: true,
@@ -77,20 +91,29 @@ export async function createSubscriptionCheckout(
     );
   }
 
-  const usdCents =
-    parsed.data.interval === "annual"
-      ? plan.annualPriceCents
-      : plan.monthlyPriceCents;
+  const sales = await getActiveSalesForPlans([plan.id]);
+  const priced = getEffectivePlanPrice(
+    plan,
+    parsed.data.interval,
+    sales.get(plan.id),
+  );
+  const usdCents = priced.effectiveCents;
   const amountZar = ((usdCents / 100) * env.PAYFAST_USD_ZAR_RATE).toFixed(2);
   const appUrl = env.NEXT_PUBLIC_APP_URL;
   const appHost = new URL(appUrl).hostname;
   const isLocalApp = appHost === "localhost" || appHost === "127.0.0.1";
   const isPublicHttps = appUrl.startsWith("https://") && !isLocalApp;
+  const onComplimentary = Boolean(organization.complimentaryPlanId);
+  const canStartFreshCheckout =
+    organization.plan.slug === "free" || onComplimentary;
 
   // Live PayFast cannot load with localhost URLs (CloudFront 403). In local dev,
   // activate the plan directly so billing can still be tested.
   if (isLocalApp && process.env.NODE_ENV !== "production") {
-    if (plan.monthlyPriceCents < organization.plan.monthlyPriceCents) {
+    if (
+      !onComplimentary &&
+      plan.monthlyPriceCents < organization.plan.monthlyPriceCents
+    ) {
       return fail(
         "Paid-plan downgrades are scheduled separately to avoid losing access mid-cycle.",
         "VALIDATION_ERROR",
@@ -106,6 +129,7 @@ export async function createSubscriptionCheckout(
         subscriptionStatus: "active",
         cancelAtPeriodEnd: false,
         currentPeriodEnd: periodEnd,
+        ...clearComplimentary,
       },
     });
     return ok({ mode: "local", planName: plan.name });
@@ -136,11 +160,12 @@ export async function createSubscriptionCheckout(
         billingInterval: parsed.data.interval,
         subscriptionStatus: "active",
         cancelAtPeriodEnd: false,
+        ...clearComplimentary,
       },
     });
     return ok({ mode: "updated" });
   }
-  if (organization.plan.slug !== "free") {
+  if (!canStartFreshCheckout) {
     return fail(
       "This paid account has no PayFast token. Contact support before changing plans.",
       "CONFLICT",
@@ -162,7 +187,12 @@ export async function createSubscriptionCheckout(
   fields.set("email_address", user.email);
   fields.set("m_payment_id", `${membership.organizationId}-${randomBytes(8).toString("hex")}`);
   fields.set("amount", amountZar);
-  fields.set("item_name", `Amazing Skills ${plan.name} ${parsed.data.interval}`);
+  fields.set(
+    "item_name",
+    priced.percentOff > 0
+      ? `Amazing Skills ${plan.name} ${parsed.data.interval} (${priced.percentOff}% off)`
+      : `Amazing Skills ${plan.name} ${parsed.data.interval}`,
+  );
   fields.set("custom_str1", membership.organizationId);
   fields.set("custom_str2", plan.id);
   fields.set("custom_str3", parsed.data.interval);

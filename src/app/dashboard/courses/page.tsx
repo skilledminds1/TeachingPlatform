@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -6,10 +6,11 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/features/admin/components/empty-state";
 import { formatCourseLevel } from "@/features/courses/lib/labels";
+import { StudentNavWithNotifications } from "@/features/student-dashboard/components/student-nav-with-notifications";
 import { getCurrentUser } from "@/server/auth/session";
 import { getStudentEnrollments } from "@/server/courses/queries";
 
-export const metadata: Metadata = { title: "My courses" };
+export const metadata: Metadata = { title: "My learning" };
 
 export default async function StudentCoursesPage() {
   const user = await getCurrentUser();
@@ -19,25 +20,19 @@ export default async function StudentCoursesPage() {
 
   return (
     <div className="min-h-screen bg-muted/20">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Button variant="ghost" render={<Link href="/dashboard" />}>
-            <ArrowLeft className="size-4" aria-hidden />
-            Dashboard
-          </Button>
+      <StudentNavWithNotifications />
+
+      <main className="mx-auto max-w-6xl space-y-6 px-6 py-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-semibold tracking-tight">My learning</h1>
+            <p className="text-sm text-muted-foreground">
+              Continue purchased courses and track your lesson progress.
+            </p>
+          </div>
           <Button variant="outline" render={<Link href="/courses" />}>
             Browse courses
           </Button>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl space-y-6 px-6 py-10">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Student library</p>
-          <h1 className="text-3xl font-semibold tracking-tight">My courses</h1>
-          <p className="text-sm text-muted-foreground">
-            Courses you&apos;ve purchased stay available here.
-          </p>
         </div>
 
         {enrollments.length > 0 ? (

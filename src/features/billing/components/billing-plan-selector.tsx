@@ -7,53 +7,25 @@ import { toast } from "sonner";
 
 import { createSubscriptionCheckout } from "@/actions/billing";
 import { Button } from "@/components/ui/button";
+import { planFeatureLabels } from "@/features/billing/lib/plan-feature-labels";
 import { cn } from "@/lib/utils";
-
-const featureLabels: Record<string, string> = {
-  teacher_profile: "Teacher profile",
-  marketplace_listing: "Find Tutor & Courses listing",
-  booking_calendar: "Booking calendar",
-  direct_messaging: "Direct messaging",
-  one_on_one_lessons: "One-on-one lessons",
-  basic_analytics: "Basic analytics",
-  community_support: "Community support",
-  direct_payments: "Direct payment linking",
-  courses: "Course creation & sales",
-  homework: "Homework",
-  file_sharing: "File sharing",
-  student_notes: "Student notes",
-  email_reminders: "Email reminders",
-  reviews: "Reviews",
-  basic_reporting: "Basic reporting",
-  custom_availability: "Custom availability",
-  unlimited_courses: "Unlimited courses · 0% commission",
-  quizzes: "Quizzes",
-  assignments: "Assignments",
-  certificates: "Certificates",
-  group_lessons: "Group lessons",
-  calendar_sync: "Calendar sync",
-  video_integrations: "HD video lessons",
-  advanced_analytics: "Advanced analytics",
-  priority_support: "Priority support",
-  team_teachers: "Team teachers",
-  custom_branding: "Custom branding",
-  api_access: "API access (future)",
-  white_label_certificates: "White-label certificates",
-  advanced_reporting: "Advanced reporting",
-  automation: "Automation",
-  early_access: "Early access",
-};
 
 type BillingPlan = {
   slug: string;
   name: string;
   monthlyPriceCents: number;
   annualPriceCents: number;
+  monthlyEffectiveCents: number;
+  annualEffectiveCents: number;
+  monthlyPercentOff: number;
+  annualPercentOff: number;
+  saleName: string | null;
   currency: string;
   studentLimit: number | null;
   monthlyLiveLessonMinutes: number | null;
   courseLimit: number | null;
   features: string[];
+  highlighted?: boolean;
 };
 
 function submitHostedForm(url: string, fields: Record<string, string>): void {
@@ -192,8 +164,14 @@ export function BillingPlanSelector({
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => {
           const current = plan.slug === currentPlan && interval === currentInterval;
-          const price =
+          const listPrice =
             interval === "annual" ? plan.annualPriceCents : plan.monthlyPriceCents;
+          const price =
+            interval === "annual"
+              ? plan.annualEffectiveCents
+              : plan.monthlyEffectiveCents;
+          const percentOff =
+            interval === "annual" ? plan.annualPercentOff : plan.monthlyPercentOff;
           const annualSaving =
             (plan.monthlyPriceCents * 12 - plan.annualPriceCents) / 100;
           return (
@@ -201,20 +179,37 @@ export function BillingPlanSelector({
               key={plan.slug}
               className={cn(
                 "flex flex-col rounded-xl border bg-card p-5 shadow-sm",
-                plan.slug === "professional" ? "border-primary/50 ring-1 ring-primary/20" : "",
+                plan.highlighted || plan.slug === "professional"
+                  ? "border-primary/50 ring-1 ring-primary/20"
+                  : "",
               )}
             >
-              <h2 className="font-semibold">{plan.name}</h2>
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="font-semibold">{plan.name}</h2>
+                {percentOff > 0 ? (
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                    {percentOff}% off
+                  </span>
+                ) : null}
+              </div>
               <div className="mt-3 flex items-baseline gap-1">
                 <span className="text-3xl font-bold">${price / 100}</span>
                 <span className="text-xs text-muted-foreground">
                   /{plan.slug === "free" ? "forever" : interval === "annual" ? "year" : "month"}
                 </span>
               </div>
-              {interval === "annual" && annualSaving > 0 ? (
+              {percentOff > 0 ? (
+                <p className="mt-1 text-xs text-muted-foreground line-through">
+                  ${listPrice / 100}
+                </p>
+              ) : null}
+              {interval === "annual" && annualSaving > 0 && percentOff === 0 ? (
                 <p className="mt-1 text-xs font-medium text-emerald-500">
                   Save ${annualSaving}
                 </p>
+              ) : null}
+              {plan.saleName && percentOff > 0 ? (
+                <p className="mt-1 text-xs font-medium text-emerald-600">{plan.saleName}</p>
               ) : null}
               <p className="mt-4 text-sm font-medium">
                 {plan.studentLimit === null
@@ -230,17 +225,17 @@ export function BillingPlanSelector({
                 {plan.courseLimit === 0
                   ? "Course selling not included"
                   : plan.courseLimit === null
-                  ? "Unlimited courses"
-                  : `Up to ${plan.courseLimit} course${plan.courseLimit === 1 ? "" : "s"}`}
+                    ? "Unlimited courses"
+                    : `Up to ${plan.courseLimit} course${plan.courseLimit === 1 ? "" : "s"}`}
               </p>
               <ul className="mt-4 flex-1 space-y-2">
                 {plan.features
-                  .filter((feature) => featureLabels[feature])
+                  .filter((feature) => planFeatureLabels[feature])
                   .slice(-7)
                   .map((feature) => (
                     <li key={feature} className="flex gap-2 text-xs text-muted-foreground">
                       <Check className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
-                      {featureLabels[feature]}
+                      {planFeatureLabels[feature]}
                     </li>
                   ))}
               </ul>

@@ -1,9 +1,12 @@
-import { ArrowLeft, CalendarDays, Video } from "lucide-react";
+import { Video } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
+import { StudentNavWithNotifications } from "@/features/student-dashboard/components/student-nav-with-notifications";
+import { TeacherNavWithNotifications } from "@/features/teacher-dashboard/components/teacher-nav-with-notifications";
+import { DevicePreview } from "@/features/video/components/device-preview";
 import { formatDateTime, formatStatus } from "@/lib/format";
 import { getClassroomLessons } from "@/server/classroom/lessons";
 
@@ -14,38 +17,20 @@ export const metadata: Metadata = {
 
 export default async function ClassroomPage() {
   const { user, isTeacher, live, upcoming, recent } = await getClassroomLessons();
-  const dashboardHref = isTeacher ? "/dashboard/teacher" : "/dashboard";
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-6">
-          <Button variant="ghost" render={<Link href={dashboardHref} />}>
-            <ArrowLeft className="size-4" aria-hidden />
-            Dashboard
-          </Button>
-          <Button
-            variant="ghost"
-            render={
-              <Link
-                href={isTeacher ? "/dashboard/teacher/bookings" : "/dashboard/bookings"}
-              />
-            }
-          >
-            <CalendarDays className="size-4" aria-hidden />
-            Bookings
-          </Button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-muted/30">
+      {isTeacher ? <TeacherNavWithNotifications /> : <StudentNavWithNotifications />}
 
       <main className="mx-auto max-w-4xl space-y-8 px-6 py-10">
         <div>
-          <p className="text-sm text-muted-foreground">Live lessons</p>
           <h1 className="text-3xl font-semibold tracking-tight">Classroom</h1>
           <p className="mt-2 text-muted-foreground">
             Join your video lessons here. If you disconnect, reopen this page and join again.
           </p>
         </div>
+
+        <DevicePreview />
 
         <LessonSection
           title="Join now"

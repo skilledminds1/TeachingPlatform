@@ -22,8 +22,7 @@ export default async function TeacherPaymentsPage({
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Student payments</h1>
           <p className="mt-2 text-muted-foreground">
-            Connect PayPal so students can pay you directly for lessons — Amazing Skills takes no
-            commission. Teacher platform subscriptions are billed separately via PayFast.
+            Connect a payment method to receive direct payments from students for lessons.
           </p>
         </div>
 
@@ -50,18 +49,6 @@ export default async function TeacherPaymentsPage({
             country={paypal?.country}
           />
         </div>
-
-        {!data.lessonFlags.paypal ? (
-          <p className="rounded-lg border border-border bg-background p-4 text-sm text-muted-foreground">
-            Lesson payments are currently off. An administrator must complete PayPal partner
-            approval and set `LESSON_PAYMENTS_PAYPAL_ENABLED=true` before students can checkout.
-          </p>
-        ) : null}
-
-        <p className="text-sm text-muted-foreground">
-          Students pay you via PayPal in your chosen lesson currency. Provider processing fees still
-          apply.
-        </p>
 
         <section className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm">
           <div>

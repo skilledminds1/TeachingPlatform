@@ -1,10 +1,10 @@
-import { GraduationCap } from "lucide-react";
+import { KeyRound, UserRound } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
+import { StudentNavWithNotifications } from "@/features/student-dashboard/components/student-nav-with-notifications";
+import { StudentSettingsForm } from "@/features/student-dashboard/components/student-settings-form";
 import { getCurrentUser, getPostAuthRedirect } from "@/server/auth/session";
 
 export const metadata: Metadata = {
@@ -21,36 +21,53 @@ export default async function StudentSettingsPage() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <header className="border-b border-border/60 bg-background">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <GraduationCap className="size-4" aria-hidden />
-            </span>
-            Amazing Skills
-          </Link>
-          <Button variant="ghost" render={<Link href="/dashboard" />}>
-            Back to dashboard
-          </Button>
-        </div>
-      </header>
+      <StudentNavWithNotifications />
 
       <main className="mx-auto max-w-3xl space-y-8 px-6 py-8 md:py-12">
         <div>
           <h1 className="font-heading text-3xl font-semibold tracking-tight">
             Account settings
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">{user.email}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Manage your profile, regional preferences, and account security.
+          </p>
         </div>
 
         <section className="space-y-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <div>
-            <h2 className="font-heading text-2xl font-semibold tracking-tight">
-              Change password
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Use a unique password with at least 8 characters.
-            </p>
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <UserRound className="size-5" aria-hidden />
+            </span>
+            <div>
+              <h2 className="font-heading text-2xl font-semibold tracking-tight">
+                Profile and preferences
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Keep your personal details and lesson timezone accurate.
+              </p>
+            </div>
+          </div>
+          <StudentSettingsForm
+            initialName={user.name}
+            email={user.email}
+            initialTimezone={user.timezone}
+            initialAvatarUrl={user.avatarUrl ?? ""}
+          />
+        </section>
+
+        <section className="space-y-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <KeyRound className="size-5" aria-hidden />
+            </span>
+            <div>
+              <h2 className="font-heading text-2xl font-semibold tracking-tight">
+                Password and security
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Use a unique password with at least 8 characters.
+              </p>
+            </div>
           </div>
           <ChangePasswordForm />
         </section>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -15,6 +15,7 @@ export type ConversationListItem = {
   preview: string;
   dateLabel: string;
   unread: number;
+  platformOwner?: boolean;
 };
 
 const tabs = ["All", "Unread", "Archived"] as const;
@@ -129,14 +130,22 @@ export function ConversationSidebar({
                     </Avatar>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
-                        <p
-                          className={cn(
-                            "truncate text-sm",
-                            item.unread > 0 ? "font-semibold" : "font-medium",
-                          )}
-                        >
-                          {item.name}
-                        </p>
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <p
+                            className={cn(
+                              "truncate text-sm",
+                              item.unread > 0 ? "font-semibold" : "font-medium",
+                            )}
+                          >
+                            {item.name}
+                          </p>
+                          {item.platformOwner ? (
+                            <ShieldCheck
+                              className="size-3.5 shrink-0 text-amber-600"
+                              aria-label="Platform Owner"
+                            />
+                          ) : null}
+                        </div>
                         <p className="shrink-0 text-xs text-muted-foreground">
                           {item.dateLabel}
                         </p>

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/features/admin/components/empty-state";
 import { StatusBadge } from "@/features/admin/components/status-badge";
+import { CourseListActions } from "@/features/courses/components/course-list-actions";
 import { courseStatusTone, formatCourseLevel } from "@/features/courses/lib/labels";
 import { formatCurrency, formatStatus } from "@/lib/format";
 import { getCourseUsage } from "@/server/billing/entitlements";
@@ -77,13 +78,15 @@ export default async function TeacherCoursesPage() {
           <ul className="space-y-3">
             {courses.map((course) => (
               <li key={course.id}>
-                <Link
-                  href={`/dashboard/teacher/courses/${course.id}`}
-                  className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between"
-                >
+                <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate font-semibold">{course.title}</p>
+                      <Link
+                        href={`/dashboard/teacher/courses/${course.id}`}
+                        className="truncate font-semibold hover:text-primary"
+                      >
+                        {course.title}
+                      </Link>
                       <StatusBadge tone={courseStatusTone(course.status)}>
                         {formatStatus(course.status)}
                       </StatusBadge>
@@ -99,12 +102,21 @@ export default async function TeacherCoursesPage() {
                       {course._count.enrollments === 1 ? "" : "s"}
                     </p>
                   </div>
-                  <p className="shrink-0 font-semibold">
-                    {course.priceCents === 0
-                      ? "Free"
-                      : formatCurrency(course.priceCents, course.currency)}
-                  </p>
-                </Link>
+                  <div className="flex flex-wrap items-center gap-4 sm:justify-end">
+                    <p className="shrink-0 font-semibold">
+                      {course.priceCents === 0
+                        ? "Free"
+                        : formatCurrency(course.priceCents, course.currency)}
+                    </p>
+                    <CourseListActions
+                      courseId={course.id}
+                      courseTitle={course.title}
+                      canRemove={
+                        course._count.enrollments === 0 && course._count.purchases === 0
+                      }
+                    />
+                  </div>
+                </div>
               </li>
             ))}
           </ul>

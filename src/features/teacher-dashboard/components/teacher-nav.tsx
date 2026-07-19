@@ -3,6 +3,7 @@
 import { GraduationCap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { signOut } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/dashboard/teacher", label: "Home", exact: true },
+  { href: "/dashboard/teacher/analytics", label: "Analytics" },
   { href: "/dashboard/messages", label: "Messages" },
   { href: "/dashboard/teacher/bookings", label: "Calendar" },
   { href: "/dashboard/teacher/students", label: "Students" },
@@ -24,7 +26,7 @@ function isActive(pathname: string, href: string, exact?: boolean) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function TeacherNav() {
+export function TeacherNav({ notificationSlot }: { notificationSlot: ReactNode }) {
   const pathname = usePathname();
 
   return (
@@ -63,11 +65,14 @@ export function TeacherNav() {
           </ul>
         </nav>
 
-        <form action={signOut} className="shrink-0">
-          <Button type="submit" variant="outline" size="sm">
-            Sign out
-          </Button>
-        </form>
+        <div className="flex shrink-0 items-center gap-2">
+          {notificationSlot}
+          <form action={signOut}>
+            <Button type="submit" variant="outline" size="sm">
+              Sign out
+            </Button>
+          </form>
+        </div>
       </div>
     </header>
   );

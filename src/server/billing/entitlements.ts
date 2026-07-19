@@ -1,49 +1,70 @@
 import { db } from "@/lib/db";
+import {
+  planFeatures,
+  type PlanFeature,
+} from "@/features/billing/lib/plan-feature-labels";
 
-export const planFeatures = [
-  "teacher_profile",
-  "marketplace_listing",
-  "booking_calendar",
-  "direct_messaging",
-  "one_on_one_lessons",
-  "basic_analytics",
-  "community_support",
-  "direct_payments",
-  "courses",
-  "homework",
-  "file_sharing",
-  "student_notes",
-  "email_reminders",
-  "reviews",
-  "basic_reporting",
-  "custom_availability",
-  "unlimited_courses",
-  "quizzes",
-  "assignments",
-  "certificates",
-  "group_lessons",
-  "calendar_sync",
-  "video_integrations",
-  "advanced_analytics",
-  "priority_support",
-  "team_teachers",
-  "custom_branding",
-  "api_access",
-  "white_label_certificates",
-  "advanced_reporting",
-  "automation",
-  "early_access",
-] as const;
+export { planFeatures, type PlanFeature };
 
-export type PlanFeature = (typeof planFeatures)[number];
+async function expireComplimentaryAccess(organizationId: string, now = new Date()) {
+  const organization = await db.organization.findUnique({
+    where: { id: organizationId },
+    select: {
+      id: true,
+      planId: true,
+      complimentaryPlanId: true,
+      complimentaryExpiresAt: true,
+      complimentaryPreviousPlanId: true,
+    },
+  });
+  if (!organization?.complimentaryPlanId) return false;
+  if (
+    organization.complimentaryExpiresAt &&
+    organization.complimentaryExpiresAt > now
+  ) {
+    return false;
+  }
+  // Permanent grants (null expiry) never auto-expire.
+  if (!organization.complimentaryExpiresAt) return false;
+
+  const freePlan = await db.plan.findUnique({
+    where: { slug: "free" },
+    select: { id: true },
+  });
+  if (!freePlan) return false;
+
+  await db.organization.update({
+    where: { id: organization.id },
+    data: {
+      planId: freePlan.id,
+      subscriptionStatus: "active",
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: null,
+      complimentaryPlanId: null,
+      complimentaryExpiresAt: null,
+      complimentaryGrantedById: null,
+      complimentaryGrantedAt: null,
+      complimentaryPreviousPlanId: null,
+      complimentaryNote: null,
+    },
+  });
+
+  return true;
+}
 
 export async function getOrganizationEntitlements(organizationId: string) {
+  await expireComplimentaryAccess(organizationId);
+
   const organization = await db.organization.findUniqueOrThrow({
     where: { id: organizationId },
     select: {
       id: true,
       billingInterval: true,
       subscriptionStatus: true,
+      complimentaryPlanId: true,
+      complimentaryExpiresAt: true,
+      complimentaryGrantedAt: true,
+      complimentaryNote: true,
       plan: {
         select: {
           id: true,
@@ -63,6 +84,7 @@ export async function getOrganizationEntitlements(organizationId: string) {
 
   return {
     ...organization,
+    isComplimentary: Boolean(organization.complimentaryPlanId),
     features: new Set(organization.plan.features as PlanFeature[]),
   };
 }
