@@ -40,7 +40,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
       });
 
-      const destination = next ?? (await getPostAuthRedirect(sessionUser));
+      const defaultDestination = await getPostAuthRedirect(sessionUser);
+      const destination =
+        defaultDestination === "/legal-review"
+          ? `/legal-review${next ? `?next=${encodeURIComponent(next)}` : ""}`
+          : next ?? defaultDestination;
       return NextResponse.redirect(new URL(destination, origin));
     }
   }

@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TIMEZONE_OPTIONS } from "@/lib/timezone";
 import { avatarFileSchema } from "@/lib/validations/teacher-onboarding";
 import { requireAuth } from "@/server/auth/session";
+import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
 import { fail, ok, type ActionResult } from "@/types/action";
 
 const timezoneValues = new Set<string>(
@@ -76,6 +77,13 @@ export async function uploadStudentAvatar(
   formData: FormData,
 ): Promise<ActionResult<{ avatarUrl: string }>> {
   const user = await requireAuth();
+  const limited = await enforceActionRateLimit({
+    action: "upload",
+    limit: 15,
+    windowMs: 60 * 60_000,
+    userId: user.id,
+  });
+  if (limited) return limited;
   const parsed = avatarFileSchema.safeParse(formData.get("avatar"));
   if (!parsed.success) {
     return fail(

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-publishable-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+      DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+      CRON_SECRET: ci-only-cron-secret-32-characters-minimum
+      HEALTH_SECRET: ci-only-health-secret-32-characters-minimum
+      LEGAL_ENTITY_NAME: CI Legal Entity
+      LEGAL_REGISTRATION_NUMBER: CI-000
+      LEGAL_BUSINESS_ADDRESS: CI Address
+      LEGAL_SUPPORT_EMAIL: support@example.com
+      LEGAL_INFORMATION_OFFICER_EMAIL: privacy@example.com
+      LEGAL_EVIDENCE_SALT: ci-only-legal-salt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma validate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

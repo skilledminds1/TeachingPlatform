@@ -7,16 +7,23 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { requireTeacher } from "@/server/auth/session";
+import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
 import {
   getActiveSalesForPlans,
   getEffectivePlanPrice,
 } from "@/server/billing/pricing";
+import { getLiveLessonUsage } from "@/server/billing/entitlements";
 import { createPayfastSignature } from "@/services/payfast/signature";
 import { updatePayfastSubscription } from "@/services/payfast/subscriptions";
 import { fail, ok, type ActionResult } from "@/types/action";
 
 const checkoutSchema = z.object({
   planSlug: z.enum(["starter", "professional", "business"]),
+  interval: z.enum(["monthly", "annual"]),
+});
+
+const planChangeSchema = z.object({
+  planSlug: z.enum(["free", "starter", "professional", "business"]),
   interval: z.enum(["monthly", "annual"]),
 });
 
@@ -44,6 +51,13 @@ export async function createSubscriptionCheckout(
   }
 
   const user = await requireTeacher();
+  const limited = await enforceActionRateLimit({
+    action: "subscription-checkout",
+    limit: 5,
+    windowMs: 10 * 60_000,
+    userId: user.id,
+  });
+  if (limited) return limited;
   const membership = user.memberships.find((item) => item.role === "admin");
   if (!membership) {
     return fail("Only organization admins can change billing.", "FORBIDDEN");
@@ -129,6 +143,14 @@ export async function createSubscriptionCheckout(
         subscriptionStatus: "active",
         cancelAtPeriodEnd: false,
         currentPeriodEnd: periodEnd,
+        trialEndsAt: null,
+        graceStartedAt: null,
+        graceEndsAt: null,
+        dunningStage: 0,
+        dunningLastNoticeAt: null,
+        pendingPlanId: null,
+        pendingBillingInterval: null,
+        pendingChangeAt: null,
         ...clearComplimentary,
       },
     });
@@ -160,6 +182,14 @@ export async function createSubscriptionCheckout(
         billingInterval: parsed.data.interval,
         subscriptionStatus: "active",
         cancelAtPeriodEnd: false,
+        trialEndsAt: null,
+        graceStartedAt: null,
+        graceEndsAt: null,
+        dunningStage: 0,
+        dunningLastNoticeAt: null,
+        pendingPlanId: null,
+        pendingBillingInterval: null,
+        pendingChangeAt: null,
         ...clearComplimentary,
       },
     });
@@ -212,4 +242,135 @@ export async function createSubscriptionCheckout(
         : "https://www.payfast.co.za/eng/process",
     fields: Object.fromEntries(fields),
   });
+}
+
+async function requireBillingAdmin() {
+  const user = await requireTeacher();
+  const membership = user.memberships.find((item) => item.role === "admin");
+  return membership ? { user, organizationId: membership.organizationId } : null;
+}
+
+export async function schedulePlanChange(
+  input: unknown,
+): Promise<ActionResult<{ effectiveAt: Date; warning: string }>> {
+  const parsed = planChangeSchema.safeParse(input);
+  if (!parsed.success) return fail("Choose a valid plan and interval.", "VALIDATION_ERROR");
+  const admin = await requireBillingAdmin();
+  if (!admin) return fail("Only organization admins can change billing.", "FORBIDDEN");
+
+  const [organization, target, lessonUsage] = await Promise.all([
+    db.organization.findUniqueOrThrow({
+      where: { id: admin.organizationId },
+      select: {
+        currentPeriodEnd: true,
+        payfastToken: true,
+        plan: { select: { id: true, name: true, monthlyPriceCents: true } },
+        _count: {
+          select: {
+            studentRelationships: { where: { status: "active" } },
+            courses: { where: { deletedAt: null } },
+          },
+        },
+      },
+    }),
+    db.plan.findUnique({ where: { slug: parsed.data.planSlug } }),
+    getLiveLessonUsage(admin.organizationId),
+  ]);
+  if (!target) return fail("Plan not found.", "NOT_FOUND");
+  if (!organization.currentPeriodEnd || !organization.payfastToken) {
+    return fail("Only active paid subscriptions can schedule a downgrade.", "CONFLICT");
+  }
+  if (target.monthlyPriceCents >= organization.plan.monthlyPriceCents) {
+    return fail("Use immediate checkout for upgrades or equivalent plan changes.", "VALIDATION_ERROR");
+  }
+
+  const blockers: string[] = [];
+  if (target.studentLimit !== null && organization._count.studentRelationships > target.studentLimit) {
+    blockers.push(
+      `${organization._count.studentRelationships} active students exceeds the ${target.studentLimit}-student limit`,
+    );
+  }
+  if (target.courseLimit !== null && organization._count.courses > target.courseLimit) {
+    blockers.push(`${organization._count.courses} courses exceeds the ${target.courseLimit}-course limit`);
+  }
+  if (
+    target.monthlyLiveLessonMinutes !== null &&
+    lessonUsage.usedMinutes > target.monthlyLiveLessonMinutes
+  ) {
+    blockers.push(
+      `${lessonUsage.usedMinutes} live-lesson minutes this month exceeds the ${target.monthlyLiveLessonMinutes}-minute limit`,
+    );
+  }
+  if (blockers.length > 0) {
+    return fail(
+      `This downgrade cannot be scheduled yet: ${blockers.join("; ")}. Archive the excess first.`,
+      "PLAN_LIMIT_EXCEEDED",
+    );
+  }
+
+  await db.organization.update({
+    where: { id: admin.organizationId },
+    data: {
+      pendingPlanId: target.id,
+      pendingBillingInterval: parsed.data.interval,
+      pendingChangeAt: organization.currentPeriodEnd,
+      cancelAtPeriodEnd: false,
+    },
+  });
+  return ok({
+    effectiveAt: organization.currentPeriodEnd,
+    warning: `At period end, ${target.name} limits apply to new students, lessons, and courses. Existing learning records remain available.`,
+  });
+}
+
+export async function cancelScheduledPlanChange(): Promise<ActionResult<{ cancelled: true }>> {
+  const admin = await requireBillingAdmin();
+  if (!admin) return fail("Only organization admins can change billing.", "FORBIDDEN");
+  await db.organization.update({
+    where: { id: admin.organizationId },
+    data: { pendingPlanId: null, pendingBillingInterval: null, pendingChangeAt: null },
+  });
+  return ok({ cancelled: true });
+}
+
+export async function scheduleSubscriptionCancellation(): Promise<
+  ActionResult<{ effectiveAt: Date }>
+> {
+  const admin = await requireBillingAdmin();
+  if (!admin) return fail("Only organization admins can change billing.", "FORBIDDEN");
+  const organization = await db.organization.findUniqueOrThrow({
+    where: { id: admin.organizationId },
+    select: { payfastToken: true, currentPeriodEnd: true },
+  });
+  if (!organization.payfastToken || !organization.currentPeriodEnd) {
+    return fail("There is no paid subscription to cancel.", "CONFLICT");
+  }
+  await db.organization.update({
+    where: { id: admin.organizationId },
+    data: {
+      cancelAtPeriodEnd: true,
+      pendingPlanId: null,
+      pendingBillingInterval: null,
+      pendingChangeAt: null,
+    },
+  });
+  return ok({ effectiveAt: organization.currentPeriodEnd });
+}
+
+export async function resumeSubscription(): Promise<ActionResult<{ resumed: true }>> {
+  const admin = await requireBillingAdmin();
+  if (!admin) return fail("Only organization admins can change billing.", "FORBIDDEN");
+  const organization = await db.organization.findUniqueOrThrow({
+    where: { id: admin.organizationId },
+    select: { payfastToken: true, currentPeriodEnd: true, cancelAtPeriodEnd: true },
+  });
+  if (!organization.payfastToken || !organization.currentPeriodEnd) {
+    return fail("This subscription cannot be resumed. Start a new checkout instead.", "CONFLICT");
+  }
+  if (!organization.cancelAtPeriodEnd) return ok({ resumed: true });
+  await db.organization.update({
+    where: { id: admin.organizationId },
+    data: { cancelAtPeriodEnd: false },
+  });
+  return ok({ resumed: true });
 }

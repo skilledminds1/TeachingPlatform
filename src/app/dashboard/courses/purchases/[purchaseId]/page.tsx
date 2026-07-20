@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
+import { RefundRequestPanel } from "@/features/payments/components/refund-request-panel";
 import { formatCurrency, formatStatus } from "@/lib/format";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/server/auth/session";
@@ -32,6 +33,18 @@ export default async function CoursePurchasePage({
       status: true,
       amountCents: true,
       currency: true,
+      refundRequest: {
+        select: {
+          id: true,
+          status: true,
+          requestedAmountCents: true,
+          currency: true,
+          reason: true,
+          policyEligible: true,
+          teacherResponse: true,
+          providerRefundId: true,
+        },
+      },
       course: { select: { id: true, slug: true, title: true } },
     },
   });
@@ -72,9 +85,15 @@ export default async function CoursePurchasePage({
           </div>
         </section>
 
-        {purchase.status === "pending" && query.payment === "return" ? (
+        {purchase.status === "pending" && query.payment === "pending" ? (
           <section className="rounded-xl border border-primary/30 bg-primary/5 p-5 text-sm">
             Payment is being verified. Access is granted automatically after PayPal confirms it.
+          </section>
+        ) : null}
+        {purchase.status === "pending" && query.payment === "error" ? (
+          <section className="rounded-xl border border-destructive/30 bg-destructive/10 p-5 text-sm">
+            We could not verify the payment yet. Your payment record is unchanged; refresh shortly
+            or contact support if it remains pending.
           </section>
         ) : null}
         {purchase.status === "pending" && query.payment === "cancelled" ? (
@@ -95,6 +114,13 @@ export default async function CoursePurchasePage({
               Open course
             </Button>
           </section>
+        ) : null}
+        {purchase.status === "succeeded" && purchase.amountCents > 0 ? (
+          <RefundRequestPanel
+            targetType="course"
+            targetId={purchase.id}
+            request={purchase.refundRequest}
+          />
         ) : null}
         {purchase.status === "refunded" || purchase.status === "cancelled" ? (
           <section className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">

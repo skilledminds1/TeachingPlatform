@@ -37,7 +37,7 @@ All platform admin routes under `/admin/*` with dedicated layout.
 | `/admin/teachers/[id]` | Review and approve/reject profile |
 | `/admin/reviews` | Review moderation queue |
 | `/admin/reviews/[id]` | Approve/reject review |
-| `/admin/analytics` | Platform MRR, bookings, active teachers |
+| `/admin/analytics` | Operations and finance analytics with range filters and CSV export |
 | `/admin/audit-log` | Admin action history |
 
 Middleware: require authenticated session + `isPlatformAdmin`.
@@ -90,6 +90,35 @@ Teachers may post one public response per approved review.
 | Manage org PayFast billing | | ✓ |
 
 Platform admins must not browse org course content or private messages without documented audit reason.
+
+---
+
+## Analytics definitions
+
+`/admin/analytics` excludes seeded accounts whose email ends in
+`teachingplatform.local` and organizations whose slug starts with `demo-`.
+
+- **Teacher-processed volume** is verified lesson and course payment value. Gross,
+  refunds, and net are grouped by currency and are not Amazing Skills revenue.
+- **Checkout conversion** uses payment attempts created in the selected window as
+  starts. Succeeded, refunded, and partially refunded attempts count as completed
+  checkouts because the original checkout succeeded.
+- **Active learner retention** uses unique learners with a confirmed/completed
+  lesson or completed course learning activity in the preceding equal-length
+  window as its denominator.
+- **Course completion** uses non-revoked enrollments started in the selected
+  window for courses with at least one lesson. Completion requires every current
+  lesson.
+- **Subscription retention** uses organizations with a paid invoice in the
+  preceding equal-length window; retained organizations paid again in the
+  selected window. The all-time view instead compares ever-paid organizations
+  with currently active paid organizations.
+- **MRR** is platform subscription list revenue only. Annual prices are divided
+  by twelve, complimentary and Free plans are excluded, and currencies remain
+  separate.
+
+The CSV export repeats the numerator, denominator, and currency buckets needed
+for operations and finance review.
 
 ---
 

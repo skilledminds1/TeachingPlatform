@@ -30,6 +30,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Durable PostgreSQL email outbox with provider adapters, escaped templates, idempotent delivery,
+  exponential retries, attempt logs, protected cron processing, and admin delivery visibility
+- Persisted student and teacher email preferences with mandatory security, payment, legal, and
+  mediation delivery plus optional reminders, messages, and marketing
+- Email coverage for cancellations, reschedules, purchases, refunds, payment failures, subscription
+  lifecycle, organization invitations, moderation outcomes, disputes, and optional new messages
+- Subscription lifecycle automation for explicit 14-day trials, scheduled downgrades and cancellations, PayFast payment recovery, dunning notices, and read-only fallback
+- Billing lifecycle controls, effective-date warnings, recovery states, and persisted downgrade limit validation
+- Growth write gates after seven overdue days while preserving existing lessons and course learning access
 - Self-paced courses marketplace at `/courses` with teacher authoring, PayPal checkout, enrollment, and student library
 - Course modules/lessons with text, external video links, and private downloadable files
 - Dedicated Find Tutor discovery at `/find-tutor` with teacher profiles and booking
@@ -39,6 +48,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Student booking checkout UI and teacher earnings summary from verified payment attempts
 - Lesson payment feature flags and documentation in `docs/LessonPayments.md`
 - Cron-friendly unpaid booking expiry job at `/api/v1/jobs/expire-pending-payments`
+- Moderated course reviews with progress-based eligibility, public rating aggregates, teacher responses, and catalogue rating controls
+- Free preview lessons with capped studio controls and signed public access limited to preview media
+- Teacher-owned scheduled course sales and coupons with immutable checkout price snapshots, no discount stacking, and free-after-discount enrollment
+- Enrolled course Q&A with teacher answers, public anonymized answered questions, and teacher/admin hide controls
+- Platform admin analytics for per-currency teacher-processed volume, refunds and disputes, checkout conversion, learner outcomes, subscription retention, churn, MRR, trends, and CSV export
 
 ### Changed
 

@@ -50,6 +50,7 @@ type Lesson = {
   videoUrl: string | null;
   fileName: string | null;
   sortOrder: number;
+  isPreview: boolean;
   assets: Asset[];
 };
 

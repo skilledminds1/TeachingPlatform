@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { createPayfastSignature } from "@/services/payfast/signature";
+import { startPaymentGrace } from "@/server/billing/lifecycle";
 
 function nextPeriodEnd(current: Date | null, interval: "monthly" | "annual"): Date {
   const date = current && current > new Date() ? new Date(current) : new Date();
@@ -74,11 +75,11 @@ async function handleSubscriptionItn(params: URLSearchParams) {
 
   const organization = await db.organization.findUnique({
     where: { id: organizationId },
-    select: { id: true, currentPeriodEnd: true },
+    select: { id: true, currentPeriodEnd: true, graceStartedAt: true, graceEndsAt: true },
   });
   const plan = await db.plan.findUnique({
     where: { id: planId },
-    select: { id: true },
+    select: { id: true, name: true },
   });
   if (!organization || !plan) {
     return new NextResponse("Billing account not found", { status: 404 });
@@ -86,16 +87,19 @@ async function handleSubscriptionItn(params: URLSearchParams) {
 
   try {
     await db.$transaction(async (tx) => {
-      await tx.billingEvent.create({
+      const billingEvent = await tx.billingEvent.create({
         data: {
           organizationId,
           providerEventId,
           eventType: paymentStatus,
           payload: Object.fromEntries(params),
         },
+        select: { id: true },
       });
 
       if (paymentStatus === "COMPLETE") {
+        const periodStart = new Date();
+        const periodEnd = nextPeriodEnd(organization.currentPeriodEnd, interval);
         await tx.organization.update({
           where: { id: organizationId },
           data: {
@@ -103,8 +107,16 @@ async function handleSubscriptionItn(params: URLSearchParams) {
             billingInterval: interval,
             subscriptionStatus: "active",
             payfastToken: params.get("token"),
-            currentPeriodEnd: nextPeriodEnd(organization.currentPeriodEnd, interval),
+            currentPeriodEnd: periodEnd,
             cancelAtPeriodEnd: false,
+            trialEndsAt: null,
+            graceStartedAt: null,
+            graceEndsAt: null,
+            dunningStage: 0,
+            dunningLastNoticeAt: null,
+            pendingPlanId: null,
+            pendingBillingInterval: null,
+            pendingChangeAt: null,
             complimentaryPlanId: null,
             complimentaryExpiresAt: null,
             complimentaryGrantedById: null,
@@ -113,16 +125,39 @@ async function handleSubscriptionItn(params: URLSearchParams) {
             complimentaryNote: null,
           },
         });
+
+        const amountGross = Number(params.get("amount_gross") ?? params.get("amount") ?? "0");
+        if (Number.isFinite(amountGross) && amountGross > 0) {
+          await tx.subscriptionInvoice.create({
+            data: {
+              organizationId,
+              billingEventId: billingEvent.id,
+              providerPaymentId: providerEventId,
+              amountCents: Math.round(amountGross * 100),
+              currency: "ZAR",
+              description: `Amazing Skills ${plan.name} subscription (${interval})`,
+              periodStart,
+              periodEnd,
+            },
+          });
+        }
       } else if (paymentStatus === "FAILED") {
+        const grace =
+          organization.graceStartedAt && organization.graceEndsAt
+            ? {
+                subscriptionStatus: "past_due" as const,
+                graceStartedAt: organization.graceStartedAt,
+                graceEndsAt: organization.graceEndsAt,
+              }
+            : startPaymentGrace();
         await tx.organization.update({
           where: { id: organizationId },
-          data: { subscriptionStatus: "past_due" },
+          data: grace,
         });
       } else if (paymentStatus === "CANCELLED") {
         await tx.organization.update({
           where: { id: organizationId },
           data: {
-            subscriptionStatus: "cancelled",
             cancelAtPeriodEnd: true,
           },
         });

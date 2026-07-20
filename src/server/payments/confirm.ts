@@ -4,8 +4,13 @@ import type { PaymentAttempt, PaymentProvider, Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { logger } from "@/lib/observability/logger";
 import { ensureVideoSessionForBooking } from "@/server/video/sessions";
-import { notifyBookingConfirmed } from "@/server/notifications/notify";
+import {
+  notifyBookingConfirmed,
+  notifyCoursePurchased,
+  notifyPaymentFailed,
+} from "@/server/notifications/notify";
 
 type Tx = Prisma.TransactionClient;
 
@@ -129,11 +134,18 @@ export async function confirmBookingPayment(input: {
   }).then(async (result) => {
     if (result.confirmed && result.bookingId) {
       await ensureVideoSessionForBooking(result.bookingId);
-      await notifyBookingConfirmed(result.bookingId).catch(() => undefined);
+      await notifyBookingConfirmed(result.bookingId).catch((error) => {
+        logger.warn("booking_confirmation_notification_failed", {
+          error,
+          bookingId: result.bookingId,
+        });
+      });
       const { syncBookingToConnectedCalendars } = await import(
         "@/server/integrations/google-calendar"
       );
-      await syncBookingToConnectedCalendars(result.bookingId).catch(() => undefined);
+      await syncBookingToConnectedCalendars(result.bookingId).catch((error) => {
+        logger.warn("booking_calendar_sync_failed", { error, bookingId: result.bookingId });
+      });
     }
     return result;
   });
@@ -161,7 +173,9 @@ export async function confirmCoursePayment(input: {
 
     if (
       attempt.amountCents !== input.amountCents ||
+      purchase.amountCents !== input.amountCents ||
       attempt.currency.toUpperCase() !== input.currency.toUpperCase() ||
+      purchase.currency.toUpperCase() !== input.currency.toUpperCase() ||
       attempt.teacherMerchantId !== input.teacherMerchantId
     ) {
       await recordPaymentEvent({
@@ -217,6 +231,18 @@ export async function confirmCoursePayment(input: {
         paymentExpiresAt: null,
       },
     });
+    if (purchase.courseCouponId) {
+      await tx.courseCouponRedemption.createMany({
+        data: [
+          {
+            couponId: purchase.courseCouponId,
+            purchaseId: purchase.id,
+            studentId: purchase.studentId,
+          },
+        ],
+        skipDuplicates: true,
+      });
+    }
     await tx.courseEnrollment.upsert({
       where: {
         courseId_studentId: {
@@ -237,6 +263,16 @@ export async function confirmCoursePayment(input: {
     });
 
     return { confirmed: true, coursePurchaseId: purchase.id };
+  }).then(async (result) => {
+    if (result.confirmed && result.coursePurchaseId) {
+      await notifyCoursePurchased(result.coursePurchaseId).catch((error) => {
+        logger.warn("course_purchase_notification_failed", {
+          error,
+          coursePurchaseId: result.coursePurchaseId,
+        });
+      });
+    }
+    return result;
   });
 }
 
@@ -270,11 +306,15 @@ export async function markAttemptFailed(input: {
       },
     });
   });
+  await notifyPaymentFailed(input.attemptId).catch((error) => {
+    logger.warn("payment_failure_notification_failed", { error, attemptId: input.attemptId });
+  });
 }
 
 export async function applyRefundToAttempt(input: {
   attemptId: string;
   providerEventId: string;
+  providerRefundId?: string;
   eventType: string;
   payload: Prisma.InputJsonValue;
   refundedCents: number;
@@ -303,6 +343,18 @@ export async function applyRefundToAttempt(input: {
     await tx.paymentAttempt.update({
       where: { id: attempt.id },
       data: { refundedCents, status },
+    });
+    await tx.refundRequest.updateMany({
+      where: {
+        paymentAttemptId: attempt.id,
+        status: { in: ["requested", "teacher_approved", "teacher_declined", "escalated"] },
+      },
+      data: {
+        status: refundedCents >= attempt.amountCents ? "refunded" : "teacher_approved",
+        providerRefundId: input.providerRefundId ?? input.providerEventId,
+        providerRefundedCents: refundedCents,
+        resolvedAt: refundedCents >= attempt.amountCents ? new Date() : null,
+      },
     });
     if (status === "refunded" && attempt.coursePurchaseId) {
       await tx.coursePurchase.updateMany({
@@ -369,6 +421,9 @@ export async function expireAbandonedPayments(now = new Date()): Promise<number>
           status: { in: ["pending", "requires_action"] },
         },
         data: { status: "expired" },
+      });
+      await tx.courseCouponRedemption.deleteMany({
+        where: { purchaseId: purchase.id },
       });
     });
   }

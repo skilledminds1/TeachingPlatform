@@ -2,8 +2,9 @@ import type { CourseLevel, Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { ForbiddenError, NotFoundError } from "@/lib/errors";
+import { calculateCoursePrice, canAccessCourseMedia } from "./quality";
 
-export type CourseSort = "newest" | "price_asc" | "price_desc" | "popular";
+export type CourseSort = "newest" | "price_asc" | "price_desc" | "popular" | "rating";
 
 export type PublishedCourseFilters = {
   query?: string;
@@ -12,6 +13,7 @@ export type PublishedCourseFilters = {
   level?: CourseLevel;
   minPriceCents?: number;
   maxPriceCents?: number;
+  minRating?: number;
   sort?: CourseSort;
   page?: number;
   pageSize?: number;
@@ -24,6 +26,27 @@ function courseOrderBy(sort: CourseSort = "newest"): Prisma.CourseOrderByWithRel
     return [{ enrollments: { _count: "desc" } }, { publishedAt: "desc" }];
   }
   return [{ publishedAt: "desc" }, { createdAt: "desc" }];
+}
+
+function bestActiveSale<
+  T extends {
+    id: string;
+    discountType: "percent" | "fixed";
+    discountValue: number;
+  },
+>(listAmountCents: number, sales: T[]): T | null {
+  return (
+    sales
+      .map((sale) => ({
+        sale,
+        discountCents: calculateCoursePrice(
+          listAmountCents,
+          { id: sale.id, type: sale.discountType, value: sale.discountValue },
+          null,
+        ).discountCents,
+      }))
+      .sort((a, b) => b.discountCents - a.discountCents)[0]?.sale ?? null
+  );
 }
 
 export async function searchPublishedCourses(filters: PublishedCourseFilters = {}) {
@@ -61,12 +84,9 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
       : {}),
   };
 
-  const [courses, total] = await db.$transaction([
-    db.course.findMany({
+  const rawCourses = await db.course.findMany({
       where,
       orderBy: courseOrderBy(filters.sort),
-      skip: (page - 1) * pageSize,
-      take: pageSize,
       select: {
         id: true,
         slug: true,
@@ -86,11 +106,64 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
             teacherProfile: { select: { slug: true, headline: true } },
           },
         },
+        reviews: {
+          where: { status: "approved" },
+          select: { rating: true },
+        },
+        saleCourses: {
+          where: {
+            sale: { active: true, startsAt: { lte: new Date() }, endsAt: { gt: new Date() } },
+          },
+          select: {
+            sale: { select: { id: true, discountType: true, discountValue: true, endsAt: true } },
+          },
+        },
         _count: { select: { enrollments: true, modules: true } },
       },
-    }),
-    db.course.count({ where }),
-  ]);
+    });
+  const withAggregates = rawCourses.map((course) => {
+    const ratingCount = course.reviews.length;
+    const ratingAverage = ratingCount
+      ? course.reviews.reduce((sum, review) => sum + review.rating, 0) / ratingCount
+      : null;
+    const sale = bestActiveSale(
+      course.priceCents,
+      course.saleCourses.map(({ sale: candidate }) => candidate),
+    );
+    const price = calculateCoursePrice(
+      course.priceCents,
+      sale ? { id: sale.id, type: sale.discountType, value: sale.discountValue } : null,
+      null,
+    );
+    const { reviews: _reviews, saleCourses: _sales, ...rest } = course;
+    void _reviews;
+    void _sales;
+    return {
+      ...rest,
+      ratingAverage,
+      ratingCount,
+      effectivePriceCents: price.amountCents,
+      activeSale: sale,
+    };
+  });
+  const filtered = withAggregates.filter(
+    (course) => !filters.minRating || (course.ratingAverage ?? 0) >= filters.minRating,
+  );
+  if (filters.sort === "rating") {
+    filtered.sort(
+      (a, b) =>
+        (b.ratingAverage ?? 0) - (a.ratingAverage ?? 0) ||
+        b.ratingCount - a.ratingCount,
+    );
+  } else if (filters.sort === "price_asc" || filters.sort === "price_desc") {
+    filtered.sort((a, b) =>
+      filters.sort === "price_asc"
+        ? a.effectivePriceCents - b.effectivePriceCents
+        : b.effectivePriceCents - a.effectivePriceCents,
+    );
+  }
+  const total = filtered.length;
+  const courses = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   return {
     courses,
@@ -102,7 +175,7 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
 }
 
 export async function getPublishedCourseBySlug(slug: string) {
-  return db.course.findFirst({
+  const course = await db.course.findFirst({
     where: { slug, status: "published", deletedAt: null },
     select: {
       id: true,
@@ -133,13 +206,103 @@ export async function getPublishedCourseBySlug(slug: string) {
           sortOrder: true,
           lessons: {
             orderBy: { sortOrder: "asc" },
-            select: { id: true, title: true, sortOrder: true },
+            select: {
+              id: true,
+              title: true,
+              sortOrder: true,
+              isPreview: true,
+              content: true,
+              videoUrl: true,
+              fileName: true,
+              assets: {
+                select: {
+                  id: true,
+                  kind: true,
+                  fileName: true,
+                  mimeType: true,
+                  sizeBytes: true,
+                },
+              },
+            },
           },
+        },
+      },
+      reviews: {
+        where: { status: "approved" },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          rating: true,
+          comment: true,
+          teacherResponse: true,
+          createdAt: true,
+          student: { select: { name: true } },
+        },
+      },
+      questions: {
+        where: { hidden: false, answer: { isNot: null } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          body: true,
+          answer: { select: { body: true, createdAt: true } },
+        },
+      },
+      saleCourses: {
+        where: {
+          sale: { active: true, startsAt: { lte: new Date() }, endsAt: { gt: new Date() } },
+        },
+        select: {
+          sale: { select: { id: true, discountType: true, discountValue: true, endsAt: true } },
         },
       },
       _count: { select: { enrollments: true } },
     },
   });
+  if (!course) return null;
+  const ratingCount = course.reviews.length;
+  const ratingAverage = ratingCount
+    ? course.reviews.reduce((sum, review) => sum + review.rating, 0) / ratingCount
+    : null;
+  const activeSale = bestActiveSale(
+    course.priceCents,
+    course.saleCourses.map(({ sale }) => sale),
+  );
+  const price = calculateCoursePrice(
+    course.priceCents,
+    activeSale
+      ? {
+          id: activeSale.id,
+          type: activeSale.discountType,
+          value: activeSale.discountValue,
+        }
+      : null,
+    null,
+  );
+  const { saleCourses: _sales, ...rest } = course;
+  void _sales;
+  return {
+    ...rest,
+    modules: rest.modules.map((courseModule) => ({
+      ...courseModule,
+      lessons: courseModule.lessons.map((lesson) =>
+        lesson.isPreview
+          ? lesson
+          : {
+              ...lesson,
+              content: "",
+              videoUrl: null,
+              fileName: null,
+              assets: [],
+            },
+      ),
+    })),
+    ratingAverage,
+    ratingCount,
+    activeSale,
+    effectivePriceCents: price.amountCents,
+  };
 }
 
 export async function getTeacherCourses(teacherId: string) {
@@ -180,6 +343,20 @@ export async function getCourseForTeacherEdit(courseId: string, teacherId: strin
             },
           },
         },
+      },
+      saleCourses: {
+        include: { sale: true },
+        orderBy: { sale: { createdAt: "desc" } },
+      },
+      coupons: { orderBy: { createdAt: "desc" } },
+      questions: {
+        orderBy: { createdAt: "desc" },
+        include: { student: { select: { name: true } }, answer: true },
+      },
+      reviews: {
+        where: { status: "approved" },
+        orderBy: { createdAt: "desc" },
+        include: { student: { select: { name: true } } },
       },
     },
   });
@@ -228,7 +405,7 @@ export async function getStudentEnrollments(studentId: string) {
 export async function getEnrolledCourseDetail(courseId: string, studentId: string) {
   const enrollment = await db.courseEnrollment.findFirst({
     where: { courseId, studentId, revokedAt: null, course: { deletedAt: null } },
-    select: { id: true },
+    select: { id: true, revokedAt: true, review: true },
   });
   if (!enrollment) return null;
 
@@ -243,6 +420,21 @@ export async function getEnrolledCourseDetail(courseId: string, studentId: strin
       level: true,
       certificateEnabled: true,
       teacher: { select: { id: true, name: true, avatarUrl: true } },
+      reviews: {
+        where: { enrollmentId: enrollment.id },
+        select: { id: true, rating: true, comment: true, status: true, teacherResponse: true },
+      },
+      questions: {
+        where: { hidden: false },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          body: true,
+          studentId: true,
+          createdAt: true,
+          answer: { select: { body: true, createdAt: true } },
+        },
+      },
       certificates: {
         where: { studentId },
         select: { id: true, verificationCode: true, issuedAt: true },
@@ -262,6 +454,7 @@ export async function getEnrolledCourseDetail(courseId: string, studentId: strin
               videoUrl: true,
               fileName: true,
               fileMimeType: true,
+              isPreview: true,
               sortOrder: true,
               assets: {
                 orderBy: [{ kind: "asc" }, { sortOrder: "asc" }],
@@ -342,12 +535,20 @@ export async function getCourseForAdminReview(courseId: string) {
           },
         },
       },
+      questions: {
+        orderBy: { createdAt: "desc" },
+        include: { answer: true },
+      },
       _count: { select: { enrollments: true, purchases: true, certificates: true } },
     },
   });
 }
 
-export async function getLessonDownloadAccess(lessonId: string, userId: string) {
+export async function getLessonDownloadAccess(
+  lessonId: string,
+  userId?: string,
+  isAdmin = false,
+) {
   const lesson = await db.courseLesson.findUnique({
     where: { id: lessonId },
     select: {
@@ -355,15 +556,20 @@ export async function getLessonDownloadAccess(lessonId: string, userId: string) 
       fileStoragePath: true,
       fileName: true,
       fileMimeType: true,
+      isPreview: true,
       module: {
         select: {
           course: {
             select: {
               id: true,
               teacherId: true,
+              status: true,
               deletedAt: true,
               enrollments: {
-                where: { studentId: userId, revokedAt: null },
+                where: {
+                  studentId: userId ?? "00000000-0000-0000-0000-000000000000",
+                  revokedAt: null,
+                },
                 select: { id: true },
                 take: 1,
               },
@@ -379,7 +585,15 @@ export async function getLessonDownloadAccess(lessonId: string, userId: string) 
   }
   const isTeacher = lesson.module.course.teacherId === userId;
   const isEnrolled = lesson.module.course.enrollments.length > 0;
-  if (!isTeacher && !isEnrolled) {
+  if (
+    !canAccessCourseMedia({
+      isPreview: lesson.isPreview,
+      isPublished: lesson.module.course.status === "published",
+      isEnrolled,
+      isTeacher,
+      isAdmin,
+    })
+  ) {
     throw new ForbiddenError("Enroll in this course to download lesson files.");
   }
   if (!lesson.fileStoragePath) throw new NotFoundError("This lesson has no file.");

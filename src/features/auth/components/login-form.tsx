@@ -106,6 +106,17 @@ export function LoginForm({
           Get started
         </Link>
       </p>
+      <p className="text-center text-xs text-muted-foreground">
+        Continued account use is subject to the current{" "}
+        <Link href="/terms" className="font-medium text-primary hover:underline">
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="font-medium text-primary hover:underline">
+          Privacy Policy
+        </Link>
+        .
+      </p>
     </div>
   );
 }

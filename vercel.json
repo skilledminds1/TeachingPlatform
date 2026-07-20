@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/v1/jobs/session-reminders",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/v1/jobs/expire-pending-payments",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/v1/jobs/subscription-lifecycle",
+      "schedule": "15 2 * * *"
+    },
+    {
+      "path": "/api/v1/jobs/process-email-outbox",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

@@ -27,7 +27,7 @@ Create in Supabase Dashboard → Storage:
 | Bucket | Public read | Write path |
 |--------|-------------|------------|
 | `avatars` | Yes | Validated server action (service role) |
-| `credentials` | Yes | Validated teacher credential uploads (PDF/JPG/PNG/WebP, max 3 MB) |
+| `credentials` | **No** | Validated teacher credential uploads (PDF/JPG/PNG/WebP, max 3 MB) |
 | `teacher-intros` | Yes | Signed browser upload (MP4/WebM, max 80 MB), confirmed server-side |
 | `course-media` | **No** | Signed browser upload under `<teacher>/<course>/<lesson>/` |
 
@@ -51,6 +51,14 @@ teacher, administrator, or active-enrollment authorization; do not add public re
 ## RLS
 
 Row-level security policies live in `supabase/migrations/`. Application-level auth in `src/server/` is primary; RLS is defense-in-depth.
+
+Apply `20260719234500_storage_hardening.sql` after reviewing existing bucket contents. It keeps
+avatars public, makes credentials, course media/files, and case evidence private, and grants
+authenticated users access only to objects rooted in their own user path. Validated server actions
+use the service role and continue to bypass storage RLS. Do not add anonymous policies for sensitive
+buckets; serve downloads through short-lived signed URLs after application authorization. New
+credential uploads are stored as protected application download URLs; re-upload credentials whose
+database records still contain legacy Supabase public URLs before making the bucket private.
 
 ## Local development
 

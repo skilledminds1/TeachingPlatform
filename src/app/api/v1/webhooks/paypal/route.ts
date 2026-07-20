@@ -8,6 +8,7 @@ import {
   confirmCoursePayment,
   markAttemptFailed,
 } from "@/server/payments/confirm";
+import { notifyPaymentDispute } from "@/server/notifications/notify";
 import { verifyPayPalWebhookSignature } from "@/services/paypal/checkout";
 
 export async function POST(request: NextRequest) {
@@ -31,6 +32,11 @@ export async function POST(request: NextRequest) {
       supplementary_data?: {
         related_ids?: { order_id?: string };
       };
+      dispute_amount?: { value?: string; currency_code?: string };
+      reason?: string;
+      disputed_transactions?: Array<{
+        seller_transaction_id?: string;
+      }>;
       purchase_units?: Array<{
         reference_id?: string;
         custom_id?: string;
@@ -107,10 +113,47 @@ export async function POST(request: NextRequest) {
         await applyRefundToAttempt({
           attemptId: attempt.id,
           providerEventId: event.id,
+          providerRefundId: event.resource?.id,
           eventType: event.event_type,
           payload: event as object,
           refundedCents: majorUnitsToCents(amount),
         });
+      }
+    }
+  }
+
+  if (event.event_type.startsWith("CUSTOMER.DISPUTE.")) {
+    const providerCaseId = event.resource?.id;
+    const captureId = event.resource?.disputed_transactions?.[0]?.seller_transaction_id;
+    if (providerCaseId && captureId) {
+      const attempt = await db.paymentAttempt.findFirst({
+        where: { provider: "paypal", providerPaymentId: captureId },
+        select: { id: true },
+      });
+      if (attempt) {
+        const resolved = event.event_type === "CUSTOMER.DISPUTE.RESOLVED";
+        await db.paymentDispute.upsert({
+          where: { providerCaseId },
+          create: {
+            paymentAttemptId: attempt.id,
+            providerCaseId,
+            status: resolved ? "closed" : "open",
+            reason: event.resource?.reason,
+            amountCents: event.resource?.dispute_amount?.value
+              ? majorUnitsToCents(event.resource.dispute_amount.value)
+              : null,
+            currency: event.resource?.dispute_amount?.currency_code,
+            payload: event as object,
+            resolvedAt: resolved ? new Date() : null,
+          },
+          update: {
+            status: resolved ? "closed" : "under_review",
+            reason: event.resource?.reason,
+            payload: event as object,
+            resolvedAt: resolved ? new Date() : null,
+          },
+        });
+        await notifyPaymentDispute(attempt.id, providerCaseId, event.id).catch(() => undefined);
       }
     }
   }

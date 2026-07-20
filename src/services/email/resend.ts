@@ -1,27 +1,28 @@
 import { Resend } from "resend";
 
 import { env } from "@/lib/env";
+import type { EmailMessage, EmailProvider, EmailSendResult } from "@/services/email/provider";
 
-export function isEmailConfigured(): boolean {
-  return Boolean(env.RESEND_API_KEY);
-}
+export class ResendEmailProvider implements EmailProvider {
+  readonly name = "resend";
+  private readonly client: Resend;
 
-export async function sendEmail(input: {
-  to: string;
-  subject: string;
-  html: string;
-}): Promise<{ sent: boolean; skipped?: boolean }> {
-  if (!env.RESEND_API_KEY) {
-    return { sent: false, skipped: true };
+  constructor(apiKey = env.RESEND_API_KEY) {
+    if (!apiKey) throw new Error("RESEND_API_KEY is required for the Resend email provider.");
+    this.client = new Resend(apiKey);
   }
 
-  const resend = new Resend(env.RESEND_API_KEY);
-  const from = env.RESEND_FROM_EMAIL ?? "Amazing Skills <onboarding@resend.dev>";
-  await resend.emails.send({
-    from,
-    to: input.to,
-    subject: input.subject,
-    html: input.html,
-  });
-  return { sent: true };
+  async send(input: EmailMessage): Promise<EmailSendResult> {
+    const { data, error } = await this.client.emails.send(
+      {
+        from: env.RESEND_FROM_EMAIL ?? "Amazing Skills <onboarding@resend.dev>",
+        to: input.to,
+        subject: input.subject,
+        html: input.html,
+      },
+      { idempotencyKey: input.idempotencyKey },
+    );
+    if (error) throw new Error(error.message);
+    return { messageId: data?.id };
+  }
 }

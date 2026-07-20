@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/server/auth/session";
 import { notifyNewMessage } from "@/server/notifications/notify";
+import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
 import { fail, ok, type ActionResult } from "@/types/action";
 
 const adminMessageSchema = z
@@ -30,6 +31,13 @@ export async function sendAdminMessage(
   }
 
   const admin = await requirePlatformAdmin();
+  const limited = await enforceActionRateLimit({
+    action: "message-send",
+    limit: 60,
+    windowMs: 60_000,
+    userId: admin.id,
+  });
+  if (limited) return limited;
   let conversation = parsed.data.conversationId
     ? await db.conversation.findFirst({
         where: {

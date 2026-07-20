@@ -22,7 +22,8 @@ import {
   updateLessonSchema,
   updateModuleSchema,
 } from "@/lib/validations/courses";
-import { requireAuth } from "@/server/auth/session";
+import { getCurrentUser, requireAuth } from "@/server/auth/session";
+import { getOrganizationGrowthWriteBlock } from "@/server/billing/write-gate";
 import {
   assertCourseOwnership,
   canSubmitCourse,
@@ -38,6 +39,9 @@ import {
   validateCourseMediaMetadata,
 } from "@/server/courses/media";
 import { getLessonDownloadAccess } from "@/server/courses/queries";
+import { canAccessCourseMedia } from "@/server/courses/quality";
+import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
+import { getScopeRestriction } from "@/server/trust/enforcement";
 import { fail, ok, type ActionResult } from "@/types/action";
 import { slugify } from "@/utils/slugify";
 
@@ -50,7 +54,11 @@ const COURSE_AUTHORING_PLANS = new Set(["professional", "business"]);
 async function courseAuthoringPlanFailure(
   userId: string,
 ): Promise<ReturnType<typeof fail> | null> {
+  const restriction = await getScopeRestriction(userId, "publishing");
+  if (restriction) return fail(restriction, "FORBIDDEN");
   const context = await getTeacherCourseContext(userId);
+  const billingBlock = await getOrganizationGrowthWriteBlock(context.organization.id);
+  if (billingBlock) return fail(billingBlock, "FORBIDDEN");
   if (COURSE_AUTHORING_PLANS.has(context.plan.slug)) return null;
   return fail(
     "Course creation and uploads require a Professional or Business subscription.",
@@ -117,6 +125,7 @@ async function getOwnedLesson(lessonId: string, teacherId: string) {
     where: { id: lessonId },
     select: {
       id: true,
+      isPreview: true,
       fileStoragePath: true,
       module: {
         select: {
@@ -141,7 +150,11 @@ export async function createCourse(
   if (!parsed.success) return validationFailure(parsed.error.issues[0]?.message);
 
   const user = await requireAuth();
+  const restriction = await getScopeRestriction(user.id, "selling");
+  if (restriction) return fail(restriction, "FORBIDDEN");
   const context = await getTeacherCourseContext(user.id);
+  const billingBlock = await getOrganizationGrowthWriteBlock(context.organization.id);
+  if (billingBlock) return fail(billingBlock, "FORBIDDEN");
   if (!COURSE_AUTHORING_PLANS.has(context.plan.slug)) {
     return fail(
       "Course creation and uploads require a Professional or Business subscription.",
@@ -456,6 +469,20 @@ export async function updateLesson(
   const lesson = await getOwnedLesson(parsed.data.lessonId, user.id);
   if (!lesson) return fail("Lesson not found.", "NOT_FOUND");
   const { lessonId, ...data } = parsed.data;
+  if (data.isPreview && !lesson.isPreview) {
+    const [lessonCount, previewCount] = await Promise.all([
+      db.courseLesson.count({
+        where: { module: { courseId: lesson.module.courseId } },
+      }),
+      db.courseLesson.count({
+        where: { module: { courseId: lesson.module.courseId }, isPreview: true },
+      }),
+    ]);
+    if (previewCount >= 3) return validationFailure("A course can have at most 3 previews.");
+    if (lessonCount <= 1 || previewCount + 1 >= lessonCount) {
+      return validationFailure("At least one lesson must remain private.");
+    }
+  }
   await db.courseLesson.update({ where: { id: lessonId }, data });
   revalidateCoursePaths(lesson.module.courseId, lesson.module.course.slug);
   return ok({ updated: true });
@@ -471,6 +498,21 @@ export async function deleteLesson(
   if (planFailure) return planFailure;
   const lesson = await getOwnedLesson(parsed.data.lessonId, user.id);
   if (!lesson) return fail("Lesson not found.", "NOT_FOUND");
+  if (!lesson.isPreview) {
+    const [privateLessonCount, previewLessonCount] = await Promise.all([
+      db.courseLesson.count({
+        where: { module: { courseId: lesson.module.courseId }, isPreview: false },
+      }),
+      db.courseLesson.count({
+        where: { module: { courseId: lesson.module.courseId }, isPreview: true },
+      }),
+    ]);
+    if (privateLessonCount === 1 && previewLessonCount > 0) {
+      return validationFailure(
+        "Remove preview access from another lesson before deleting the final private lesson.",
+      );
+    }
+  }
   await db.courseLesson.delete({ where: { id: lesson.id } });
   if (lesson.fileStoragePath) {
     await createAdminClient().storage
@@ -525,6 +567,13 @@ export async function uploadCourseCover(
   if (!parsedFile.success) return validationFailure(parsedFile.error.issues[0]?.message);
 
   const user = await requireAuth();
+  const limited = await enforceActionRateLimit({
+    action: "upload",
+    limit: 20,
+    windowMs: 60 * 60_000,
+    userId: user.id,
+  });
+  if (limited) return limited;
   const planFailure = await courseAuthoringPlanFailure(user.id);
   if (planFailure) return planFailure;
   const course = await assertCourseOwnership(parsedId.data.courseId, user.id);
@@ -571,6 +620,13 @@ export async function createCourseMediaUpload(
   if (metadataError) return validationFailure(metadataError);
 
   const user = await requireAuth();
+  const limited = await enforceActionRateLimit({
+    action: "upload",
+    limit: 20,
+    windowMs: 60 * 60_000,
+    userId: user.id,
+  });
+  if (limited) return limited;
   const planFailure = await courseAuthoringPlanFailure(user.id);
   if (planFailure) return planFailure;
   const lesson = await getOwnedLesson(parsed.data.lessonId, user.id);
@@ -761,7 +817,7 @@ export async function getCourseAssetSignedUrl(
 > {
   const parsed = assetIdSchema.safeParse(input);
   if (!parsed.success) return validationFailure(parsed.error.issues[0]?.message);
-  const user = await requireAuth();
+  const user = await getCurrentUser();
   const asset = await db.courseLessonAsset.findUnique({
     where: { id: parsed.data.assetId },
     select: {
@@ -770,14 +826,16 @@ export async function getCourseAssetSignedUrl(
       kind: true,
       lesson: {
         select: {
+          isPreview: true,
           module: {
             select: {
               course: {
                 select: {
                   teacherId: true,
+                  status: true,
                   deletedAt: true,
                   enrollments: {
-                    where: { studentId: user.id, revokedAt: null },
+                    where: { studentId: user?.id ?? "00000000-0000-0000-0000-000000000000", revokedAt: null },
                     select: { id: true },
                     take: 1,
                   },
@@ -793,11 +851,13 @@ export async function getCourseAssetSignedUrl(
     return fail("Course asset not found.", "NOT_FOUND");
   }
   const course = asset.lesson.module.course;
-  if (
-    course.teacherId !== user.id &&
-    course.enrollments.length === 0 &&
-    !user.isPlatformAdmin
-  ) {
+  if (!canAccessCourseMedia({
+    isPreview: asset.lesson.isPreview,
+    isPublished: course.status === "published",
+    isEnrolled: course.enrollments.length > 0,
+    isTeacher: course.teacherId === user?.id,
+    isAdmin: Boolean(user?.isPlatformAdmin),
+  })) {
     return fail("Enroll in this course to access its media.", "FORBIDDEN");
   }
 
@@ -818,6 +878,13 @@ export async function uploadLessonFile(
   if (!parsedId.success) return validationFailure(parsedId.error.issues[0]?.message);
   if (!parsedFile.success) return validationFailure(parsedFile.error.issues[0]?.message);
   const user = await requireAuth();
+  const limited = await enforceActionRateLimit({
+    action: "upload",
+    limit: 20,
+    windowMs: 60 * 60_000,
+    userId: user.id,
+  });
+  if (limited) return limited;
   const planFailure = await courseAuthoringPlanFailure(user.id);
   if (planFailure) return planFailure;
   const lesson = await getOwnedLesson(parsedId.data.lessonId, user.id);
@@ -858,8 +925,8 @@ export async function getLessonFileSignedUrl(
 ): Promise<ActionResult<{ signedUrl: string; fileName: string | null }>> {
   const parsed = lessonIdSchema.safeParse(input);
   if (!parsed.success) return validationFailure(parsed.error.issues[0]?.message);
-  const user = await requireAuth();
-  const access = await getLessonDownloadAccess(parsed.data.lessonId, user.id);
+  const user = await getCurrentUser();
+  const access = await getLessonDownloadAccess(parsed.data.lessonId, user?.id, Boolean(user?.isPlatformAdmin));
   const { data, error } = await createAdminClient().storage
     .from("course-files")
     .createSignedUrl(access.storagePath, 60, {

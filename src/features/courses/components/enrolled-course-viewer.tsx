@@ -20,6 +20,7 @@ import {
 } from "@/actions/courses";
 import { Button } from "@/components/ui/button";
 import { CoursePrivateVideoPlayer } from "@/features/courses/components/course-private-video-player";
+import { CourseCommunity } from "@/features/courses/components/course-community";
 import { formatCourseLevel } from "@/features/courses/lib/labels";
 import type { CourseLevel } from "@prisma/client";
 
@@ -62,6 +63,20 @@ export function EnrolledCourseViewer({
     certificateEnabled: boolean;
     teacher: { name: string };
     certificates: Array<{ id: string; verificationCode: string; issuedAt: Date | string }>;
+    reviews: Array<{
+      id: string;
+      rating: number;
+      comment: string;
+      status: string;
+      teacherResponse: string | null;
+    }>;
+    questions: Array<{
+      id: string;
+      body: string;
+      studentId: string;
+      createdAt: Date | string;
+      answer: { body: string; createdAt: Date | string } | null;
+    }>;
     modules: Module[];
   };
 }) {
@@ -334,6 +349,12 @@ export function EnrolledCourseViewer({
           )}
         </section>
       </div>
+      <CourseCommunity
+        courseId={course.id}
+        completedLessonCount={completedCount}
+        review={course.reviews[0] ?? null}
+        questions={course.questions}
+      />
     </div>
   );
 }

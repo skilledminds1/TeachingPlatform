@@ -15,6 +15,9 @@ const items = [
   { href: "/dashboard/messages", label: "Messages" },
   { href: "/courses", label: "Courses" },
   { href: "/dashboard/courses", label: "My Learning" },
+  { href: "/dashboard/refunds", label: "Refunds" },
+  { href: "/dashboard/cases", label: "Cases" },
+  { href: "/dashboard/safety", label: "Safety" },
   { href: "/find-tutor", label: "Find Tutor" },
   { href: "/dashboard/settings", label: "Settings" },
 ] as const;

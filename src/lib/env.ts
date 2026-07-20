@@ -4,6 +4,10 @@ const optionalSecret = z.preprocess(
   (value) => (value === "" ? undefined : value),
   z.string().min(1).optional(),
 );
+const optionalLongSecret = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(32).optional(),
+);
 const optionalPositiveNumber = z.preprocess(
   (value) => (value === "" || value === undefined ? undefined : value),
   z.coerce.number().positive().optional(),
@@ -34,6 +38,7 @@ const envSchema = z.object({
   LIVEKIT_API_KEY: optionalSecret,
   LIVEKIT_API_SECRET: optionalSecret,
   RESEND_API_KEY: optionalSecret,
+  EMAIL_PROVIDER: z.enum(["resend", "console"]).optional(),
   // Resend accepts plain emails or "Display Name <email@domain>".
   RESEND_FROM_EMAIL: z.preprocess(
     (value) => (value === "" ? undefined : value),
@@ -48,8 +53,28 @@ const envSchema = z.object({
       )
       .optional(),
   ),
+  LEGAL_ENTITY_NAME: z.string().min(1).default("[REPLACE BEFORE LAUNCH: registered entity name]"),
+  LEGAL_REGISTRATION_NUMBER: z
+    .string()
+    .min(1)
+    .default("[REPLACE BEFORE LAUNCH: registration number]"),
+  LEGAL_BUSINESS_ADDRESS: z
+    .string()
+    .min(1)
+    .default("[REPLACE BEFORE LAUNCH: registered business address]"),
+  LEGAL_SUPPORT_EMAIL: z.email().default("support@example.com"),
+  LEGAL_INFORMATION_OFFICER_EMAIL: z.email().default("privacy@example.com"),
+  LEGAL_EVIDENCE_SALT: optionalSecret,
   GOOGLE_CALENDAR_CLIENT_ID: optionalSecret,
   GOOGLE_CALENDAR_CLIENT_SECRET: optionalSecret,
+  CRON_SECRET: optionalLongSecret,
+  HEALTH_SECRET: optionalLongSecret,
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: optionalSecret,
+  SENTRY_DSN: z.string().url().optional(),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+  SENTRY_ENVIRONMENT: optionalSecret,
+  NEXT_PUBLIC_SENTRY_ENVIRONMENT: optionalSecret,
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -80,9 +105,24 @@ function parseEnv(): Env {
     LIVEKIT_API_KEY: process.env.LIVEKIT_API_KEY,
     LIVEKIT_API_SECRET: process.env.LIVEKIT_API_SECRET,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
     RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
+    LEGAL_ENTITY_NAME: process.env.LEGAL_ENTITY_NAME,
+    LEGAL_REGISTRATION_NUMBER: process.env.LEGAL_REGISTRATION_NUMBER,
+    LEGAL_BUSINESS_ADDRESS: process.env.LEGAL_BUSINESS_ADDRESS,
+    LEGAL_SUPPORT_EMAIL: process.env.LEGAL_SUPPORT_EMAIL,
+    LEGAL_INFORMATION_OFFICER_EMAIL: process.env.LEGAL_INFORMATION_OFFICER_EMAIL,
+    LEGAL_EVIDENCE_SALT: process.env.LEGAL_EVIDENCE_SALT,
     GOOGLE_CALENDAR_CLIENT_ID: process.env.GOOGLE_CALENDAR_CLIENT_ID,
     GOOGLE_CALENDAR_CLIENT_SECRET: process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+    CRON_SECRET: process.env.CRON_SECRET,
+    HEALTH_SECRET: process.env.HEALTH_SECRET,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    SENTRY_DSN: process.env.SENTRY_DSN,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    SENTRY_ENVIRONMENT: process.env.SENTRY_ENVIRONMENT,
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
   });
 }
 

@@ -169,6 +169,17 @@ export async function getReviewModerationQueue() {
   });
 }
 
+export async function getCourseReviewModerationQueue() {
+  return db.courseReview.findMany({
+    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    include: {
+      student: { select: { name: true, email: true } },
+      teacher: { select: { name: true, email: true } },
+      course: { select: { title: true, slug: true } },
+    },
+  });
+}
+
 export async function getAdminOrganizations() {
   return db.organization.findMany({
     where: nonDemoOrganizationWhere,

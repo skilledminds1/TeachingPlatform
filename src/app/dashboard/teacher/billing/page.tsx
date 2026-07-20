@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { BillingPlanSelector } from "@/features/billing/components/billing-plan-selector";
-import { formatDate, formatStatus } from "@/lib/format";
+import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
+import { formatCurrency, formatDate, formatStatus } from "@/lib/format";
 import { getBillingSettings } from "@/server/billing/settings";
 
 export default async function TeacherBillingPage({
@@ -84,7 +85,67 @@ export default async function TeacherBillingPage({
           payfastConfigured={data.payfastConfigured}
           autoCheckoutPlan={autoCheckoutPlan}
           autoCheckoutInterval={autoCheckoutInterval}
+          pendingPlan={data.organization.pendingPlan}
+          pendingChangeAt={data.organization.pendingChangeAt}
+          subscriptionStatus={data.organization.subscriptionStatus}
+          currentPeriodEnd={data.organization.currentPeriodEnd}
+          cancelAtPeriodEnd={data.organization.cancelAtPeriodEnd}
+          trialEndsAt={data.organization.trialEndsAt}
+          graceStartedAt={data.organization.graceStartedAt}
+          graceEndsAt={data.organization.graceEndsAt}
         />
+
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Subscription invoices</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              PayFast payments received by Amazing Skills for your platform subscription.
+            </p>
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Issued</th>
+                  <th className="px-4 py-3 font-medium">Description</th>
+                  <th className="px-4 py-3 font-medium">Period</th>
+                  <th className="px-4 py-3 font-medium">Amount</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">PayFast reference</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {data.invoices.map((invoice) => (
+                  <tr key={invoice.id}>
+                    <td className="px-4 py-3">{formatDate(invoice.issuedAt)}</td>
+                    <td className="px-4 py-3 font-medium">{invoice.description}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {formatCurrency(invoice.amountCents, invoice.currency)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge tone={statusTone(invoice.status)}>
+                        {formatStatus(invoice.status)}
+                      </StatusBadge>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      {invoice.providerPaymentId}
+                    </td>
+                  </tr>
+                ))}
+                {data.invoices.length === 0 ? (
+                  <tr>
+                    <td className="px-4 py-8 text-center text-muted-foreground" colSpan={6}>
+                      No subscription invoices yet.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </main>
     </div>
   );

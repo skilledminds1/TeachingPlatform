@@ -7,6 +7,8 @@ import { sendMessageSchema } from "@/lib/validations/messaging";
 import { hasTeacherMembership, requireAuth } from "@/server/auth/session";
 import { assertCanMessageTeacher } from "@/server/messaging/conversations";
 import { notifyNewMessage } from "@/server/notifications/notify";
+import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
+import { getScopeRestriction, usersHaveBlock } from "@/server/trust/enforcement";
 import { fail, ok, type ActionResult } from "@/types/action";
 
 export async function sendMessage(
@@ -17,6 +19,15 @@ export async function sendMessage(
     return fail(parsed.error.issues[0]?.message ?? "Invalid message.", "VALIDATION_ERROR");
   }
   const user = await requireAuth();
+  const limited = await enforceActionRateLimit({
+    action: "message-send",
+    limit: 30,
+    windowMs: 60_000,
+    userId: user.id,
+  });
+  if (limited) return limited;
+  const restriction = await getScopeRestriction(user.id, "messaging");
+  if (restriction) return fail(restriction, "FORBIDDEN");
 
   let conversation = parsed.data.conversationId
     ? await db.conversation.findFirst({
@@ -33,6 +44,9 @@ export async function sendMessage(
     }
     if (hasTeacherMembership(user)) {
       return fail("Teacher accounts cannot start student enquiries.", "FORBIDDEN");
+    }
+    if (await usersHaveBlock(user.id, parsed.data.teacherUserId)) {
+      return fail("You cannot start a conversation with this user.", "FORBIDDEN");
     }
     const allowed = await assertCanMessageTeacher(parsed.data.teacherUserId);
     if (!allowed.allowed) return fail(allowed.reason, "FORBIDDEN");
@@ -107,11 +121,16 @@ export async function startConversationWithTeacher(
   teacherUserId: string,
 ): Promise<ActionResult<{ conversationId: string }>> {
   const user = await requireAuth();
+  const restriction = await getScopeRestriction(user.id, "messaging");
+  if (restriction) return fail(restriction, "FORBIDDEN");
   if (teacherUserId === user.id) {
     return fail("You cannot message yourself.", "VALIDATION_ERROR");
   }
   if (hasTeacherMembership(user)) {
     return fail("Teacher accounts cannot start student enquiries.", "FORBIDDEN");
+  }
+  if (await usersHaveBlock(user.id, teacherUserId)) {
+    return fail("You cannot start a conversation with this user.", "FORBIDDEN");
   }
   const allowed = await assertCanMessageTeacher(teacherUserId);
   if (!allowed.allowed) return fail(allowed.reason, "FORBIDDEN");
@@ -130,11 +149,16 @@ export async function startConversationWithStudent(
   studentUserId: string,
 ): Promise<ActionResult<{ conversationId: string }>> {
   const teacher = await requireAuth();
+  const restriction = await getScopeRestriction(teacher.id, "messaging");
+  if (restriction) return fail(restriction, "FORBIDDEN");
   if (!hasTeacherMembership(teacher)) {
     return fail("Only teachers can message students this way.", "FORBIDDEN");
   }
   if (studentUserId === teacher.id) {
     return fail("You cannot message yourself.", "VALIDATION_ERROR");
+  }
+  if (await usersHaveBlock(teacher.id, studentUserId)) {
+    return fail("You cannot start a conversation with this user.", "FORBIDDEN");
   }
 
   const allowed = await db.studentRelationship.findFirst({

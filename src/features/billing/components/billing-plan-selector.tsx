@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { createSubscriptionCheckout } from "@/actions/billing";
+import {
+  cancelScheduledPlanChange,
+  createSubscriptionCheckout,
+  resumeSubscription,
+  schedulePlanChange,
+  scheduleSubscriptionCancellation,
+} from "@/actions/billing";
 import { Button } from "@/components/ui/button";
 import { planFeatureLabels } from "@/features/billing/lib/plan-feature-labels";
 import { cn } from "@/lib/utils";
@@ -50,6 +56,14 @@ export function BillingPlanSelector({
   payfastConfigured,
   autoCheckoutPlan,
   autoCheckoutInterval,
+  pendingPlan,
+  pendingChangeAt,
+  subscriptionStatus,
+  currentPeriodEnd,
+  cancelAtPeriodEnd,
+  trialEndsAt,
+  graceStartedAt,
+  graceEndsAt,
 }: {
   plans: BillingPlan[];
   currentPlan: string;
@@ -57,34 +71,57 @@ export function BillingPlanSelector({
   payfastConfigured: boolean;
   autoCheckoutPlan?: "starter" | "professional" | "business";
   autoCheckoutInterval?: "monthly" | "annual";
+  pendingPlan: { slug: string; name: string } | null;
+  pendingChangeAt: Date | null;
+  subscriptionStatus: "trialing" | "active" | "past_due" | "cancelled";
+  currentPeriodEnd: Date | null;
+  cancelAtPeriodEnd: boolean;
+  trialEndsAt: Date | null;
+  graceStartedAt: Date | null;
+  graceEndsAt: Date | null;
 }) {
   const router = useRouter();
   const [interval, setInterval] = useState<"monthly" | "annual">(
     autoCheckoutInterval ?? currentInterval,
   );
-  const [pendingPlan, setPendingPlan] = useState<string | null>(null);
+  const [pendingChoice, setPendingChoice] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const autoStarted = useRef(false);
 
   function choosePlan(plan: BillingPlan, billingInterval = interval): void {
-    if (plan.slug === "free") return;
     if (plan.slug === currentPlan && billingInterval === currentInterval) {
       toast.message(`You are already on ${plan.name}.`);
       return;
     }
-    setPendingPlan(plan.slug);
+    setPendingChoice(plan.slug);
     startTransition(async () => {
+      const currentPrice =
+        plans.find((item) => item.slug === currentPlan)?.monthlyPriceCents ?? 0;
+      if (plan.monthlyPriceCents < currentPrice) {
+        const scheduled = await schedulePlanChange({
+          planSlug: plan.slug,
+          interval: billingInterval,
+        });
+        setPendingChoice(null);
+        if (!scheduled.success) {
+          toast.error(scheduled.error);
+          return;
+        }
+        toast.warning(scheduled.data.warning);
+        router.refresh();
+        return;
+      }
       const result = await createSubscriptionCheckout({
         planSlug: plan.slug,
         interval: billingInterval,
       });
       if (!result.success) {
-        setPendingPlan(null);
+        setPendingChoice(null);
         toast.error(result.error);
         return;
       }
       if (result.data.mode === "updated" || result.data.mode === "local") {
-        setPendingPlan(null);
+        setPendingChoice(null);
         toast.success(
           result.data.mode === "local"
             ? `${result.data.planName} activated for local testing (PayFast skipped on localhost).`
@@ -144,6 +181,107 @@ export function BillingPlanSelector({
 
   return (
     <div className="space-y-6">
+      {subscriptionStatus === "trialing" && trialEndsAt ? (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-sm">
+          Your explicit paid trial ends {new Date(trialEndsAt).toLocaleDateString()}. If you do not
+          convert, the organization moves to Free.
+        </div>
+      ) : null}
+      {subscriptionStatus === "past_due" && graceStartedAt && graceEndsAt ? (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm">
+          <p className="font-medium">Payment recovery period</p>
+          <p className="mt-1">
+            Payment failed on {new Date(graceStartedAt).toLocaleDateString()}. New bookings,
+            publishing, and sales pause after day 7. Existing paid lessons and course access remain
+            available. Recover before {new Date(graceEndsAt).toLocaleDateString()} to avoid a
+            read-only Free fallback.
+          </p>
+        </div>
+      ) : null}
+      {subscriptionStatus === "cancelled" ? (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm">
+          Billing was not recovered in time. Existing learning is available, but growth actions are
+          read-only until you start a paid checkout.
+        </div>
+      ) : null}
+      {cancelAtPeriodEnd && currentPeriodEnd ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          <p>
+            Your paid subscription ends {new Date(currentPeriodEnd).toLocaleDateString()}, then
+            moves to Free. Existing records remain; Free limits apply to new activity.
+          </p>
+          <Button
+            className="mt-3"
+            size="sm"
+            variant="outline"
+            disabled={isPending}
+            onClick={() =>
+              startTransition(async () => {
+                const result = await resumeSubscription();
+                if (!result.success) toast.error(result.error);
+                else {
+                  toast.success("Subscription cancellation reversed.");
+                  router.refresh();
+                }
+              })
+            }
+          >
+            Keep subscription
+          </Button>
+        </div>
+      ) : currentPlan !== "free" && currentPeriodEnd ? (
+        <div className="flex items-center justify-between gap-4 rounded-lg border p-4 text-sm">
+          <span>Cancel at period end and move to Free without deleting existing records.</span>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={isPending}
+            onClick={() =>
+              startTransition(async () => {
+                const result = await scheduleSubscriptionCancellation();
+                if (!result.success) toast.error(result.error);
+                else {
+                  toast.warning(
+                    `Cancellation scheduled for ${new Date(result.data.effectiveAt).toLocaleDateString()}.`,
+                  );
+                  router.refresh();
+                }
+              })
+            }
+          >
+            Cancel subscription
+          </Button>
+        </div>
+      ) : null}
+      {pendingPlan && pendingChangeAt ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          <p className="font-medium">
+            {pendingPlan.name} is scheduled for {new Date(pendingChangeAt).toLocaleDateString()}.
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            Its lower student, lesson, and course limits apply on that date. Existing learning
+            records stay available.
+          </p>
+          <Button
+            className="mt-3"
+            size="sm"
+            variant="outline"
+            disabled={isPending}
+            onClick={() =>
+              startTransition(async () => {
+                const result = await cancelScheduledPlanChange();
+                if (!result.success) toast.error(result.error);
+                else {
+                  toast.success("Scheduled plan change cancelled.");
+                  router.refresh();
+                }
+              })
+            }
+          >
+            Keep current plan
+          </Button>
+        </div>
+      ) : null}
       <div className="flex w-fit items-center rounded-lg border border-border bg-card p-1">
         <Button
           size="sm"
@@ -244,17 +382,16 @@ export function BillingPlanSelector({
                 variant={current ? "outline" : "default"}
                 disabled={
                   current ||
-                  plan.slug === "free" ||
-                  !payfastConfigured ||
-                  (isPending && pendingPlan === plan.slug)
+                  (plan.slug !== "free" && !payfastConfigured) ||
+                  (isPending && pendingChoice === plan.slug)
                 }
                 onClick={() => choosePlan(plan)}
               >
                 {current
                   ? "Current plan"
                   : plan.slug === "free"
-                    ? "Free"
-                    : isPending && pendingPlan === plan.slug
+                    ? "Schedule Free"
+                    : isPending && pendingChoice === plan.slug
                       ? "Redirecting to checkout…"
                       : `Choose ${plan.name}`}
               </Button>

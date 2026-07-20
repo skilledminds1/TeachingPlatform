@@ -8,6 +8,7 @@ import { StatusBadge, statusTone } from "@/features/admin/components/status-badg
 import { CancelBookingButton } from "@/features/bookings/components/cancel-booking-button";
 import { RescheduleResponseCard } from "@/features/bookings/components/reschedule-response-card";
 import { BookingCheckoutButtons } from "@/features/payments/components/booking-checkout-buttons";
+import { RefundRequestPanel } from "@/features/payments/components/refund-request-panel";
 import { ReviewForm } from "@/features/reviews/components/review-form";
 import { formatCurrency, formatDateTime, formatStatus } from "@/lib/format";
 import { routeLessonProviders } from "@/lib/payments/routing";
@@ -99,14 +100,30 @@ export default async function BookingDetailsPage({
             {query.payment === "cancelled" ? (
               <p className="mt-2 text-sm text-destructive">Checkout was cancelled. You can try again.</p>
             ) : null}
-            {query.payment === "return" ? (
+            {query.payment === "pending" ? (
               <p className="mt-2 text-sm text-muted-foreground">
                 If you completed payment, confirmation can take a few seconds while we verify the
                 provider webhook.
               </p>
             ) : null}
+            {query.payment === "error" ? (
+              <p className="mt-2 text-sm text-destructive">
+                We could not verify the payment yet. Your payment record is unchanged; refresh
+                shortly or contact support if it remains pending.
+              </p>
+            ) : null}
             {!isTeacher ? (
-              <BookingCheckoutButtons bookingId={booking.id} providers={providers} />
+              <div className="space-y-3">
+                <BookingCheckoutButtons bookingId={booking.id} providers={providers} />
+                <p className="text-xs text-muted-foreground">
+                  Payment goes directly to the teacher. The teacher is responsible for refunds
+                  under our{" "}
+                  <Link href="/refund-policy" className="font-medium text-primary hover:underline">
+                    refund policy
+                  </Link>
+                  .
+                </p>
+              </div>
             ) : null}
           </section>
         ) : null}
@@ -146,6 +163,16 @@ export default async function BookingDetailsPage({
         ) : null}
 
         {upcoming ? <CancelBookingButton bookingId={booking.id} /> : null}
+
+        {!isTeacher &&
+        booking.paymentExternalId &&
+        ["confirmed", "cancelled", "completed", "no_show"].includes(booking.status) ? (
+          <RefundRequestPanel
+            targetType="booking"
+            targetId={booking.id}
+            request={booking.refundRequest}
+          />
+        ) : null}
 
         {booking.status === "completed" && !isTeacher && !booking.review ? (
           <ReviewForm bookingId={booking.id} />

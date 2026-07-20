@@ -3,9 +3,13 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
+import { LegalAcceptanceHistory } from "@/features/legal/components/legal-acceptance-history";
+import { EmailPreferencesForm } from "@/features/notifications/components/email-preferences-form";
 import { StudentNavWithNotifications } from "@/features/student-dashboard/components/student-nav-with-notifications";
 import { StudentSettingsForm } from "@/features/student-dashboard/components/student-settings-form";
 import { getCurrentUser, getPostAuthRedirect } from "@/server/auth/session";
+import { getLegalAcceptanceHistory } from "@/server/legal/acceptance";
+import { getNotificationPreferences } from "@/actions/notification-preferences";
 
 export const metadata: Metadata = {
   title: "Account settings",
@@ -17,7 +21,10 @@ export default async function StudentSettingsPage() {
   if (!user) redirect("/login?redirect=/dashboard/settings");
 
   const preferred = await getPostAuthRedirect(user);
+  if (preferred === "/legal-review") redirect("/legal-review?next=/dashboard/settings");
   if (preferred !== "/dashboard") redirect("/dashboard/teacher/settings");
+  const acceptances = await getLegalAcceptanceHistory(user.id);
+  const notificationPreferences = await getNotificationPreferences(user.id);
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -71,6 +78,20 @@ export default async function StudentSettingsPage() {
           </div>
           <ChangePasswordForm />
         </section>
+
+        <section className="space-y-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div>
+            <h2 className="font-heading text-2xl font-semibold tracking-tight">
+              Email notifications
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose which optional updates arrive by email.
+            </p>
+          </div>
+          <EmailPreferencesForm initialPreferences={notificationPreferences} />
+        </section>
+
+        <LegalAcceptanceHistory acceptances={acceptances} />
       </main>
     </div>
   );

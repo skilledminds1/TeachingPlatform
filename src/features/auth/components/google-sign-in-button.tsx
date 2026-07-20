@@ -10,9 +10,11 @@ import type { RegisterRole } from "@/lib/validations/auth";
 export function GoogleSignInButton({
   role,
   redirectTo,
+  disabled = false,
 }: {
   role?: RegisterRole;
   redirectTo?: string | null;
+  disabled?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function GoogleSignInButton({
         type="button"
         variant="outline"
         className="w-full"
-        disabled={isPending}
+        disabled={isPending || disabled}
         onClick={handleClick}
       >
         {isPending ? "Redirecting…" : "Continue with Google"}

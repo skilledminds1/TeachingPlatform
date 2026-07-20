@@ -101,6 +101,18 @@ export async function getBookingForUser(bookingId: string) {
         orderBy: { createdAt: "desc" },
         take: 1,
       },
+      refundRequest: {
+        select: {
+          id: true,
+          status: true,
+          requestedAmountCents: true,
+          currency: true,
+          reason: true,
+          policyEligible: true,
+          teacherResponse: true,
+          providerRefundId: true,
+        },
+      },
       teacher: {
         select: {
           id: true,

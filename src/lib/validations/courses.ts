@@ -87,7 +87,7 @@ export const createLessonSchema = z.object({
 export const updateLessonSchema = createLessonSchema
   .omit({ moduleId: true })
   .partial()
-  .extend({ lessonId: z.uuid("Invalid lesson") });
+  .extend({ lessonId: z.uuid("Invalid lesson"), isPreview: z.boolean().optional() });
 
 export const courseIdSchema = z.object({ courseId: z.uuid("Invalid course") });
 export const moduleIdSchema = z.object({ moduleId: z.uuid("Invalid module") });

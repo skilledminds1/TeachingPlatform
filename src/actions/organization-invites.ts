@@ -9,6 +9,11 @@ import { env } from "@/lib/env";
 import { db } from "@/lib/db";
 import { requireAuth, requireOrgMembership } from "@/server/auth/session";
 import { hasFeature } from "@/server/billing/entitlements";
+import {
+  buildEmailIdempotencyKey,
+  enqueueEmail,
+} from "@/server/notifications/email-outbox";
+import { renderEmailTemplate } from "@/services/email/templates";
 import { fail, ok, type ActionResult } from "@/types/action";
 
 const inviteSchema = z.object({
@@ -66,7 +71,7 @@ export async function createOrganizationInvite(
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-  await db.organizationInvitation.create({
+  const invitation = await db.organizationInvitation.create({
     data: {
       organizationId: parsed.data.organizationId,
       email: parsed.data.email,
@@ -75,9 +80,24 @@ export async function createOrganizationInvite(
       invitedById: inviter.id,
       expiresAt,
     },
+    include: { organization: { select: { name: true } } },
   });
 
   const inviteUrl = new URL(`/invite/${token}`, env.NEXT_PUBLIC_APP_URL).toString();
+  await enqueueEmail({
+    recipient: parsed.data.email,
+    subject: `Invitation to join ${invitation.organization.name}`,
+    category: "transactional",
+    idempotencyKey: buildEmailIdempotencyKey("organization.invite", invitation.id),
+    html: renderEmailTemplate({
+      heading: `Join ${invitation.organization.name}`,
+      paragraphs: [
+        `${inviter.name} invited you to join as ${parsed.data.role}.`,
+        "This invitation expires in 7 days.",
+      ],
+      action: { label: "Accept invitation", href: inviteUrl },
+    }),
+  });
   revalidatePath("/dashboard/teacher/team");
   return ok({ inviteUrl, expiresAt: expiresAt.toISOString() });
 }

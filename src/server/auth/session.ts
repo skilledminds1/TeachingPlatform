@@ -1,10 +1,12 @@
 import type { User as AuthUser } from "@supabase/supabase-js";
 import type { OrgRole, Prisma, User } from "@prisma/client";
+import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import { registerRoleSchema, type RegisterRole } from "@/lib/validations/auth";
+import { hasCurrentLegalAcceptances } from "@/server/legal/acceptance";
 import { slugify } from "@/utils/slugify";
 
 type DbClient = Prisma.TransactionClient | typeof db;
@@ -171,6 +173,18 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 }
 
 export async function requireAuth(): Promise<SessionUser> {
+  const user = await requireAuthenticatedIdentity();
+  if (!user.isPlatformAdmin && isAccountHardRestricted(user)) {
+    redirect("/account-restricted");
+  }
+  return user;
+}
+
+/**
+ * Authentication without account enforcement. Keep this limited to legal
+ * review, restriction information, sign-out, and appeal/privacy rights flows.
+ */
+export async function requireAuthenticatedIdentity(): Promise<SessionUser> {
   const user = await getCurrentUser();
   if (!user) {
     throw new UnauthorizedError();
@@ -191,6 +205,9 @@ export async function requireTeacher(): Promise<SessionUser> {
 
   if (!hasTeacherMembership(user)) {
     throw new ForbiddenError("Teacher access required.");
+  }
+  if (!(await hasCurrentLegalAcceptances(user.id, "teacher"))) {
+    throw new ForbiddenError("Current teacher agreements must be accepted.");
   }
 
   return user;
@@ -217,7 +234,15 @@ export async function requireOrgMembership(
 export async function getPostAuthRedirect(user: SessionUser): Promise<string> {
   if (user.isPlatformAdmin) return "/admin";
 
-  if (!hasTeacherMembership(user)) return "/dashboard";
+  const role: RegisterRole = hasTeacherMembership(user) ? "teacher" : "student";
+  if (!(await hasCurrentLegalAcceptances(user.id, role))) {
+    return "/legal-review";
+  }
+  if (isAccountHardRestricted(user)) {
+    return "/account-restricted";
+  }
+
+  if (role === "student") return "/dashboard";
 
   const profile = await db.teacherProfile.findUnique({
     where: { userId: user.id },
@@ -250,4 +275,14 @@ export async function getPostAuthRedirect(user: SessionUser): Promise<string> {
   }
 
   return "/dashboard/teacher";
+}
+
+export function isAccountHardRestricted(
+  user: Pick<User, "deletedAt" | "accountStatus" | "accountRestrictedUntil">,
+): boolean {
+  if (user.deletedAt || user.accountStatus === "removed") return true;
+  return (
+    user.accountStatus === "suspended" &&
+    (!user.accountRestrictedUntil || user.accountRestrictedUntil > new Date())
+  );
 }

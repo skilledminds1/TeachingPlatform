@@ -11,6 +11,10 @@ type CourseCardData = {
   description: string;
   coverImageUrl: string | null;
   priceCents: number;
+  effectivePriceCents: number;
+  ratingAverage: number | null;
+  ratingCount: number;
+  activeSale: { id: string } | null;
   currency: string;
   level: CourseLevel;
   subject: { name: string; slug: string } | null;
@@ -52,13 +56,26 @@ export function CourseCard({ course }: { course: CourseCardData }) {
             </p>
           </div>
           <p className="shrink-0 font-semibold">
-            {course.priceCents === 0
+            {course.effectivePriceCents === 0
               ? "Free"
-              : formatCurrency(course.priceCents, course.currency)}
+              : formatCurrency(course.effectivePriceCents, course.currency)}
           </p>
         </div>
 
         <p className="line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
+        <div className="flex items-center gap-2 text-xs">
+          {course.ratingAverage ? (
+            <span className="text-amber-600">★ {course.ratingAverage.toFixed(1)} ({course.ratingCount})</span>
+          ) : (
+            <span className="text-muted-foreground">No reviews yet</span>
+          )}
+          {course.activeSale ? <span className="font-medium text-emerald-600">On sale</span> : null}
+          {course.activeSale && course.effectivePriceCents < course.priceCents ? (
+            <span className="text-muted-foreground line-through">
+              {formatCurrency(course.priceCents, course.currency)}
+            </span>
+          ) : null}
+        </div>
 
         <div className="mt-auto flex items-center justify-between gap-2 pt-1">
           <div className="flex min-w-0 items-center gap-2">

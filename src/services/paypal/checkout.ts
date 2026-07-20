@@ -104,7 +104,7 @@ export async function createPayPalOrder(input: {
       ? `/dashboard/bookings/${input.target.id}`
       : `/dashboard/courses/purchases/${input.target.id}`;
   const returnUrl = new URL(
-    `${targetPath}?payment=return&provider=paypal`,
+    "/api/v1/payments/paypal/complete",
     env.NEXT_PUBLIC_APP_URL,
   ).toString();
   const cancelUrl = new URL(
@@ -172,14 +172,58 @@ export async function createPayPalOrder(input: {
   return { orderId: data.id, approveUrl };
 }
 
-export async function capturePayPalOrder(orderId: string): Promise<{
+type PayPalOrderResult = {
   status: string;
   captureId?: string;
   amount?: string;
   currency?: string;
   payeeMerchantId?: string;
   referenceId?: string;
-}> {
+};
+
+function parsePayPalOrder(data: {
+  status: string;
+  purchase_units?: Array<{
+    reference_id?: string;
+    payments?: {
+      captures?: Array<{
+        id: string;
+        amount?: { value: string; currency_code: string };
+      }>;
+    };
+    payee?: { merchant_id?: string };
+  }>;
+}): PayPalOrderResult {
+  const unit = data.purchase_units?.[0];
+  const capture = unit?.payments?.captures?.[0];
+  return {
+    status: data.status,
+    captureId: capture?.id,
+    amount: capture?.amount?.value,
+    currency: capture?.amount?.currency_code,
+    payeeMerchantId: unit?.payee?.merchant_id,
+    referenceId: unit?.reference_id,
+  };
+}
+
+export async function getPayPalOrder(orderId: string): Promise<PayPalOrderResult> {
+  const token = await getPayPalAccessToken();
+  const response = await fetch(`${paypalHost()}/v2/checkout/orders/${orderId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...(env.PAYPAL_BN_CODE ? { "PayPal-Partner-Attribution-Id": env.PAYPAL_BN_CODE } : {}),
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Unable to verify PayPal order: ${text.slice(0, 240)}`);
+  }
+  return parsePayPalOrder((await response.json()) as Parameters<typeof parsePayPalOrder>[0]);
+}
+
+export async function capturePayPalOrder(orderId: string): Promise<PayPalOrderResult> {
   const token = await getPayPalAccessToken();
   const response = await fetch(`${paypalHost()}/v2/checkout/orders/${orderId}/capture`, {
     method: "POST",
@@ -195,29 +239,7 @@ export async function capturePayPalOrder(orderId: string): Promise<{
     const text = await response.text();
     throw new Error(`PayPal capture failed: ${text.slice(0, 240)}`);
   }
-  const data = (await response.json()) as {
-    status: string;
-    purchase_units?: Array<{
-      reference_id?: string;
-      payments?: {
-        captures?: Array<{
-          id: string;
-          amount?: { value: string; currency_code: string };
-        }>;
-      };
-      payee?: { merchant_id?: string };
-    }>;
-  };
-  const unit = data.purchase_units?.[0];
-  const capture = unit?.payments?.captures?.[0];
-  return {
-    status: data.status,
-    captureId: capture?.id,
-    amount: capture?.amount?.value,
-    currency: capture?.amount?.currency_code,
-    payeeMerchantId: unit?.payee?.merchant_id,
-    referenceId: unit?.reference_id,
-  };
+  return parsePayPalOrder((await response.json()) as Parameters<typeof parsePayPalOrder>[0]);
 }
 
 export async function verifyPayPalWebhookSignature(input: {

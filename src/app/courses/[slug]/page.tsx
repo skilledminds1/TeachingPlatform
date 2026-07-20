@@ -47,7 +47,9 @@ export default async function CourseSalesPage({
       : null;
 
   const priceLabel =
-    course.priceCents === 0 ? "Free" : formatCurrency(course.priceCents, course.currency);
+    course.effectivePriceCents === 0
+      ? "Free"
+      : formatCurrency(course.effectivePriceCents, course.currency);
   const lessonCount = course.modules.reduce(
     (sum, module) => sum + module.lessons.length,
     0,
@@ -93,6 +95,12 @@ export default async function CourseSalesPage({
                     {course.subject ? ` · ${course.subject.name}` : ""}
                   </p>
                   <h1 className="text-3xl font-semibold tracking-tight">{course.title}</h1>
+                  {course.ratingAverage ? (
+                    <p className="text-sm text-amber-600">
+                      ★ {course.ratingAverage.toFixed(1)} · {course.ratingCount} review
+                      {course.ratingCount === 1 ? "" : "s"}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-3">
                   <Avatar>
@@ -118,6 +126,40 @@ export default async function CourseSalesPage({
               </div>
             </section>
 
+            {course.reviews.length > 0 ? (
+              <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                <h2 className="text-lg font-semibold">Student reviews</h2>
+                <div className="mt-4 space-y-4">
+                  {course.reviews.map((review) => (
+                    <article key={review.id} className="rounded-lg bg-muted/50 p-4 text-sm">
+                      <p className="font-medium">{"★".repeat(review.rating)} · {review.student.name}</p>
+                      <p className="mt-1 text-muted-foreground">{review.comment}</p>
+                      {review.teacherResponse ? (
+                        <p className="mt-3 border-l-2 border-primary pl-3">
+                          Teacher response: {review.teacherResponse}
+                        </p>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {course.questions.length > 0 ? (
+              <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                <h2 className="text-lg font-semibold">Course Q&amp;A</h2>
+                <p className="text-xs text-muted-foreground">Public answers omit student identity.</p>
+                <div className="mt-4 space-y-3">
+                  {course.questions.map((question) => (
+                    <article key={question.id} className="rounded-lg bg-muted/50 p-4 text-sm">
+                      <p className="font-medium">{question.body}</p>
+                      <p className="mt-2 text-muted-foreground">{question.answer?.body}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
             <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <h2 className="text-lg font-semibold">Curriculum</h2>
               <div className="mt-4">
@@ -129,8 +171,24 @@ export default async function CourseSalesPage({
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <p className="text-3xl font-semibold tracking-tight">{priceLabel}</p>
+              {course.activeSale && course.effectivePriceCents < course.priceCents ? (
+                <p className="text-sm">
+                  <span className="text-muted-foreground line-through">
+                    {formatCurrency(course.priceCents, course.currency)}
+                  </span>{" "}
+                  <span className="font-medium text-emerald-600">Sale ends {course.activeSale.endsAt.toLocaleDateString()}</span>
+                </p>
+              ) : null}
               <p className="mt-1 text-sm text-muted-foreground">
                 One-time purchase · lifetime access
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Payment goes directly to the teacher. The teacher is responsible for refunds under
+                our{" "}
+                <Link href="/refund-policy" className="font-medium text-primary hover:underline">
+                  refund policy
+                </Link>
+                .
               </p>
               <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                 <li>
@@ -150,6 +208,7 @@ export default async function CourseSalesPage({
                   <CoursePurchaseButton
                     courseId={course.id}
                     priceLabel={priceLabel}
+                    isFree={course.effectivePriceCents === 0}
                     enrolledHref={enrolled ? `/dashboard/courses/${course.id}` : null}
                   />
                 ) : (
@@ -160,7 +219,7 @@ export default async function CourseSalesPage({
                       <Link href={`/login?redirect=/courses/${course.slug}`} />
                     }
                   >
-                    Sign in to purchase
+                    {course.effectivePriceCents === 0 ? "Sign in to enroll" : "Sign in to purchase"}
                   </Button>
                 )}
               </div>

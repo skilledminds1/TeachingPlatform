@@ -7,6 +7,7 @@ import { AdminPageHeader } from "@/features/admin/components/admin-page-header";
 import { CourseModerationActions } from "@/features/admin/components/course-moderation-actions";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { AdminCourseMediaPreview } from "@/features/admin/components/admin-course-media-preview";
+import { CourseQuestionModeration } from "@/features/admin/components/course-question-moderation";
 import { formatCourseLevel } from "@/features/courses/lib/labels";
 import { formatCurrency, formatStatus } from "@/lib/format";
 import { getCourseForAdminReview } from "@/server/courses/queries";
@@ -93,6 +94,23 @@ export default async function AdminCourseReviewPage({
           </ul>
         )}
       </section>
+
+      {course.questions.length > 0 ? (
+        <section className="space-y-4">
+          <h2 className="font-semibold">Course Q&amp;A moderation</h2>
+          {course.questions.map((question) => (
+            <article key={question.id} className="rounded-xl border border-border bg-card p-4 text-sm">
+              <p className="font-medium">{question.body}</p>
+              {question.answer ? (
+                <p className="mt-2 text-muted-foreground">Answer: {question.answer.body}</p>
+              ) : null}
+              <div className="mt-3">
+                <CourseQuestionModeration questionId={question.id} hidden={question.hidden} />
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }

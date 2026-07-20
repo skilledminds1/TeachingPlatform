@@ -29,6 +29,7 @@ const maxPriceOptions = [
 const sortOptions = [
   { value: "newest", label: "Newest" },
   { value: "popular", label: "Most popular" },
+  { value: "rating", label: "Highest rated" },
   { value: "price_asc", label: "Price: low to high" },
   { value: "price_desc", label: "Price: high to low" },
 ];
@@ -60,7 +61,7 @@ export function CourseFilters({
     });
   }
 
-  const hasFilters = ["q", "subject", "level", "maxPrice", "sort"].some((key) =>
+  const hasFilters = ["q", "subject", "level", "maxPrice", "minRating", "sort"].some((key) =>
     searchParams.get(key),
   );
 
@@ -99,6 +100,17 @@ export function CourseFilters({
               {subject.name}
             </option>
           ))}
+        </select>
+
+        <select
+          className={selectClassName}
+          value={searchParams.get("minRating") ?? ""}
+          onChange={(event) => applyParam("minRating", event.target.value)}
+          aria-label="Filter by course rating"
+        >
+          <option value="">Any rating</option>
+          <option value="4">4+ stars</option>
+          <option value="3">3+ stars</option>
         </select>
 
         <select

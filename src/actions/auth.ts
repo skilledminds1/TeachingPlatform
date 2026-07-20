@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
@@ -14,6 +15,8 @@ import {
   type RegisterRole,
 } from "@/lib/validations/auth";
 import { getPostAuthRedirect, syncUserFromAuth } from "@/server/auth/session";
+import { recordCurrentLegalAcceptances } from "@/server/legal/acceptance";
+import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
 import { fail, ok, type ActionResult } from "@/types/action";
 import { db } from "@/lib/db";
 
@@ -35,8 +38,10 @@ export async function signUp(
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
   }
+  const limited = await enforceActionRateLimit({ action: "signup", limit: 5, windowMs: 15 * 60_000 });
+  if (limited) return limited;
 
-  const { name, email, password, role } = parsed.data;
+  const { name, email, password, role, confirmedAdult } = parsed.data;
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signUp({
@@ -57,6 +62,17 @@ export async function signUp(
   }
 
   await syncUserFromAuth(data.user, { role });
+  const requestHeaders = await headers();
+  await recordCurrentLegalAcceptances({
+    userId: data.user.id,
+    role,
+    method: "email_signup",
+    confirmedAdult,
+    evidence: {
+      ip: requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim(),
+      userAgent: requestHeaders.get("user-agent"),
+    },
+  });
 
   if (data.session) {
     const sessionUser = await db.user.findUniqueOrThrow({
@@ -87,6 +103,8 @@ export async function signIn(
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
   }
+  const limited = await enforceActionRateLimit({ action: "signin", limit: 10, windowMs: 15 * 60_000 });
+  if (limited) return limited;
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
@@ -116,8 +134,16 @@ export async function signIn(
     },
   });
 
+  const defaultDestination = await getPostAuthRedirect(sessionUser);
+  const intendedDestination = safeRedirectPath(redirectTo);
   const destination =
-    safeRedirectPath(redirectTo) ?? (await getPostAuthRedirect(sessionUser));
+    defaultDestination === "/legal-review"
+      ? `/legal-review${
+          intendedDestination
+            ? `?next=${encodeURIComponent(intendedDestination)}`
+            : ""
+        }`
+      : intendedDestination ?? defaultDestination;
 
   return ok({ redirectTo: destination });
 }
@@ -133,6 +159,8 @@ export async function resetPassword(input: unknown): Promise<ActionResult<{ sent
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
   }
+  const limited = await enforceActionRateLimit({ action: "password-reset", limit: 5, windowMs: 60 * 60_000 });
+  if (limited) return limited;
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
@@ -154,6 +182,8 @@ export async function changePassword(
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
   }
+  const limited = await enforceActionRateLimit({ action: "password-change", limit: 5, windowMs: 15 * 60_000 });
+  if (limited) return limited;
 
   const supabase = await createClient();
   const {
@@ -188,6 +218,8 @@ export async function updateRecoveredPassword(
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
   }
+  const limited = await enforceActionRateLimit({ action: "password-recovery", limit: 5, windowMs: 15 * 60_000 });
+  if (limited) return limited;
 
   const supabase = await createClient();
   const {
@@ -215,6 +247,8 @@ export async function signInWithGoogle(
   role?: RegisterRole,
   redirectTo?: string | null,
 ): Promise<ActionResult<{ url: string }>> {
+  const limited = await enforceActionRateLimit({ action: "oauth", limit: 10, windowMs: 15 * 60_000 });
+  if (limited) return limited;
   const supabase = await createClient();
   const next = safeRedirectPath(redirectTo) ?? "/dashboard";
   const callback = new URL(appUrl("/auth/callback"));

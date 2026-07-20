@@ -37,6 +37,10 @@ Check off items as they are completed.
 - [x] Courses catalogue (`/courses`) with filters and course sales pages
 - [x] Teacher course authoring (modules, lessons, publish/archive, plan limits)
 - [x] Course purchase via teacher PayPal + enrollment + student library
+- [x] Course reviews, approved rating aggregates, and moderation
+- [x] Free preview lessons with protected preview media
+- [x] Teacher course sales and coupon checkout
+- [x] Enrolled course Q&A and moderation controls
 
 ---
 
@@ -69,7 +73,7 @@ Check off items as they are completed.
 - [x] Course allowances (1 on Free, unlimited from Starter)
 - [x] USD pricing and billing dashboard
 - [x] Upgrade prompts and hosted checkout
-- [ ] Downgrade scheduling, trials, and grace-period automation
+- [x] Downgrade scheduling, explicit paid trials, cancellation, and humane grace-period automation
 
 ---
 
@@ -89,14 +93,16 @@ Check off items as they are completed.
 - [x] In-app messaging (teacher ↔ student)
 - [x] Notification center
 - [x] Email notifications (booking, payment, session reminder)
+- [x] Reliable email outbox, delivery retries/logs, preferences, and admin visibility
 
 ---
 
 # Phase 9 — Analytics & AI
 
 - [ ] Instructor analytics
-- [ ] Platform admin reports
-- [ ] Export (CSV/PDF)
+- [x] Platform admin reports
+- [x] Platform admin analytics CSV export
+- [ ] PDF export
 - [ ] AI features (lesson notes, insights — optional)
 
 ---

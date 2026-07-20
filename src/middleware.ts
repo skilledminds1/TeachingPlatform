@@ -12,6 +12,10 @@ const publicExact = new Set([
   "/find-tutor",
   "/courses",
   "/subscribe",
+  "/terms",
+  "/privacy",
+  "/refund-policy",
+  "/teacher-agreement",
 ]);
 
 function isPublicRoute(pathname: string): boolean {
@@ -23,6 +27,8 @@ function isPublicRoute(pathname: string): boolean {
   if (pathname.startsWith("/auth/")) return true;
   if (pathname.startsWith("/api/v1/webhooks")) return true;
   if (pathname.startsWith("/api/v1/health")) return true;
+  // Job routes authenticate with a constant-time CRON_SECRET check in each handler.
+  if (pathname.startsWith("/api/v1/jobs/")) return true;
   return false;
 }
 

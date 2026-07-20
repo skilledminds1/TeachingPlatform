@@ -6,9 +6,14 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
+import { logger } from "@/lib/observability/logger";
 import { routeLessonProviders } from "@/lib/payments/routing";
 import { requireAuth } from "@/server/auth/session";
+import { getOrganizationGrowthWriteBlock } from "@/server/billing/write-gate";
 import { paymentWindowExpiry } from "@/server/payments/confirm";
+import { resolveCoursePrice } from "@/server/courses/pricing";
+import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
+import { getScopeRestriction, usersHaveBlock } from "@/server/trust/enforcement";
 import { createPayPalOrder } from "@/services/paypal/checkout";
 import { fail, ok, type ActionResult } from "@/types/action";
 
@@ -19,6 +24,7 @@ const startCheckoutSchema = z.object({
 
 const startCourseCheckoutSchema = z.object({
   courseId: z.uuid(),
+  couponCode: z.string().trim().max(32).optional(),
 });
 
 export async function startLessonCheckout(
@@ -30,6 +36,13 @@ export async function startLessonCheckout(
   }
 
   const user = await requireAuth();
+  const limited = await enforceActionRateLimit({
+    action: "payment-checkout",
+    limit: 10,
+    windowMs: 10 * 60_000,
+    userId: user.id,
+  });
+  if (limited) return limited;
   const booking = await db.booking.findUnique({
     where: { id: parsed.data.bookingId },
     include: {
@@ -123,6 +136,7 @@ export async function startLessonCheckout(
     revalidatePath(`/dashboard/bookings/${booking.id}`);
     return ok({ url: order.approveUrl, method: "redirect" });
   } catch (error) {
+    logger.error("lesson_checkout_failed", { error, attemptId: attempt.id, bookingId: booking.id });
     await db.paymentAttempt.update({
       where: { id: attempt.id },
       data: {
@@ -146,6 +160,13 @@ export async function startCourseCheckout(
   }
 
   const user = await requireAuth();
+  const limited = await enforceActionRateLimit({
+    action: "course-checkout",
+    limit: 10,
+    windowMs: 10 * 60_000,
+    userId: user.id,
+  });
+  if (limited) return limited;
   const course = await db.course.findFirst({
     where: {
       id: parsed.data.courseId,
@@ -156,6 +177,7 @@ export async function startCourseCheckout(
       id: true,
       title: true,
       teacherId: true,
+      organizationId: true,
       priceCents: true,
       currency: true,
       enrollments: {
@@ -183,8 +205,79 @@ export async function startCourseCheckout(
   if (course.teacherId === user.id) {
     return fail("You cannot purchase your own course.", "FORBIDDEN");
   }
+  const billingBlock = await getOrganizationGrowthWriteBlock(course.organizationId);
+  if (billingBlock) return fail(billingBlock, "FORBIDDEN");
+  if (await usersHaveBlock(user.id, course.teacherId)) {
+    return fail("You cannot start a new purchase with this user.", "FORBIDDEN");
+  }
+  const sellingRestriction = await getScopeRestriction(course.teacherId, "selling");
+  if (sellingRestriction) return fail("This course is not currently available for purchase.", "FORBIDDEN");
   if (course.enrollments.length > 0) {
     return fail("You are already enrolled in this course.", "CONFLICT");
+  }
+  const price = await resolveCoursePrice({
+    courseId: course.id,
+    teacherId: course.teacherId,
+    listAmountCents: course.priceCents,
+    couponCode: parsed.data.couponCode,
+    studentId: user.id,
+  });
+  if (parsed.data.couponCode && price.couponError) {
+    return fail(price.couponError, "VALIDATION_ERROR");
+  }
+
+  if (price.amountCents === 0) {
+    try {
+      await db.$transaction(async (tx) => {
+        const purchase = await tx.coursePurchase.create({
+          data: {
+            courseId: course.id,
+            studentId: user.id,
+            teacherId: course.teacherId,
+            amountCents: price.amountCents,
+            listAmountCents: price.listAmountCents,
+            discountCents: price.discountCents,
+            discountSource: price.discountSource,
+            courseSaleId: price.saleId,
+            courseCouponId: price.couponId,
+            currency: course.currency,
+            status: "succeeded",
+            paymentProvider: null,
+            paymentExternalId: null,
+            paymentExpiresAt: null,
+          },
+          select: { id: true },
+        });
+
+        await tx.courseEnrollment.create({
+          data: {
+            courseId: course.id,
+            studentId: user.id,
+            purchaseId: purchase.id,
+          },
+        });
+        if (price.couponId) {
+          await tx.courseCouponRedemption.create({
+            data: { couponId: price.couponId, purchaseId: purchase.id, studentId: user.id },
+          });
+        }
+      });
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error &&
+        "code" in error &&
+        (error as { code?: string }).code === "P2002"
+      ) {
+        return fail("You are already enrolled in this course.", "CONFLICT");
+      }
+      throw error;
+    }
+
+    revalidatePath("/courses");
+    revalidatePath("/dashboard/courses");
+    revalidatePath(`/dashboard/courses/${course.id}`);
+    return ok({ url: `/dashboard/courses/${course.id}`, method: "redirect" });
   }
 
   const merchant = course.teacher.teacherPaymentAccounts[0];
@@ -199,7 +292,12 @@ export async function startCourseCheckout(
         courseId: course.id,
         studentId: user.id,
         teacherId: course.teacherId,
-        amountCents: course.priceCents,
+        amountCents: price.amountCents,
+        listAmountCents: price.listAmountCents,
+        discountCents: price.discountCents,
+        discountSource: price.discountSource,
+        courseSaleId: price.saleId,
+        courseCouponId: price.couponId,
         currency: course.currency,
         status: "pending",
         paymentExpiresAt: expiresAt,
@@ -212,7 +310,7 @@ export async function startCourseCheckout(
         coursePurchaseId: createdPurchase.id,
         provider: "paypal",
         status: "pending",
-        amountCents: course.priceCents,
+        amountCents: price.amountCents,
         currency: course.currency,
         teacherMerchantId: merchant.providerAccountId,
         expiresAt,
@@ -227,7 +325,7 @@ export async function startCourseCheckout(
   try {
     const order = await createPayPalOrder({
       attemptId: attempt.id,
-      amountCents: course.priceCents,
+      amountCents: price.amountCents,
       currency: course.currency,
       teacherMerchantId: merchant.providerAccountId,
       description: course.title,
@@ -244,12 +342,22 @@ export async function startCourseCheckout(
     revalidatePath(`/dashboard/courses/purchases/${purchase.id}`);
     return ok({ url: order.approveUrl, method: "redirect" });
   } catch (error) {
-    await db.paymentAttempt.update({
-      where: { id: attempt.id },
-      data: {
-        status: "failed",
-        failureMessage: error instanceof Error ? error.message : "Checkout failed",
-      },
+    logger.error("course_checkout_failed", { error, attemptId: attempt.id, purchaseId: purchase.id });
+    await db.$transaction(async (tx) => {
+      await tx.paymentAttempt.update({
+        where: { id: attempt.id },
+        data: {
+          status: "failed",
+          failureMessage: error instanceof Error ? error.message : "Checkout failed",
+        },
+      });
+      await tx.coursePurchase.update({
+        where: { id: purchase.id },
+        data: { status: "cancelled", paymentExpiresAt: null },
+      });
+      await tx.courseCouponRedemption.deleteMany({
+        where: { purchaseId: purchase.id },
+      });
     });
     return fail(
       error instanceof Error ? error.message : "Unable to start checkout.",

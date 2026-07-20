@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { CourseStudio } from "@/features/courses/components/course-studio";
+import { CourseCommerceManager } from "@/features/courses/components/course-commerce-manager";
 import { getCourseUsage } from "@/server/billing/entitlements";
 import { canSubmitCourse } from "@/server/courses/access";
 import { getCourseForTeacherEdit } from "@/server/courses/queries";
@@ -74,6 +75,13 @@ export default async function TeacherCourseEditPage({
           }}
           subjects={subjects}
           readinessReasons={submitReadiness.reasons}
+        />
+        <CourseCommerceManager
+          courseId={course.id}
+          sales={course.saleCourses.map(({ sale }) => sale)}
+          coupons={course.coupons}
+          questions={course.questions}
+          reviews={course.reviews}
         />
       </main>
     </div>

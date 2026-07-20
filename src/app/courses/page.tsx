@@ -29,7 +29,7 @@ const validLevels = new Set<CourseLevel>([
   "all_levels",
 ]);
 
-const validSorts = new Set<CourseSort>(["newest", "price_asc", "price_desc", "popular"]);
+const validSorts = new Set<CourseSort>(["newest", "price_asc", "price_desc", "popular", "rating"]);
 
 export default async function CoursesPage({
   searchParams,
@@ -43,6 +43,7 @@ export default async function CoursesPage({
   };
 
   const maxPrice = Number(first("maxPrice"));
+  const minRating = Number(first("minRating"));
   const levelParam = first("level");
   const sortParam = first("sort");
 
@@ -57,6 +58,7 @@ export default async function CoursesPage({
           ? (levelParam as CourseLevel)
           : undefined,
       maxPriceCents: Number.isFinite(maxPrice) && maxPrice > 0 ? maxPrice : undefined,
+      minRating: Number.isFinite(minRating) && minRating > 0 ? minRating : undefined,
       sort:
         sortParam && validSorts.has(sortParam as CourseSort)
           ? (sortParam as CourseSort)

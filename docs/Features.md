@@ -8,7 +8,7 @@ Amazing Skills is a **live tutoring marketplace** (Preply / AmazingTalker model)
 
 **Platform revenue:** Teacher subscriptions via PayFast only.
 
-**Not in v1 focus:** Full LMS, course builder, homework, quizzes (future optional phase).
+**Not in v1 focus:** Homework, quizzes, and SCORM/xAPI (future optional phases).
 
 ---
 
@@ -118,6 +118,16 @@ Amazing Skills is a **live tutoring marketplace** (Preply / AmazingTalker model)
 
 ---
 
+## Course Quality & Commerce
+
+- Separate moderated course reviews become eligible after an enrolled student completes at least one lesson; only approved reviews affect public averages.
+- Teachers may expose up to three free preview lessons while keeping at least one lesson private. Preview video, text, and resources use the same short-lived signed media access path as enrolled content.
+- Scheduled teacher-owned sales and course- or teacher-scoped coupons support percent/fixed discounts. Coupons explicitly override sales and never stack.
+- Every purchase stores immutable list, discount, source, sale/coupon, and effective amount snapshots; PayPal receives the effective amount, while a zero result enrolls without PayPal.
+- Enrolled students can ask course questions. Teachers answer them, and answered non-hidden questions may appear publicly without student identity.
+
+---
+
 ## Feature Module Map
 
 | Feature | Folder | Phase |
@@ -127,7 +137,7 @@ Amazing Skills is a **live tutoring marketplace** (Preply / AmazingTalker model)
 | Organizations | `src/features/organizations/` | 1 |
 | Dashboard | `src/features/dashboard/` | 2 |
 | Marketplace | `src/features/marketplace/` | 3 |
-| Reviews | `src/features/reviews/` | 3 |
+| Reviews | `src/features/reviews/`, `src/features/courses/` | 3 / Courses |
 | Bookings | `src/features/bookings/` | 4 |
 | Availability | `src/features/availability/` | 4 |
 | Video | `src/features/video/` | 5 |
@@ -142,7 +152,6 @@ Amazing Skills is a **live tutoring marketplace** (Preply / AmazingTalker model)
 
 ## Out of Scope (v1)
 
-- Course builder / LMS as primary product
 - Platform escrow or teacher payouts
 - Commission on session payments
 - Native mobile apps

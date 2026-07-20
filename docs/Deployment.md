@@ -55,6 +55,20 @@ LIVEKIT_API_SECRET=
 
 # Email
 RESEND_API_KEY=
+
+# Jobs and protected readiness
+CRON_SECRET=
+HEALTH_SECRET=
+
+# Optional distributed rate limiting
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
+# Optional monitoring
+SENTRY_DSN=
+NEXT_PUBLIC_SENTRY_DSN=
+SENTRY_ENVIRONMENT=production
+NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
 ```
 
 ## Local Setup
@@ -74,9 +88,22 @@ npm run dev
 GitHub Actions on every PR:
 
 - Lint, typecheck, test, build
-- `prisma migrate diff` check
+- Prisma client generation and schema validation (no database-mutating migration command)
 
 Deploy: Vercel auto-deploy on merge.
+
+The workflow uses non-secret placeholder values and does not connect to or mutate a database.
+Apply reviewed Prisma and Supabase migrations separately through the deployment process.
+
+For managed PostgreSQL environments where migration advisory locks are unavailable or handled
+by the deployment platform, deploy the reviewed migration set with Prisma's advisory lock disabled:
+
+```bash
+PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 npx prisma migrate deploy
+```
+
+Run this as a single deployment job before starting application instances. Do not run concurrent
+migration jobs.
 
 ## Supabase Setup
 
@@ -89,8 +116,24 @@ Deploy: Vercel auto-deploy on merge.
 
 - Vercel Analytics + Logs
 - Supabase dashboard
-- Sentry (planned)
+- Sentry when a DSN is configured; leave DSNs empty to disable it
 - `/api/v1/health` uptime check
+- `/api/v1/health/ready` deep readiness check with `Authorization: Bearer $HEALTH_SECRET`
+
+## Scheduled jobs
+
+`vercel.json` invokes session reminders every 15 minutes, pending-payment expiry every
+10 minutes, and the idempotent subscription lifecycle job daily at 02:15 UTC. The lifecycle
+job applies trial expiry, scheduled plan/cancellation changes, complimentary expiry, and
+day 0/3/6 dunning notices. Vercel sends `Authorization: Bearer $CRON_SECRET`; set the same long random
+secret in every deployed environment. Job routes intentionally bypass session middleware
+and reject requests unless this header matches.
+
+## Rate limiting
+
+Configure Upstash Redis in production so limits are shared across instances. If it is not
+configured, the application uses a process-local in-memory limiter intended for development
+and single-instance testing only.
 
 ## Performance Targets
 

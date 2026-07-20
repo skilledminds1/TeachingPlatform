@@ -41,6 +41,7 @@ type Lesson = {
   videoUrl: string | null;
   fileName: string | null;
   sortOrder: number;
+  isPreview: boolean;
   assets: Asset[];
 };
 
@@ -237,6 +238,11 @@ export function CourseCurriculumEditor({
                           }
                         >
                           Lecture {lessonIndex + 1}. {lesson.title}
+                          {lesson.isPreview ? (
+                            <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                              Preview
+                            </span>
+                          ) : null}
                           {video ? (
                             <span className="ml-2 text-xs font-normal text-muted-foreground">
                               · video
@@ -332,6 +338,33 @@ export function CourseCurriculumEditor({
                           >
                             Save lecture
                           </Button>
+                          <label className="flex items-start gap-2 rounded-md border border-border p-3 text-sm">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 size-4"
+                              checked={lesson.isPreview}
+                              disabled={isPending}
+                              onChange={(event) =>
+                                run(
+                                  () =>
+                                    updateLesson({
+                                      lessonId: lesson.id,
+                                      isPreview: event.target.checked,
+                                    }),
+                                  event.target.checked
+                                    ? "Lesson is now a free preview."
+                                    : "Lesson preview removed.",
+                                )
+                              }
+                            />
+                            <span>
+                              <span className="font-medium">Free preview lesson</span>
+                              <span className="block text-xs text-muted-foreground">
+                                Public visitors can watch/read this lesson and download its resources.
+                                Maximum 3 previews; at least one lesson must remain private.
+                              </span>
+                            </span>
+                          </label>
                           <LessonMediaUploader
                             lessonId={lesson.id}
                             video={video}

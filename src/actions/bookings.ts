@@ -14,17 +14,21 @@ import {
 } from "@/lib/validations/bookings";
 import { getAvailableSlots } from "@/server/availability/slots";
 import { requireAuth, requireTeacher } from "@/server/auth/session";
+import { getOrganizationGrowthWriteBlock } from "@/server/billing/write-gate";
 import {
   removeBookingFromConnectedCalendars,
   updateEventsForBooking,
 } from "@/server/integrations/google-calendar";
 import {
   notifyBookingCreated,
+  notifyBookingCancelled,
   notifyRescheduleAccepted,
   notifyRescheduleDeclined,
   notifyRescheduleProposed,
 } from "@/server/notifications/notify";
 import { paymentWindowExpiry } from "@/server/payments/confirm";
+import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
+import { getScopeRestriction, usersHaveBlock } from "@/server/trust/enforcement";
 import { deleteLiveKitRoom } from "@/services/livekit/rooms";
 import { fail, ok, type ActionResult } from "@/types/action";
 
@@ -38,6 +42,15 @@ export async function createBooking(
     return fail(parsed.error.issues[0]?.message ?? "Invalid booking.", "VALIDATION_ERROR");
   }
   const student = await requireAuth();
+  const limited = await enforceActionRateLimit({
+    action: "booking-create",
+    limit: 10,
+    windowMs: 10 * 60_000,
+    userId: student.id,
+  });
+  if (limited) return limited;
+  const studentRestriction = await getScopeRestriction(student.id, "booking");
+  if (studentRestriction) return fail(studentRestriction, "FORBIDDEN");
   if (student.memberships.some((item) => item.role === "admin" || item.role === "instructor")) {
     return fail("Teacher accounts cannot book student lessons.", "FORBIDDEN");
   }
@@ -62,7 +75,14 @@ export async function createBooking(
     },
   });
   if (!profile) return fail("Teacher not found.", "NOT_FOUND");
+  const billingBlock = await getOrganizationGrowthWriteBlock(profile.organizationId);
+  if (billingBlock) return fail(billingBlock, "FORBIDDEN");
   if (profile.userId === student.id) return fail("You cannot book yourself.", "VALIDATION_ERROR");
+  if (await usersHaveBlock(student.id, profile.userId)) {
+    return fail("You cannot create a new booking with this user.", "FORBIDDEN");
+  }
+  const teacherRestriction = await getScopeRestriction(profile.userId, "selling");
+  if (teacherRestriction) return fail("This teacher is not accepting new bookings.", "FORBIDDEN");
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
@@ -237,6 +257,15 @@ export async function scheduleLessonAsTeacher(
   }
 
   const teacher = await requireTeacher();
+  const limited = await enforceActionRateLimit({
+    action: "booking-create",
+    limit: 20,
+    windowMs: 10 * 60_000,
+    userId: teacher.id,
+  });
+  if (limited) return limited;
+  const teacherRestriction = await getScopeRestriction(teacher.id, "booking");
+  if (teacherRestriction) return fail(teacherRestriction, "FORBIDDEN");
   const startsAt = new Date(parsed.data.startsAt);
   if (Number.isNaN(startsAt.getTime()) || startsAt.getTime() <= Date.now()) {
     return fail("You can't schedule a lesson in the past.", "VALIDATION_ERROR");
@@ -258,6 +287,8 @@ export async function scheduleLessonAsTeacher(
   if (!profile || profile.status !== "approved" || profile.deletedAt) {
     return fail("Your teacher profile must be approved before scheduling.", "FORBIDDEN");
   }
+  const billingBlock = await getOrganizationGrowthWriteBlock(profile.organizationId);
+  if (billingBlock) return fail(billingBlock, "FORBIDDEN");
 
   const relationship = await db.studentRelationship.findFirst({
     where: {
@@ -269,6 +300,9 @@ export async function scheduleLessonAsTeacher(
   });
   if (!relationship) {
     return fail("Choose one of your existing students.", "VALIDATION_ERROR");
+  }
+  if (await usersHaveBlock(teacher.id, relationship.studentId)) {
+    return fail("You cannot create a new booking with this user.", "FORBIDDEN");
   }
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -442,42 +476,34 @@ export async function cancelBooking(
 
   const hoursUntil = (booking.startsAt.getTime() - Date.now()) / 3_600_000;
   const attempt = booking.paymentAttempts[0];
-  if (booking.status === "confirmed" && attempt?.providerPaymentId && hoursUntil >= 24) {
-    try {
-      if (attempt.provider === "paypal") {
-        const { refundPayPalCapture } = await import("@/services/payments/refunds");
-        await refundPayPalCapture({
-          captureId: attempt.providerPaymentId,
-          amountCents: attempt.amountCents - attempt.refundedCents,
-          currency: attempt.currency,
-        });
-      }
-      // PayFast refunds are handled in the merchant dashboard / API later
-      await db.paymentAttempt.update({
-        where: { id: attempt.id },
-        data: {
-          status: "refunded",
-          refundedCents: attempt.amountCents,
-        },
-      });
-    } catch (error) {
-      return fail(
-        error instanceof Error
-          ? `Cancelled locally but refund failed: ${error.message}`
-          : "Refund failed.",
-        "INTERNAL_ERROR",
-      );
-    }
-  }
+  await db.$transaction(async (tx) => {
+    await tx.booking.update({
+      where: { id: booking.id },
+      data: { status: "cancelled", cancellationReason: parsed.data.reason },
+    });
 
-  await db.booking.update({
-    where: { id: booking.id },
-    data: { status: "cancelled", cancellationReason: parsed.data.reason },
+    if (booking.status === "confirmed" && attempt) {
+      await tx.refundRequest.upsert({
+        where: { bookingId: booking.id },
+        create: {
+          bookingId: booking.id,
+          paymentAttemptId: attempt.id,
+          studentId: booking.studentId,
+          teacherId: booking.teacherId,
+          requestedAmountCents: attempt.amountCents - attempt.refundedCents,
+          currency: attempt.currency,
+          reason: parsed.data.reason,
+          policyEligible: user.id === booking.teacherId || hoursUntil >= 24,
+        },
+        update: {},
+      });
+    }
   });
   if (booking.videoSession) {
     await deleteLiveKitRoom(booking.videoSession.livekitRoomName);
   }
   await removeBookingFromConnectedCalendars(booking.id).catch(() => undefined);
+  await notifyBookingCancelled(booking.id).catch(() => undefined);
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/teacher/bookings");
   return ok({ cancelled: true });

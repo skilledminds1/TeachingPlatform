@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSubjectSpecialties } from "@/lib/subject-specialties";
 import {
@@ -15,6 +16,7 @@ import {
   teacherOnboardingSchema,
 } from "@/lib/validations/teacher-onboarding";
 import { requireTeacher } from "@/server/auth/session";
+import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
 import { getTeacherProfileReadiness } from "@/server/teachers/onboarding";
 import { fail, ok, type ActionResult } from "@/types/action";
 import { slugify } from "@/utils/slugify";
@@ -85,6 +87,13 @@ export async function uploadTeacherAvatar(
   formData: FormData,
 ): Promise<ActionResult<{ avatarUrl: string }>> {
   const user = await requireTeacher();
+  const limited = await enforceActionRateLimit({
+    action: "upload",
+    limit: 15,
+    windowMs: 60 * 60_000,
+    userId: user.id,
+  });
+  if (limited) return limited;
   const parsed = avatarFileSchema.safeParse(formData.get("avatar"));
 
   if (!parsed.success) {
@@ -147,6 +156,13 @@ export async function uploadTeacherCredential(
   formData: FormData,
 ): Promise<ActionResult<{ credentialUrl: string }>> {
   const user = await requireTeacher();
+  const limited = await enforceActionRateLimit({
+    action: "upload",
+    limit: 15,
+    windowMs: 60 * 60_000,
+    userId: user.id,
+  });
+  if (limited) return limited;
   const parsed = credentialFileSchema.safeParse(formData.get("credential"));
 
   if (!parsed.success) {
@@ -183,13 +199,12 @@ export async function uploadTeacherCredential(
     );
   }
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from("credentials").getPublicUrl(storagePath);
+  const credentialUrl = new URL("/api/v1/storage/credentials", env.NEXT_PUBLIC_APP_URL);
+  credentialUrl.searchParams.set("path", storagePath);
 
   revalidatePath("/onboarding/teacher");
   revalidatePath("/dashboard/teacher/profile");
-  return ok({ credentialUrl: publicUrl });
+  return ok({ credentialUrl: credentialUrl.toString() });
 }
 
 export async function createTeacherIntroVideoUpload(
@@ -201,6 +216,13 @@ export async function createTeacherIntroVideoUpload(
   }
 
   const user = await requireTeacher();
+  const limited = await enforceActionRateLimit({
+    action: "upload",
+    limit: 15,
+    windowMs: 60 * 60_000,
+    userId: user.id,
+  });
+  if (limited) return limited;
   const extensionByType: Record<string, string> = {
     "video/mp4": "mp4",
     "video/webm": "webm",

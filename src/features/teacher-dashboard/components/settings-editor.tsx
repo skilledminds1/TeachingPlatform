@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
+import { EmailPreferencesForm } from "@/features/notifications/components/email-preferences-form";
 import { cn } from "@/lib/utils";
+import type { NotificationPreferences } from "@/actions/notification-preferences";
 
 const sections = [
   { id: "password", label: "Password" },
@@ -59,15 +61,15 @@ export function SettingsEditor({
   profileSlug,
   profilePublic,
   appOrigin,
+  notificationPreferences,
 }: {
   email: string;
   profileSlug: string | null;
   profilePublic: boolean;
   appOrigin: string;
+  notificationPreferences: NotificationPreferences;
 }) {
   const [section, setSection] = useState<SectionId>("password");
-  const [tipsEnabled, setTipsEnabled] = useState(false);
-  const [surveysEnabled, setSurveysEnabled] = useState(false);
   const [transcriptionEnabled, setTranscriptionEnabled] = useState(true);
   const [improveEnabled, setImproveEnabled] = useState(true);
   const [deleteEmail, setDeleteEmail] = useState("");
@@ -141,49 +143,7 @@ export function SettingsEditor({
               </div>
             </div>
 
-            <ul className="divide-y divide-border rounded-xl border border-border bg-card">
-              <li className="flex items-start justify-between gap-4 px-5 py-5">
-                <div className="min-w-0">
-                  <p className="font-medium">Transactional</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Important updates about your lessons and new messages.
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                  Always active
-                </span>
-              </li>
-              <li className="flex items-start justify-between gap-4 px-5 py-5">
-                <div className="min-w-0">
-                  <p className="font-medium">Tips and advice</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Get tips to grow your tutoring business.
-                  </p>
-                </div>
-                <Toggle
-                  checked={tipsEnabled}
-                  onCheckedChange={setTipsEnabled}
-                  label="Tips and advice"
-                />
-              </li>
-              <li className="flex items-start justify-between gap-4 px-5 py-5">
-                <div className="min-w-0">
-                  <p className="font-medium">Surveys and interviews</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Take part in research studies to help us improve Amazing Skills.
-                  </p>
-                </div>
-                <Toggle
-                  checked={surveysEnabled}
-                  onCheckedChange={setSurveysEnabled}
-                  label="Surveys and interviews"
-                />
-              </li>
-            </ul>
-
-            <Button type="button" size="lg" className="w-full" disabled>
-              Save changes
-            </Button>
+            <EmailPreferencesForm initialPreferences={notificationPreferences} />
           </div>
         ) : null}
 

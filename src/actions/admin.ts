@@ -10,6 +10,7 @@ import {
   notifyCourseApproved,
   notifyCourseRejected,
   notifyTeacherProfileApproved,
+  notifyTeacherProfileRejected,
 } from "@/server/notifications/notify";
 import { fail, ok, type ActionResult } from "@/types/action";
 
@@ -101,6 +102,7 @@ export async function rejectTeacherProfile(
       },
     }),
   ]);
+  await notifyTeacherProfileRejected(profile.id).catch(() => undefined);
 
   revalidatePath("/admin");
   revalidatePath("/admin/teachers");
@@ -238,5 +240,35 @@ export async function moderateReview(
 
   revalidatePath("/admin");
   revalidatePath("/admin/reviews");
+  return ok({ status: decision });
+}
+
+export async function moderateCourseReview(
+  reviewId: string,
+  decision: "approved" | "rejected",
+): Promise<ActionResult<{ status: "approved" | "rejected" }>> {
+  const parsedId = idSchema.safeParse(reviewId);
+  if (!parsedId.success) return fail("Invalid course review.", "VALIDATION_ERROR");
+  const admin = await requirePlatformAdmin();
+  const review = await db.courseReview.findUnique({
+    where: { id: parsedId.data },
+    select: { id: true, status: true, courseId: true, course: { select: { slug: true } } },
+  });
+  if (!review) return fail("Course review not found.", "NOT_FOUND");
+  await db.$transaction([
+    db.courseReview.update({ where: { id: review.id }, data: { status: decision } }),
+    db.adminAuditLog.create({
+      data: {
+        adminUserId: admin.id,
+        action: `course_review.${decision}`,
+        targetType: "CourseReview",
+        targetId: review.id,
+        metadata: { previousStatus: review.status, courseId: review.courseId },
+      },
+    }),
+  ]);
+  revalidatePath("/admin/reviews");
+  revalidatePath("/courses");
+  revalidatePath(`/courses/${review.course.slug}`);
   return ok({ status: decision });
 }

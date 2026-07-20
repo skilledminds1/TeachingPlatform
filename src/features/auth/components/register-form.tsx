@@ -3,7 +3,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
+import type { UseFormRegisterReturn } from "react-hook-form";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -45,6 +47,11 @@ export function RegisterForm({
       email: "",
       password: "",
       role: defaultRole,
+      confirmedAdult: false,
+      acceptedTerms: false,
+      acceptedPrivacy: false,
+      acceptedRefundPolicy: false,
+      acceptedTeacherAgreement: false,
     },
   });
 
@@ -52,6 +59,22 @@ export function RegisterForm({
     control: form.control,
     name: "role",
   });
+  const agreementValues = useWatch({
+    control: form.control,
+    name: [
+      "confirmedAdult",
+      "acceptedTerms",
+      "acceptedPrivacy",
+      "acceptedRefundPolicy",
+      "acceptedTeacherAgreement",
+    ],
+  });
+  const agreementsComplete =
+    agreementValues[0] &&
+    agreementValues[1] &&
+    agreementValues[2] &&
+    agreementValues[3] &&
+    (role !== "teacher" || agreementValues[4]);
 
   function onSubmit(values: SignUpInput): void {
     setFormError(null);
@@ -112,9 +135,6 @@ export function RegisterForm({
         </Button>
       </div>
 
-      <GoogleSignInButton role={role} redirectTo={redirectTo} />
-      <FieldSeparator>or continue with email</FieldSeparator>
-
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" noValidate>
         <FieldGroup>
           <Field data-invalid={!!form.formState.errors.name || undefined}>
@@ -156,6 +176,67 @@ export function RegisterForm({
 
         <input type="hidden" {...form.register("role")} />
 
+        <fieldset className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+          <legend className="px-1 text-sm font-semibold">Required agreements</legend>
+          <AgreementCheckbox
+            id="confirmedAdult"
+            label="I confirm that I am at least 18 years old."
+            register={form.register("confirmedAdult")}
+          />
+          <AgreementCheckbox
+            id="acceptedTerms"
+            label={
+              <>
+                I accept the{" "}
+                <LegalLink href="/terms">Terms of Service</LegalLink>.
+              </>
+            }
+            register={form.register("acceptedTerms")}
+          />
+          <AgreementCheckbox
+            id="acceptedPrivacy"
+            label={
+              <>
+                I acknowledge the{" "}
+                <LegalLink href="/privacy">Privacy Policy</LegalLink>.
+              </>
+            }
+            register={form.register("acceptedPrivacy")}
+          />
+          <AgreementCheckbox
+            id="acceptedRefundPolicy"
+            label={
+              <>
+                I accept the{" "}
+                <LegalLink href="/refund-policy">
+                  Refund and Direct Payment Policy
+                </LegalLink>
+                , including that teachers receive payments directly and are responsible for
+                refunds.
+              </>
+            }
+            register={form.register("acceptedRefundPolicy")}
+          />
+          {role === "teacher" ? (
+            <AgreementCheckbox
+              id="acceptedTeacherAgreement"
+              label={
+                <>
+                  I accept the{" "}
+                  <LegalLink href="/teacher-agreement">Teacher Agreement</LegalLink> and
+                  understand that I am the merchant of record for student payments.
+                </>
+              }
+              register={form.register("acceptedTeacherAgreement")}
+            />
+          ) : null}
+          {Object.keys(form.formState.errors).some((key) => key.startsWith("accepted") || key === "confirmedAdult") ? (
+            <p className="text-xs text-destructive" role="alert">
+              Accept every required agreement before creating your account.
+            </p>
+          ) : null}
+        </fieldset>
+
         {formError ? (
           <p className="text-sm text-destructive" role="alert">
             {formError}
@@ -171,6 +252,18 @@ export function RegisterForm({
         </Button>
       </form>
 
+      <FieldSeparator>or</FieldSeparator>
+      <GoogleSignInButton
+        role={role}
+        redirectTo={redirectTo}
+        disabled={!agreementsComplete}
+      />
+      {!agreementsComplete ? (
+        <p className="text-center text-xs text-muted-foreground">
+          Accept the required agreements before continuing with Google.
+        </p>
+      ) : null}
+
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link
@@ -185,5 +278,39 @@ export function RegisterForm({
         </Link>
       </p>
     </div>
+  );
+}
+
+function AgreementCheckbox({
+  id,
+  label,
+  register,
+}: {
+  id: string;
+  label: ReactNode;
+  register: UseFormRegisterReturn;
+}) {
+  return (
+    <label htmlFor={id} className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
+      <input
+        id={id}
+        type="checkbox"
+        className="mt-0.5 size-4 shrink-0 accent-primary"
+        {...register}
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+function LegalLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      target="_blank"
+      className="font-medium text-primary underline-offset-4 hover:underline"
+    >
+      {children}
+    </Link>
   );
 }

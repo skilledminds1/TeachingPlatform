@@ -19,13 +19,22 @@ const footerColumns = [
       { href: "/forgot-password", label: "Reset password" },
     ],
   },
+  {
+    heading: "Legal",
+    links: [
+      { href: "/terms", label: "Terms of Service" },
+      { href: "/privacy", label: "Privacy Policy" },
+      { href: "/refund-policy", label: "Refund policy" },
+      { href: "/teacher-agreement", label: "Teacher Agreement" },
+    ],
+  },
 ] as const;
 
 export function SiteFooter() {
   return (
     <footer className="border-t border-border/60">
       <div className="mx-auto max-w-6xl px-6 py-12 md:px-8 md:py-16">
-        <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr]">
+        <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
           <div className="space-y-3">
             <p className="text-lg font-semibold tracking-tight">Amazing Skills</p>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
