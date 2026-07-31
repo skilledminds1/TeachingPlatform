@@ -5,8 +5,10 @@ import { AdminPageHeader } from "@/features/admin/components/admin-page-header";
 import { AppealReviewForm } from "@/features/trust/components/trust-forms";
 import { formatDateTime, formatStatus } from "@/lib/format";
 import { db } from "@/lib/db";
+import { requirePlatformAdmin } from "@/server/auth/session";
 
 export default async function AdminAppealsPage() {
+  await requirePlatformAdmin();
   const appeals = await db.appeal.findMany({
     orderBy: { submittedAt: "desc" },
     include: {

@@ -8,9 +8,11 @@ import {
 } from "@/features/trust/components/trust-forms";
 import { formatDateTime, formatStatus } from "@/lib/format";
 import { db } from "@/lib/db";
+import { requirePlatformAdmin } from "@/server/auth/session";
 import { getAdminCase } from "@/server/trust/cases";
 
 export default async function AdminCasePage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePlatformAdmin();
   const route = await params;
   const [item, admins] = await Promise.all([
     getAdminCase(route.id),

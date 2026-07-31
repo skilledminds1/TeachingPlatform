@@ -5,8 +5,10 @@ import { AdminPageHeader } from "@/features/admin/components/admin-page-header";
 import { PrivacyAdminForm } from "@/features/trust/components/trust-forms";
 import { formatDateTime, formatStatus } from "@/lib/format";
 import { db } from "@/lib/db";
+import { requirePlatformAdmin } from "@/server/auth/session";
 
 export default async function AdminPrivacyRequestsPage() {
+  await requirePlatformAdmin();
   const requests = await db.privacyRequest.findMany({
     orderBy: { submittedAt: "desc" },
     include: {

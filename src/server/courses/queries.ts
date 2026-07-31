@@ -2,6 +2,7 @@ import type { CourseLevel, Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { ForbiddenError, NotFoundError } from "@/lib/errors";
+import { requirePlatformAdmin } from "@/server/auth/session";
 import { calculateCoursePrice, canAccessCourseMedia } from "./quality";
 
 export type CourseSort = "newest" | "price_asc" | "price_desc" | "popular" | "rating";
@@ -480,6 +481,7 @@ export async function getEnrolledCourseDetail(courseId: string, studentId: strin
 }
 
 export async function getCourseModerationQueue() {
+  await requirePlatformAdmin();
   return db.course.findMany({
     where: { status: "pending_approval", deletedAt: null },
     orderBy: [{ submittedAt: "asc" }, { updatedAt: "asc" }],
@@ -511,6 +513,7 @@ export async function getCourseModerationQueue() {
 }
 
 export async function getCourseForAdminReview(courseId: string) {
+  await requirePlatformAdmin();
   return db.course.findFirst({
     where: { id: courseId, deletedAt: null },
     include: {

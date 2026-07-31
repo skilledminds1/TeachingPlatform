@@ -7,8 +7,14 @@ import { StatusBadge, statusTone } from "@/features/admin/components/status-badg
 import { SafetyReportReviewForm } from "@/features/trust/components/trust-forms";
 import { formatDateTime, formatStatus } from "@/lib/format";
 import { db } from "@/lib/db";
+import { requirePlatformAdmin } from "@/server/auth/session";
 
 export default async function AdminTrustPage() {
+  // SEC-05: the page queries moderation cases and safety reports (including reporter
+  // identities) directly, so it must assert authorization itself. The admin layout's check
+  // is for UX; the data loader is the security boundary.
+  await requirePlatformAdmin();
+
   const [cases, reports, appealCount, privacyCount] = await Promise.all([
     db.moderationCase.findMany({
       where: { status: { in: ["open", "under_review", "awaiting_response"] } },

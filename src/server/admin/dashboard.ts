@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { requirePlatformAdmin } from "@/server/auth/session";
 
 const recentLimit = 6;
 
@@ -35,6 +36,7 @@ const nonDemoReviewWhere = {
 } satisfies Prisma.ReviewWhereInput;
 
 export async function getAdminDashboardData() {
+  await requirePlatformAdmin();
   const [
     userCount,
     organizationCount,
@@ -122,6 +124,7 @@ export async function getAdminDashboardData() {
 }
 
 export async function getTeacherModerationQueue() {
+  await requirePlatformAdmin();
   return db.teacherProfile.findMany({
     where: nonDemoTeacherWhere,
     orderBy: [{ status: "asc" }, { submittedAt: "asc" }, { createdAt: "desc" }],
@@ -158,6 +161,7 @@ export async function getTeacherModerationQueue() {
 }
 
 export async function getReviewModerationQueue() {
+  await requirePlatformAdmin();
   return db.review.findMany({
     where: nonDemoReviewWhere,
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
@@ -170,6 +174,7 @@ export async function getReviewModerationQueue() {
 }
 
 export async function getCourseReviewModerationQueue() {
+  await requirePlatformAdmin();
   return db.courseReview.findMany({
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     include: {
@@ -181,6 +186,7 @@ export async function getCourseReviewModerationQueue() {
 }
 
 export async function getAdminOrganizations() {
+  await requirePlatformAdmin();
   return db.organization.findMany({
     where: nonDemoOrganizationWhere,
     orderBy: { createdAt: "desc" },
@@ -200,6 +206,7 @@ export async function getAdminOrganizations() {
 }
 
 export async function getAdminUsers() {
+  await requirePlatformAdmin();
   return db.user.findMany({
     where: nonDemoUserWhere,
     orderBy: { createdAt: "desc" },
@@ -216,6 +223,7 @@ export async function getAdminUsers() {
 }
 
 export async function getAdminAuditLogs() {
+  await requirePlatformAdmin();
   return db.adminAuditLog.findMany({
     where: {
       admin: { email: { not: isDemoEmail } },

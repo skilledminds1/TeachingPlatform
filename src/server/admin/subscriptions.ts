@@ -1,10 +1,12 @@
 import { db } from "@/lib/db";
+import { requirePlatformAdmin } from "@/server/auth/session";
 import {
   getActiveSalesForPlans,
   getEffectivePlanPrice,
 } from "@/server/billing/pricing";
 
 export async function getAdminSubscriptionOrganizations() {
+  await requirePlatformAdmin();
   const organizations = await db.organization.findMany({
     where: { deletedAt: null },
     orderBy: { createdAt: "desc" },
@@ -71,6 +73,7 @@ export async function getAdminSubscriptionOrganizations() {
 }
 
 export async function getAdminPlanCatalog() {
+  await requirePlatformAdmin();
   const plans = await db.plan.findMany({
     orderBy: [{ sortOrder: "asc" }, { monthlyPriceCents: "asc" }],
   });
@@ -88,6 +91,7 @@ export async function getAdminPlanCatalog() {
 }
 
 export async function getAdminPlanSales(now = new Date()) {
+  await requirePlatformAdmin();
   const sales = await db.planSale.findMany({
     orderBy: [{ active: "desc" }, { startsAt: "desc" }],
     include: {
