@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireAuth } from "@/server/auth/session";
+import { safeRedirectPathOr } from "@/lib/security/redirect";
 import {
   exchangeGoogleCalendarCode,
   googleCalendarConfigured,
@@ -21,9 +22,7 @@ export async function GET(request: Request) {
         userId?: string;
         returnTo?: string;
       };
-      if (state.returnTo?.startsWith("/") && !state.returnTo.startsWith("//")) {
-        returnTo = state.returnTo;
-      }
+      returnTo = safeRedirectPathOr(state.returnTo, returnTo);
       expectedUserId = state.userId ?? null;
     } catch {
       // ignore malformed state

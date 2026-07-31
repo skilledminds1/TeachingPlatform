@@ -3,14 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { registerRoleSchema } from "@/lib/validations/auth";
 import { getPostAuthRedirect, syncUserFromAuth } from "@/server/auth/session";
+import { safeRedirectPath } from "@/lib/security/redirect";
 import { db } from "@/lib/db";
-
-function safeRedirectPath(path: string | null): string | null {
-  if (!path || !path.startsWith("/") || path.startsWith("//")) {
-    return null;
-  }
-  return path;
-}
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams, origin } = request.nextUrl;

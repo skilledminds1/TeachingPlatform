@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { updateSession } from "@/lib/supabase/middleware";
+import { safeRedirectPath } from "@/lib/security/redirect";
 
 const publicExact = new Set([
   "/",
@@ -50,12 +51,9 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
         return NextResponse.redirect(subscribeUrl);
       }
 
-      if (
-        redirectParam &&
-        redirectParam.startsWith("/") &&
-        !redirectParam.startsWith("//")
-      ) {
-        return NextResponse.redirect(new URL(redirectParam, request.url));
+      const safeRedirect = safeRedirectPath(redirectParam, request.nextUrl.origin);
+      if (safeRedirect) {
+        return NextResponse.redirect(new URL(safeRedirect, request.url));
       }
 
       const redirectUrl = request.nextUrl.clone();

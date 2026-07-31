@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireAuth } from "@/server/auth/session";
+import { safeRedirectPathOr } from "@/lib/security/redirect";
 import {
   buildGoogleCalendarAuthUrl,
   googleCalendarConfigured,
@@ -15,11 +16,10 @@ export async function GET(request: Request) {
 
   const user = await requireAuth();
   const url = new URL(request.url);
-  const returnTo = url.searchParams.get("returnTo") ?? "/dashboard/teacher/bookings";
-  const safeReturn =
-    returnTo.startsWith("/") && !returnTo.startsWith("//")
-      ? returnTo
-      : "/dashboard/teacher/bookings";
+  const safeReturn = safeRedirectPathOr(
+    url.searchParams.get("returnTo"),
+    "/dashboard/teacher/bookings",
+  );
 
   const state = Buffer.from(
     JSON.stringify({ userId: user.id, returnTo: safeReturn }),

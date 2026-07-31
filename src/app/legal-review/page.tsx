@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { LegalAcceptanceForm } from "@/features/legal/components/legal-acceptance-form";
 import { currentLegalDocumentsForRole } from "@/lib/legal/documents";
+import { safeRedirectPath } from "@/lib/security/redirect";
 import { getPostAuthRedirect, requireAuthenticatedIdentity } from "@/server/auth/session";
 import {
   getMissingCurrentLegalDocuments,
@@ -12,11 +13,13 @@ import {
 
 export const metadata: Metadata = { title: "Review agreements" };
 
-function safeRedirectPath(path: string | undefined): string | null {
-  if (!path || !path.startsWith("/") || path.startsWith("//") || path === "/legal-review") {
+/** Same-origin check, minus the interstitial itself so acceptance cannot loop back here. */
+function safeReviewRedirectPath(path: string | undefined): string | null {
+  const resolved = safeRedirectPath(path);
+  if (!resolved || resolved === "/legal-review" || resolved.startsWith("/legal-review?")) {
     return null;
   }
-  return path;
+  return resolved;
 }
 
 export default async function LegalReviewPage({
@@ -28,7 +31,7 @@ export default async function LegalReviewPage({
   const role = legalRoleFromMemberships(user.memberships);
   const missing = await getMissingCurrentLegalDocuments(user.id, role);
   if (missing.length === 0) {
-    redirect(safeRedirectPath(query.next) ?? (await getPostAuthRedirect(user)));
+    redirect(safeReviewRedirectPath(query.next) ?? (await getPostAuthRedirect(user)));
   }
   const documents = currentLegalDocumentsForRole(role);
 
@@ -59,7 +62,7 @@ export default async function LegalReviewPage({
           </ul>
         </section>
 
-        <LegalAcceptanceForm role={role} next={safeRedirectPath(query.next) ?? undefined} />
+        <LegalAcceptanceForm role={role} next={safeReviewRedirectPath(query.next) ?? undefined} />
 
         <p className="text-xs text-muted-foreground">
           We store the document versions and acceptance time as evidence of your agreement.

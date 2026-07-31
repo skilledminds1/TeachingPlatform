@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { AuthShell } from "@/features/auth/components/auth-shell";
 import { RegisterForm } from "@/features/auth/components/register-form";
+import { safeRedirectPath } from "@/lib/security/redirect";
 import { registerRoleSchema } from "@/lib/validations/auth";
 
 export const metadata: Metadata = {
@@ -17,10 +18,7 @@ export default async function RegisterPage({
   const params = await searchParams;
   const roleParse = registerRoleSchema.safeParse(params.role);
   const defaultRole = roleParse.success ? roleParse.data : "student";
-  const redirectTo =
-    params.redirect && params.redirect.startsWith("/") && !params.redirect.startsWith("//")
-      ? params.redirect
-      : null;
+  const redirectTo = safeRedirectPath(params.redirect);
 
   return (
     <AuthShell

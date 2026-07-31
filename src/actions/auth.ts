@@ -17,6 +17,7 @@ import {
 import { getPostAuthRedirect, syncUserFromAuth } from "@/server/auth/session";
 import { recordCurrentLegalAcceptances } from "@/server/legal/acceptance";
 import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
+import { safeRedirectPath } from "@/lib/security/redirect";
 import { fail, ok, type ActionResult } from "@/types/action";
 import { db } from "@/lib/db";
 
@@ -24,12 +25,8 @@ function appUrl(path: string): string {
   return new URL(path, env.NEXT_PUBLIC_APP_URL).toString();
 }
 
-function safeRedirectPath(path: string | null | undefined): string | null {
-  if (!path || !path.startsWith("/") || path.startsWith("//")) {
-    return null;
-  }
-  return path;
-}
+// NOTE: imported, not re-exported — every export from a "use server" module must be an
+// async function, so `export { safeRedirectPath }` here would fail the build.
 
 export async function signUp(
   input: unknown,

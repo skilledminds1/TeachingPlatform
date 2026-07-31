@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
+import { safeRedirectPath } from "@/lib/security/redirect";
 import { legalAcceptanceInputSchema } from "@/lib/validations/auth";
 import { getPostAuthRedirect, requireAuthenticatedIdentity } from "@/server/auth/session";
 import {
@@ -16,11 +17,16 @@ const acceptLegalSchema = legalAcceptanceInputSchema.extend({
   next: z.string().optional(),
 });
 
-function safeRedirectPath(path: string | null | undefined): string | null {
-  if (!path || !path.startsWith("/") || path.startsWith("//") || path === "/legal-review") {
+/**
+ * Same-origin check, plus a guard against bouncing the user back to the legal-review
+ * interstitial they were just sent away from.
+ */
+function safeLegalRedirectPath(path: string | null | undefined): string | null {
+  const resolved = safeRedirectPath(path);
+  if (!resolved || resolved === "/legal-review" || resolved.startsWith("/legal-review?")) {
     return null;
   }
-  return path;
+  return resolved;
 }
 
 export async function acceptCurrentLegalDocuments(
@@ -50,6 +56,6 @@ export async function acceptCurrentLegalDocuments(
     },
   });
 
-  const intended = safeRedirectPath(parsed.data.next);
+  const intended = safeLegalRedirectPath(parsed.data.next);
   return ok({ redirectTo: intended ?? (await getPostAuthRedirect(user)) });
 }
