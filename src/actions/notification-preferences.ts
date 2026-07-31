@@ -1,25 +1,23 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 
 import { db } from "@/lib/db";
+import {
+  notificationPreferenceSchema,
+  type NotificationPreferences,
+} from "@/lib/validations/notification-preferences";
 import { requireAuth } from "@/server/auth/session";
 import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
 import { fail, ok, type ActionResult } from "@/types/action";
 
-const preferenceSchema = z.object({
-  emailReminders: z.boolean(),
-  emailMessages: z.boolean(),
-  emailMarketing: z.boolean(),
-});
-
-export type NotificationPreferences = z.infer<typeof preferenceSchema>;
+// NOTE: every export in this file is a publicly callable RPC endpoint. Read helpers belong
+// in @/server/notifications/preferences, not here — see SEC-06.
 
 export async function updateNotificationPreferences(
   input: unknown,
 ): Promise<ActionResult<NotificationPreferences>> {
-  const parsed = preferenceSchema.safeParse(input);
+  const parsed = notificationPreferenceSchema.safeParse(input);
   if (!parsed.success) return fail("Invalid notification preferences.", "VALIDATION_ERROR");
   const user = await requireAuth();
   const limited = await enforceActionRateLimit({
@@ -43,19 +41,4 @@ export async function updateNotificationPreferences(
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/teacher/settings");
   return ok(preference);
-}
-
-export async function getNotificationPreferences(
-  userId: string,
-): Promise<NotificationPreferences> {
-  return (
-    (await db.userNotificationPreference.findUnique({
-      where: { userId },
-      select: {
-        emailReminders: true,
-        emailMessages: true,
-        emailMarketing: true,
-      },
-    })) ?? { emailReminders: true, emailMessages: false, emailMarketing: false }
-  );
 }

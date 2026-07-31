@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
 import { EmailPreferencesForm } from "@/features/notifications/components/email-preferences-form";
 import { cn } from "@/lib/utils";
-import type { NotificationPreferences } from "@/actions/notification-preferences";
+import type { NotificationPreferences } from "@/lib/validations/notification-preferences";
 
 const sections = [
   { id: "password", label: "Password" },

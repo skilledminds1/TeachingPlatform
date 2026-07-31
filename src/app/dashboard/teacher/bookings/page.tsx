@@ -27,6 +27,12 @@ export default async function TeacherBookingsPage({
           Could not connect Google Calendar. Please try again.
         </p>
       ) : null}
+      {query.google === "invalid_state" ? (
+        <p className="border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-center text-sm text-destructive">
+          That Google Calendar link expired or did not come from this device. Start the
+          connection again from this page.
+        </p>
+      ) : null}
       {query.google === "missing_config" ? (
         <p className="border-b border-border bg-muted px-4 py-2 text-center text-sm text-muted-foreground">
           Google Calendar credentials are not configured on this server yet.

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { getNotificationPreferences } from "@/actions/notification-preferences";
+import { getNotificationPreferences } from "@/server/notifications/preferences";
 import { LegalAcceptanceHistory } from "@/features/legal/components/legal-acceptance-history";
 import { SettingsEditor } from "@/features/teacher-dashboard/components/settings-editor";
 import { env } from "@/lib/env";

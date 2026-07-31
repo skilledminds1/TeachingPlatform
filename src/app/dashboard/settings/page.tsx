@@ -9,7 +9,7 @@ import { StudentNavWithNotifications } from "@/features/student-dashboard/compon
 import { StudentSettingsForm } from "@/features/student-dashboard/components/student-settings-form";
 import { getCurrentUser, getPostAuthRedirect } from "@/server/auth/session";
 import { getLegalAcceptanceHistory } from "@/server/legal/acceptance";
-import { getNotificationPreferences } from "@/actions/notification-preferences";
+import { getNotificationPreferences } from "@/server/notifications/preferences";
 
 export const metadata: Metadata = {
   title: "Account settings",

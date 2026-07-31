@@ -5,8 +5,8 @@ import { toast } from "sonner";
 
 import {
   updateNotificationPreferences,
-  type NotificationPreferences,
 } from "@/actions/notification-preferences";
+import type { NotificationPreferences } from "@/lib/validations/notification-preferences";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
