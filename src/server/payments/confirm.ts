@@ -120,8 +120,14 @@ export async function confirmBookingPayment(input: {
       data: { status: "expired" },
     });
 
-    await tx.booking.update({
-      where: { id: bookingId },
+    // Only a booking still awaiting payment may be confirmed. Previously this update was
+    // unconditional, so a payment landing after the 30-minute hold expired (or after either
+    // party cancelled) flipped the booking from `cancelled` back to `confirmed` — and since
+    // the slot had already been released, a second student could have booked and paid for
+    // the same time. That produced two confirmed, paid bookings for one slot, with no way
+    // to refund from the platform because it never holds the funds.
+    const revived = await tx.booking.updateMany({
+      where: { id: bookingId, status: "pending_payment" },
       data: {
         status: "confirmed",
         paymentProvider: attempt.provider,
@@ -129,6 +135,43 @@ export async function confirmBookingPayment(input: {
         paymentExpiresAt: null,
       },
     });
+
+    if (revived.count === 0) {
+      // Money was taken for a booking that is no longer live. Flag it for a refund rather
+      // than silently keeping the payment or resurrecting the lesson.
+      await recordPaymentEvent({
+        tx,
+        provider: attempt.provider,
+        providerEventId: `${input.providerEventId}:orphaned`,
+        eventType: "paid_after_booking_closed",
+        payload: input.payload,
+        paymentAttemptId: attempt.id,
+      });
+      await tx.refundRequest.createMany({
+        data: [
+          {
+            paymentAttemptId: attempt.id,
+            bookingId,
+            studentId: attempt.booking.studentId,
+            teacherId: attempt.booking.teacherId,
+            requestedAmountCents: attempt.amountCents,
+            currency: attempt.currency,
+            reason:
+              "Payment completed after the lesson was cancelled or the payment window closed.",
+            policyEligible: true,
+            status: "escalated",
+            escalatedAt: new Date(),
+          },
+        ],
+        skipDuplicates: true,
+      });
+      logger.error("payment_confirmed_for_closed_booking", {
+        bookingId,
+        attemptId: attempt.id,
+        bookingStatus: attempt.booking.status,
+      });
+      return { confirmed: false, bookingId };
+    }
 
     return { confirmed: true, bookingId };
   }).then(async (result) => {
@@ -222,8 +265,11 @@ export async function confirmCoursePayment(input: {
       },
       data: { status: "expired" },
     });
-    await tx.coursePurchase.update({
-      where: { id: purchase.id },
+    // As with bookings, only a purchase still awaiting payment may be completed — an
+    // unconditional update silently revived cancelled or refunded purchases and re-granted
+    // course access.
+    const completed = await tx.coursePurchase.updateMany({
+      where: { id: purchase.id, status: "pending" },
       data: {
         status: "succeeded",
         paymentProvider: attempt.provider,
@@ -231,6 +277,23 @@ export async function confirmCoursePayment(input: {
         paymentExpiresAt: null,
       },
     });
+
+    if (completed.count === 0) {
+      await recordPaymentEvent({
+        tx,
+        provider: attempt.provider,
+        providerEventId: `${input.providerEventId}:orphaned`,
+        eventType: "paid_after_purchase_closed",
+        payload: input.payload,
+        paymentAttemptId: attempt.id,
+      });
+      logger.error("payment_confirmed_for_closed_purchase", {
+        coursePurchaseId: purchase.id,
+        attemptId: attempt.id,
+        purchaseStatus: purchase.status,
+      });
+      return { confirmed: false, coursePurchaseId: purchase.id };
+    }
     if (purchase.courseCouponId) {
       await tx.courseCouponRedemption.createMany({
         data: [
@@ -389,16 +452,25 @@ export async function expireAbandonedPayments(now = new Date()): Promise<number>
     }),
   ]);
 
+  // The candidate rows were selected in a separate query, so a payment may confirm between
+  // the SELECT and this UPDATE — exactly the case when a payment races the deadline. Every
+  // transition below is therefore conditional on the row still being unpaid; without that,
+  // a confirmed, paid booking could be flipped to "cancelled — payment window expired"
+  // while its succeeded PaymentAttempt survived, leaving money captured and no lesson.
+  let expired = 0;
+
   for (const booking of expiredBookings) {
     await db.$transaction(async (tx) => {
-      await tx.booking.update({
-        where: { id: booking.id },
+      const cancelled = await tx.booking.updateMany({
+        where: { id: booking.id, status: "pending_payment", paymentExpiresAt: { lte: now } },
         data: {
           status: "cancelled",
           cancellationReason: "Payment window expired",
           paymentExpiresAt: null,
         },
       });
+      if (cancelled.count === 0) return;
+
       await tx.paymentAttempt.updateMany({
         where: {
           bookingId: booking.id,
@@ -406,15 +478,18 @@ export async function expireAbandonedPayments(now = new Date()): Promise<number>
         },
         data: { status: "expired" },
       });
+      expired += 1;
     });
   }
 
   for (const purchase of expiredCoursePurchases) {
     await db.$transaction(async (tx) => {
-      await tx.coursePurchase.update({
-        where: { id: purchase.id },
+      const cancelled = await tx.coursePurchase.updateMany({
+        where: { id: purchase.id, status: "pending", paymentExpiresAt: { lte: now } },
         data: { status: "cancelled", paymentExpiresAt: null },
       });
+      if (cancelled.count === 0) return;
+
       await tx.paymentAttempt.updateMany({
         where: {
           coursePurchaseId: purchase.id,
@@ -425,10 +500,11 @@ export async function expireAbandonedPayments(now = new Date()): Promise<number>
       await tx.courseCouponRedemption.deleteMany({
         where: { purchaseId: purchase.id },
       });
+      expired += 1;
     });
   }
 
-  return expiredBookings.length + expiredCoursePurchases.length;
+  return expired;
 }
 
 export function paymentWindowExpiry(from = new Date()): Date {
