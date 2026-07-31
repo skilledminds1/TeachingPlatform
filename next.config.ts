@@ -10,7 +10,9 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob: https://*.supabase.co https://*.paypal.com https://*.paypalobjects.com",
   "media-src 'self' blob: https://*.supabase.co https://*.livekit.cloud",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://api-m.paypal.com https://api-m.sandbox.paypal.com https://*.ingest.sentry.io",
-  "frame-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://accounts.google.com",
+  // Video embed hosts must match VIDEO_EMBED_HOSTS in src/lib/security/urls.ts — a test
+  // asserts the two stay in sync. Without these, every lesson video iframe is blocked.
+  "frame-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://accounts.google.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.loom.com",
   "form-action 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
   "frame-ancestors 'none'",
   "base-uri 'self'",

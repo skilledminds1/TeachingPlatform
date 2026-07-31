@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { getCourseAssetSignedUrl, getLessonFileSignedUrl } from "@/actions/courses";
 import { Button } from "@/components/ui/button";
 import { CoursePrivateVideoPlayer } from "./course-private-video-player";
+import { isAllowedVideoEmbedUrl } from "@/lib/security/urls";
 
 type CurriculumModule = {
   id: string;
@@ -90,7 +91,7 @@ export function CurriculumPreview({ modules }: { modules: CurriculumModule[] }) 
               assetId={selected.assets.find((asset) => asset.kind === "video")!.id}
               title={selected.title}
             />
-          ) : selected.videoUrl ? (
+          ) : selected.videoUrl && isAllowedVideoEmbedUrl(selected.videoUrl) ? (
             <div className="aspect-video overflow-hidden rounded-lg">
               <iframe src={selected.videoUrl} title={selected.title} className="size-full" allowFullScreen />
             </div>

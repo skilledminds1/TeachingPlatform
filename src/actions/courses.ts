@@ -896,9 +896,15 @@ export async function uploadLessonFile(
     8,
   )}-${safeName || "lesson-file"}`;
   const bytes = new Uint8Array(await parsedFile.data.arrayBuffer());
+  // SEC-09: the declared MIME type is attacker-controlled, so confirm the file's magic
+  // bytes agree with it before storing (same check the course-media path already does).
+  if (!hasValidCourseMediaSignature(bytes, parsedFile.data.type)) {
+    return fail("That file's contents do not match its type.", "VALIDATION_ERROR");
+  }
+
   const supabase = createAdminClient();
   const { error } = await supabase.storage.from("course-files").upload(path, bytes, {
-    contentType: parsedFile.data.type || "application/octet-stream",
+    contentType: parsedFile.data.type,
     cacheControl: "3600",
     upsert: false,
   });
@@ -910,7 +916,7 @@ export async function uploadLessonFile(
     data: {
       fileStoragePath: path,
       fileName: parsedFile.data.name,
-      fileMimeType: parsedFile.data.type || "application/octet-stream",
+      fileMimeType: parsedFile.data.type,
     },
   });
   if (oldPath) {

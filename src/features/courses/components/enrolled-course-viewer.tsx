@@ -23,6 +23,7 @@ import { CoursePrivateVideoPlayer } from "@/features/courses/components/course-p
 import { CourseCommunity } from "@/features/courses/components/course-community";
 import { formatCourseLevel } from "@/features/courses/lib/labels";
 import type { CourseLevel } from "@prisma/client";
+import { isAllowedVideoEmbedUrl } from "@/lib/security/urls";
 
 type Asset = {
   id: string;
@@ -209,7 +210,7 @@ export function EnrolledCourseViewer({
                   assetId={videoAsset.id}
                   title={selected.title}
                 />
-              ) : selected.videoUrl ? (
+              ) : selected.videoUrl && isAllowedVideoEmbedUrl(selected.videoUrl) ? (
                 <div className="aspect-video overflow-hidden rounded-xl border border-border bg-muted">
                   <iframe
                     src={selected.videoUrl}

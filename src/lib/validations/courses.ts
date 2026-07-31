@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { LESSON_CURRENCIES } from "@/lib/currencies";
+import { normalizeVideoEmbedUrl } from "@/lib/security/urls";
 
 const currencyCodes = LESSON_CURRENCIES.map((item) => item.code) as [
   (typeof LESSON_CURRENCIES)[number]["code"],
@@ -78,10 +79,19 @@ export const createLessonSchema = z.object({
   moduleId: z.uuid("Invalid module"),
   title: z.string().trim().min(1, "Enter a lesson title").max(150),
   content: z.string().trim().max(100_000).default(""),
+  // SEC-08: z.url() accepts javascript: and data: URLs, and this value is rendered as an
+  // iframe src — including on the unauthenticated public course sales page for preview
+  // lessons. Constrain to https on an allowlisted embed host, normalising the share URLs
+  // teachers actually paste.
   videoUrl: z
-    .union([z.url("Enter a valid video URL"), z.literal(""), z.null()])
+    .union([z.string().trim(), z.literal(""), z.null()])
     .optional()
-    .transform((value) => value || null),
+    .transform((value) => (value ? value.trim() : null))
+    .refine(
+      (value) => value === null || normalizeVideoEmbedUrl(value) !== null,
+      "Paste a YouTube, Vimeo or Loom video link",
+    )
+    .transform((value) => (value ? normalizeVideoEmbedUrl(value) : null)),
 });
 
 export const updateLessonSchema = createLessonSchema
@@ -113,10 +123,18 @@ export const courseCoverFileSchema = z
     "Use a JPG, PNG, or WebP image",
   );
 
+// SEC-09: every other upload path (avatars, credentials, intro videos, course media)
+// validates the declared MIME type against an allowlist AND checks the binary magic bytes.
+// This one previously accepted anything -- so .exe, .hta, .svg or .html payloads could be
+// stored and handed to paying students through the signed-URL download route.
 export const lessonFileSchema = z
   .instanceof(File)
   .refine((file) => file.size > 0, "Choose a file")
-  .refine((file) => file.size <= COURSE_RESOURCE_MAX_BYTES, "File must be smaller than 80 MB");
+  .refine((file) => file.size <= COURSE_RESOURCE_MAX_BYTES, "File must be smaller than 80 MB")
+  .refine(
+    (file) => (courseResourceMimeTypes as readonly string[]).includes(file.type),
+    "Use a PDF, image, Office document, or plain-text file",
+  );
 
 export const courseMediaUploadRequestSchema = z.object({
   lessonId: z.uuid("Invalid lesson"),

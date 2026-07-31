@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { LESSON_CURRENCIES } from "@/lib/currencies";
+import { isHttpsUrl } from "@/lib/security/urls";
 
 function wordCount(value: string): number {
   return value.trim().split(/\s+/).filter(Boolean).length;
@@ -45,9 +46,13 @@ export const teacherOnboardingSchema = z.object({
             (value) => Number(value) >= 1950 && Number(value) <= currentYear,
             `Year must be between 1950 and ${currentYear}`,
           ),
+        // SEC-10: z.url() accepts javascript: and data: URLs, and this value is stored
+        // verbatim and rendered as an href. Require https.
         credentialUrl: z.union([
           z.literal(""),
-          z.url("Upload a credential file or enter a valid URL"),
+          z
+            .url("Upload a credential file or enter a valid URL")
+            .refine(isHttpsUrl, "Credential links must start with https://"),
         ]),
       }),
     )
