@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { logger } from "@/lib/observability/logger";
 import { DUNNING_NOTICE_DAYS, nextDunningStage } from "@/server/billing/lifecycle";
 import { createNotification } from "@/server/notifications/notify";
 import {
@@ -195,12 +196,25 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
           organization.pendingBillingInterval === "annual"
             ? organization.pendingPlan.annualPriceCents
             : organization.pendingPlan.monthlyPriceCents;
+        // A missing FX rate previously fell back to `?? 0`, which would ask PayFast to set
+        // the recurring charge to R0.00 while granting the new plan. Skip the change and
+        // count a failure instead, so it surfaces rather than silently zeroing a live
+        // subscription. (The interactive checkout path already refuses to run without it.)
+        if (organization.pendingPlan.slug !== "free" && !env.PAYFAST_USD_ZAR_RATE) {
+          logger.error("subscription_plan_change_missing_fx_rate", {
+            organizationId: organization.id,
+            pendingPlanId: organization.pendingPlan.id,
+          });
+          summary.failures += 1;
+          continue;
+        }
+
         const updated =
           organization.pendingPlan.slug === "free"
             ? await cancelPayfastSubscription(organization.payfastToken)
             : await updatePayfastSubscription({
                 token: organization.payfastToken,
-                amountCents: Math.round(usdCents * (env.PAYFAST_USD_ZAR_RATE ?? 0)),
+                amountCents: Math.round(usdCents * (env.PAYFAST_USD_ZAR_RATE as number)),
                 frequency: organization.pendingBillingInterval === "annual" ? 6 : 3,
               });
         if (!updated) {

@@ -1,15 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
-
-function constantTimeEqual(left: string, right: string): boolean {
-  const leftBuffer = Buffer.from(left);
-  const rightBuffer = Buffer.from(right);
-  const length = Math.max(leftBuffer.length, rightBuffer.length, 1);
-  const paddedLeft = Buffer.alloc(length);
-  const paddedRight = Buffer.alloc(length);
-  leftBuffer.copy(paddedLeft);
-  rightBuffer.copy(paddedRight);
-  return timingSafeEqual(paddedLeft, paddedRight) && leftBuffer.length === rightBuffer.length;
-}
+import { constantTimeEqual } from "@/lib/security/compare";
 
 export function isAuthorizedBearer(
   authorization: string | null,

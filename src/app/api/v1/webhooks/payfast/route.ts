@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { logger } from "@/lib/observability/logger";
+import { constantTimeEqual } from "@/lib/security/compare";
 import { createPayfastSignature } from "@/services/payfast/signature";
 import { startPaymentGrace } from "@/server/billing/lifecycle";
 
@@ -29,8 +31,8 @@ export async function POST(request: NextRequest) {
 
   if (
     !receivedSignature ||
-    receivedSignature !== expectedSignature ||
-    params.get("merchant_id") !== env.PAYFAST_MERCHANT_ID
+    !constantTimeEqual(receivedSignature, expectedSignature) ||
+    !constantTimeEqual(params.get("merchant_id") ?? "", env.PAYFAST_MERCHANT_ID)
   ) {
     return new NextResponse("Invalid signature", { status: 400 });
   }
@@ -57,6 +59,38 @@ export async function POST(request: NextRequest) {
   return handleSubscriptionItn(params);
 }
 
+/**
+ * SEC-15 — PayFast's integration guide lists four mandatory ITN checks: signature, valid
+ * source, amount, and the server confirmation postback. Signature and server confirmation
+ * were already done; this is the amount check.
+ *
+ * Checkout embeds the quoted USD cents in custom_str4, and the ZAR charged is derived from
+ * it via PAYFAST_USD_ZAR_RATE. Both values arrive inside the PayFast-signed payload, so this
+ * verifies they remain internally consistent: it catches FX misconfiguration and any
+ * amount edited between checkout and settlement, rather than silently invoicing whatever
+ * arrives.
+ *
+ * A tolerance is used because the configured rate can legitimately move between checkout and
+ * the ITN. The exact check -- comparing against a quote persisted at checkout time -- belongs
+ * with the subscription provider migration (P2), which replaces this handler entirely; adding
+ * a quote table for a rail we are retiring would be throwaway work.
+ */
+const AMOUNT_TOLERANCE = 0.05;
+
+function amountLooksConsistent(params: URLSearchParams): boolean {
+  const grossZar = Number(params.get("amount_gross") ?? params.get("amount") ?? "0");
+  const quotedUsdCents = Number(params.get("custom_str4") ?? "0");
+  const rate = env.PAYFAST_USD_ZAR_RATE;
+
+  if (!Number.isFinite(grossZar) || grossZar <= 0) return false;
+  // Without a quote or a configured rate there is nothing to compare against; the signature
+  // and server confirmation still stand, so do not reject a legitimate payment.
+  if (!Number.isFinite(quotedUsdCents) || quotedUsdCents <= 0 || !rate) return true;
+
+  const expectedZar = (quotedUsdCents / 100) * rate;
+  return Math.abs(grossZar - expectedZar) <= expectedZar * AMOUNT_TOLERANCE;
+}
+
 async function handleSubscriptionItn(params: URLSearchParams) {
   const organizationId = params.get("custom_str1");
   const planId = params.get("custom_str2");
@@ -71,6 +105,28 @@ async function handleSubscriptionItn(params: URLSearchParams) {
     !paymentStatus
   ) {
     return new NextResponse("Missing billing metadata", { status: 400 });
+  }
+
+  if (paymentStatus === "COMPLETE" && !amountLooksConsistent(params)) {
+    logger.error("payfast_itn_amount_mismatch", {
+      organizationId,
+      planId,
+      interval,
+      providerEventId,
+      amountGross: params.get("amount_gross"),
+      quotedUsdCents: params.get("custom_str4"),
+    });
+    await db.billingEvent
+      .create({
+        data: {
+          organizationId,
+          providerEventId: `${providerEventId}:amount_mismatch`,
+          eventType: "validation_failed",
+          payload: Object.fromEntries(params),
+        },
+      })
+      .catch(() => undefined);
+    return new NextResponse("Amount mismatch", { status: 400 });
   }
 
   const organization = await db.organization.findUnique({
@@ -155,10 +211,17 @@ async function handleSubscriptionItn(params: URLSearchParams) {
           data: grace,
         });
       } else if (paymentStatus === "CANCELLED") {
+        // The token is dead once PayFast reports the subscription cancelled (whether the
+        // teacher cancelled on PayFast's side or PayFast cancelled after repeated failures).
+        // Clearing it lets the lifecycle job's `!organization.payfastToken` short-circuit
+        // apply the downgrade at period end. Keeping it meant the job tried to cancel an
+        // already-cancelled subscription every night, failed every night, and left the
+        // organization on a paid plan indefinitely while nothing was being charged.
         await tx.organization.update({
           where: { id: organizationId },
           data: {
             cancelAtPeriodEnd: true,
+            payfastToken: null,
           },
         });
       }
