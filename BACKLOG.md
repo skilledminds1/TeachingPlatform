@@ -53,119 +53,119 @@ Market-independent. Nothing here depends on a payment decision. Start immediatel
 
 ### 🔴 `SEC-01` Enable RLS and revoke anon/authenticated privileges on every application table
 
-- [ ] **Effort:** M · 1–2 days · **Area:** database-security
+- [x] **Effort:** M · 1–2 days · **Area:** database-security
 - **Files:** `prisma/schema.prisma`, `supabase/migrations/20260719234500_storage_hardening.sql`, `src/lib/supabase/client.ts`, `prisma/migrations/migration_lock.toml`
 - **What:** No ALTER TABLE ... ENABLE ROW LEVEL SECURITY exists anywhere in prisma/migrations; the only non-Prisma SQL touches storage.buckets/storage.objects only. Meanwhile the Supabase publishable/anon key ships to the browser by design and Supabase exposes the public schema through PostgREST. Add a checked-in migration doing ENABLE + FORCE ROW LEVEL SECURITY on every Prisma-managed table, REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated, and ALTER DEFAULT PRIVILEGES ... REVOKE. All app access goes through Prisma on the direct Postgres connection as table owner, so a deny-all posture costs the app nothing. Alternative: move Prisma tables to a non-exposed schema.
 - **Done when:** With only NEXT_PUBLIC_SUPABASE_URL and the publishable key, PostgREST requests to /rest/v1/users, /rest/v1/bookings, /rest/v1/calendar_connections and /rest/v1/teacher_payment_accounts return 401 or empty; a full booking + checkout flow and the test suite still pass.
 
 ### 🔴 `SEC-02` CSRF state and server-side merchant verification on the PayPal linking callback
 
-- [ ] **Effort:** M · 1–2 days · **Area:** payments-security
+- [x] **Effort:** M · 1–2 days · **Area:** payments-security
 - **Files:** `src/app/api/v1/payments/paypal/callback/route.ts`, `src/actions/payment-linking.ts`, `src/services/paypal/checkout.ts`, `src/server/teachers/payments.ts`
 - **What:** The partner-referral branch (GET, lines 14-48) fires on the mere presence of attacker-controlled tracking_id/merchantId/merchant_id, is guarded only by requireTeacher(), and writes providerAccountId: merchantId with onboardingStatus 'complete' and capabilities ['payments','refunds']. The signed paypal_connect_state cookie is only read further down at line 54 and is never reached. Auth cookies are SameSite=Lax so a top-level GET navigation carries them: one click on a crafted link repoints a teacher's payout destination. Require the signed state cookie on BOTH branches, compare the query tracking_id against the stored metadata.trackingId, verify the merchant server-side via PayPal's merchant-integrations lookup, and read merchantIdInPayPal rather than merchantId (which is only an echo of the platform's own tracking id, so today a real onboarding stores 'teacher_xxxx_hex' as the merchant id and every live checkout for that teacher would fail). Treat a payout-destination change as sensitive: email the teacher and write an audit row. Keep this fix regardless of PAY-13 — the route is live today.
 - **Done when:** GET /api/v1/payments/paypal/callback?merchantId=ATTACKER while authenticated as a teacher performs no DB write and redirects to an error; a legitimate sandbox onboarding stores the real 13-character PayPal merchant id and produces an audit-log row plus a notification email.
 
 ### 🟠 `SEC-03` Bind Google Calendar OAuth state to a nonce cookie and reject stateless callbacks
 
-- [ ] **Effort:** S · <½ day · **Area:** oauth-security
+- [x] **Effort:** S · <½ day · **Area:** oauth-security
 - **Files:** `src/app/api/integrations/google-calendar/connect/route.ts`, `src/app/api/integrations/google-calendar/callback/route.ts`, `src/server/integrations/google-calendar.ts`
 - **What:** State is unsigned base64url JSON with no nonce and no cookie binding, and the callback check is `if (expectedUserId && expectedUserId !== user.id)` — a callback with no state (or malformed state, silently swallowed by the catch) skips validation entirely and the code is exchanged and bound to whoever's session cookie is attached. An attacker completes their own Google consent, captures the code, and gets a logged-in teacher to open the callback URL, linking the victim's account to the attacker's calendar. Mint a random nonce into an httpOnly SameSite=Lax short-lived cookie at /connect (the pattern src/actions/payment-linking.ts already uses correctly), put only the nonce in state, and in the callback require state + cookie, compare in constant time, delete the cookie, and reject when anything is missing.
 - **Done when:** Callbacks with absent, malformed, or non-matching state create no CalendarConnection and return an error; the normal connect flow still succeeds end to end.
 
 ### 🟠 `SEC-04` Fix the open redirect present in all five auth/return flows
 
-- [ ] **Effort:** S · <½ day · **Area:** auth-security
+- [x] **Effort:** S · <½ day · **Area:** auth-security
 - **Files:** `src/actions/auth.ts`, `src/app/auth/callback/route.ts`, `src/middleware.ts`, `src/actions/legal.ts`, `src/app/api/integrations/google-calendar/connect/route.ts`
 - **What:** Five copy-pasted guards use `path.startsWith('/') && !path.startsWith('//')` and then hand the value to new URL(path, origin) or router.push(path). The WHATWG URL parser treats a backslash as a slash for special schemes, so `/\evil.com` resolves to https://evil.com/ and defeats the guard. Replace all five with one shared helper that parses against the app origin and returns pathname+search only when u.origin === appOrigin, and prefer an allowlist of internal path prefixes (/dashboard, /admin, /courses, ...).
 - **Done when:** A unit test proves `/\evil.com`, `//evil.com`, `https://evil.com`, `/\/evil.com` and `\\evil.com` are rejected at each of the five call sites while legitimate /dashboard returnTo values still work.
 
 ### 🟠 `SEC-05` Enforce platform-admin authorization in admin data loaders, not only the layout
 
-- [ ] **Effort:** M · 1–2 days · **Area:** admin-security
+- [x] **Effort:** M · 1–2 days · **Area:** admin-security
 - **Files:** `src/middleware.ts`, `src/app/admin/layout.tsx`, `src/app/admin/trust/page.tsx`, `src/server/admin/dashboard.ts`, `src/server/admin/subscriptions.ts`, `src/server/courses/queries.ts`
 - **What:** middleware.ts only verifies that some user is signed in for /admin/*, never isPlatformAdmin; the sole authorization gate is requirePlatformAdmin() in the admin layout component. src/app/admin/trust/page.tsx queries moderationCase and safetyReport (including reporter emails) with no auth call at all, and getAdminDashboardData, getTeacherModerationQueue, getAdminOrganizations, getAdminUsers, getAdminAuditLogs, getCourseModerationQueue and getCourseForAdminReview contain no authorization check. Call requirePlatformAdmin() as the first statement of every function in src/server/admin/* and inline it at the top of each admin page that queries db directly; keep the layout check for UX but treat the loader as the security boundary. Add an isPlatformAdmin check in middleware for defence in depth.
 - **Done when:** A non-admin authenticated session invoking each admin loader (directly or via an RSC payload) receives a forbidden error; a test asserts every export in src/server/admin/* calls requirePlatformAdmin before touching db.
 
 ### 🟠 `SEC-06` getNotificationPreferences is an unauthenticated server action exposing any user's row
 
-- [ ] **Effort:** S · <½ day · **Area:** server-actions
+- [x] **Effort:** S · <½ day · **Area:** server-actions
 - **Files:** `src/actions/notification-preferences.ts`, `src/app/dashboard/settings/page.tsx`, `src/app/dashboard/teacher/settings/page.tsx`
 - **What:** The file opens with 'use server', which makes every export a publicly callable RPC endpoint. getNotificationPreferences(userId) takes a caller-supplied id with no requireAuth, no Zod validation and no ownership check, then returns that user's userNotificationPreference row. It is only intended as a server-side helper. Move it into src/server/notifications/ (a plain module, not a 'use server' file) and import it from the two pages, or drop the parameter and derive the id from requireAuth().
 - **Done when:** Invoking the action id with an arbitrary uuid returns unauthorized or 404; both settings pages still render preferences. A lint rule or test asserts every export in src/actions/*.ts calls a require* helper before touching db.
 
 ### 🟠 `SEC-07` Make distributed rate limiting mandatory in production
 
-- [ ] **Effort:** M · 1–2 days · **Area:** abuse-prevention
+- [x] **Effort:** M · 1–2 days · **Area:** abuse-prevention
 - **Files:** `src/lib/security/rate-limit.ts`, `src/lib/env.ts`, `.env.example`, `docs/Deployment.md`
 - **What:** checkRateLimit falls back to a module-level Map whenever the Upstash env vars are absent and on any Redis error; both vars are optional and .env.example plus docs/Deployment.md label distributed limiting 'optional'. On serverless each instance holds its own Map and cold starts reset it, so the sign-in (10/15min), sign-up, password-reset and password-change caps are effectively unenforced. Require a shared store in production (or implement a Postgres counter table), fail closed for auth-sensitive actions when the store is unavailable, key auth limits on the submitted email as well as the IP, and take the client IP from the platform-verified header or the rightmost trusted XFF hop rather than the attacker-controlled leftmost one.
 - **Done when:** With Upstash unset in production the app fails to boot or auth actions return a rate-limit-unavailable error; 11 sign-in attempts spread across two instances are blocked by the shared counter; the docs no longer call it optional.
 
 ### 🟠 `SEC-08` Restrict lesson videoUrl to an https embed-host allowlist and unblock legitimate embeds
 
-- [ ] **Effort:** S · <½ day · **Area:** xss
+- [x] **Effort:** S · <½ day · **Area:** xss
 - **Files:** `src/lib/validations/courses.ts`, `src/features/courses/components/curriculum-preview.tsx`, `src/features/courses/components/enrolled-course-viewer.tsx`, `next.config.ts`
 - **What:** createLessonSchema.videoUrl is z.url() with no scheme or host restriction, and zod 4.4.3 accepts javascript: and data: URLs. The value is injected unfiltered as an iframe src in the enrolled viewer and — critically — on the unauthenticated public sales page for preview lessons, while script-src still allows 'unsafe-inline'. Replace with a refinement requiring https: plus an allowlisted embed host (youtube-nocookie.com, player.vimeo.com, loom.com), normalise pasted watch URLs into embed URLs, and add those hosts to frame-src in next.config.ts, which currently blocks every legitimate embed host so the feature does not even render.
 - **Done when:** javascript:, data: and http: video URLs are rejected with a clear message; a pasted YouTube watch URL renders correctly in both the public preview and the enrolled viewer.
 
 ### 🟠 `SEC-15` PayFast ITN: verify the paid amount, compare signatures in constant time, check the source
 
-- [ ] **Effort:** S · <½ day · **Area:** webhooks
+- [x] **Effort:** S · <½ day · **Area:** webhooks
 - **Files:** `src/app/api/v1/webhooks/payfast/route.ts`, `src/actions/billing.ts`, `src/lib/security/cron-auth.ts`
 - **What:** handleSubscriptionItn verifies the signature and does the server-to-server validate call (both sound), then on payment_status COMPLETE activates whatever planId custom_str2 names for a full period and only records amount_gross into the invoice afterwards. It never compares the amount against the plan/interval price, nor against the custom_str4 USD cents that checkout embedded, and the signature is compared with ===. PayFast's own integration guide lists four mandatory checks; two are missing. Recompute the expected amount for (planId, interval), reject or flag deviations beyond a rounding tolerance with a validation_failed billing event, switch to the existing constantTimeEqual helper, and add a PayFast source-host allowlist check.
 - **Done when:** A validly signed ITN naming a Business planId with a Starter amount does not activate Business and logs validation_failed; legitimate ITNs continue to activate normally.
 
 ### 🟡 `SEC-09` Validate lesson file uploads with a MIME allowlist and magic-byte check
 
-- [ ] **Effort:** S · <½ day · **Area:** uploads
+- [x] **Effort:** S · <½ day · **Area:** uploads
 - **Files:** `src/actions/courses.ts`, `src/lib/validations/courses.ts`, `src/server/courses/media.ts`
 - **What:** uploadLessonFile validates only that size is > 0 and <= 80 MB and stores whatever arrives with contentType from the client, while every other upload path (avatars, credentials, intro videos, course media) checks both the declared MIME type and the binary signature. A teacher or a compromised teacher account can upload .exe/.hta/.svg/.html payloads into the course-files bucket. Apply the courseResourceMimeTypes allowlist and hasValidCourseMediaSignature over the first bytes, set allowedMimeTypes on the bucket the way ensureCourseMediaBucket does, and fold the legacy path into createCourseMediaUpload/confirmCourseMediaUpload.
 - **Done when:** An HTML or executable payload renamed to .pdf is rejected before upload; legitimate PDF and ZIP resources still upload and download.
 
 ### 🟡 `SEC-11` Encrypt Google OAuth tokens at rest and actually revoke on disconnect
 
-- [ ] **Effort:** M · 1–2 days · **Area:** secrets
+- [x] **Effort:** M · 1–2 days · **Area:** secrets
 - **Files:** `src/server/integrations/google-calendar.ts`, `prisma/schema.prisma`, `src/lib/env.ts`, `src/actions/google-calendar.ts`
 - **What:** CalendarConnection.accessToken and refreshToken are plain String columns and upsertCalendarConnection writes Google's raw token response straight into them. A refresh token for the calendar.events scope grants durable read/write access to a teacher's personal calendar until manually revoked; any DB dump, read replica, leaked service-role key or Prisma Studio session exposes every one. The codebase already hashes invitation tokens, so the precedent exists. Encrypt with AES-256-GCM under a new TOKEN_ENCRYPTION_KEY, decrypt only inside the token getter, rotate existing rows on migration, and make deleteCalendarConnection call Google's /revoke endpoint so disconnect invalidates the grant rather than merely deleting the row.
 - **Done when:** A database dump shows ciphertext for both token columns; connect, sync and disconnect all still work; disconnect returns a success response from Google's revoke endpoint.
 
 ### 🟡 `SEC-12` Replace CSP script-src 'unsafe-inline' with per-request nonces
 
-- [ ] **Effort:** M · 1–2 days · **Area:** csp
+- [x] **Effort:** M · 1–2 days · **Area:** csp
 - **Files:** `next.config.ts`, `src/middleware.ts`, `src/app/layout.tsx`
 - **What:** Production CSP sets script-src 'self' 'unsafe-inline' (only 'unsafe-eval' is dev-gated). The rest of the header set is genuinely strong — frame-ancestors 'none', object-src 'none', base-uri 'self', HSTS with preload, a scoped connect-src — but 'unsafe-inline' removes the main benefit on an app that renders up to 100 KB of user-authored course description plus review comments and case messages. Generate a nonce in middleware, thread it through the CSP header and Next's nonce support, and give next-themes' inline anti-flicker script the nonce.
 - **Done when:** The production response header contains no 'unsafe-inline' in script-src, and there are zero CSP violations in the console across landing, find-tutor, course, checkout, dashboard and session pages.
 
 ### 🟡 `SEC-13` Audit-log admin reads of teacher ID documents and analytics exports
 
-- [ ] **Effort:** S · <½ day · **Area:** admin-security
+- [x] **Effort:** S · <½ day · **Area:** admin-security
 - **Files:** `src/app/api/v1/storage/credentials/route.ts`, `src/app/api/v1/admin/analytics/export/route.ts`, `src/actions/admin.ts`, `src/app/admin/audit-log/page.tsx`
 - **What:** PROJECT.md states the platform admin 'cannot access org-private data without audit reason' and that all admin actions are logged. Write actions honour this; reads do not. Any isPlatformAdmin user can mint a signed URL for any path in the private credentials bucket — teacher qualification and ID-style documents — and export platform-wide payment and revenue data, with no AdminAuditLog row and no reason captured. Write audit rows (credential.viewed, analytics.exported) with targetType/targetId inside each admin read path, require a short free-text reason for credential downloads stored in metadata, and surface these entries in /admin/audit-log.
 - **Done when:** A credential download without a reason parameter is rejected; every admin read of private data produces a visible entry in the audit-log view.
 
 ### 🟡 `SEC-17` Put the storage/RLS hardening SQL into the automated deploy path
 
-- [ ] **Effort:** S · <½ day · **Area:** deployment-security
+- [x] **Effort:** S · <½ day · **Area:** deployment-security
 - **Files:** `supabase/migrations/20260719234500_storage_hardening.sql`, `supabase/README.md`, `package.json`, `docs/Deployment.md`, `src/app/api/v1/health/ready/route.ts`
 - **What:** Schema changes flow through prisma/migrations (applied by prisma migrate), but the one migration that makes the credentials, course-media, course-files and case-evidence buckets private lives in supabase/migrations/ with a README instruction to apply it manually. No script, CI step or deploy hook runs it and the Supabase CLI is not wired into package.json, so any fresh environment — staging, a disaster-recovery restore, a second region — recreates the app schema with default (public) bucket policies. Fold it into a Prisma migration (it is plain SQL against the same Postgres) or add a supabase db push deploy step, and add a readiness check asserting public=false on the sensitive buckets.
 - **Done when:** An environment provisioned only by the documented deploy commands has private credentials and case-evidence buckets; /api/v1/health/ready fails when any sensitive bucket is public.
 
 ### ⚪ `SEC-10` credentialUrl accepts javascript: and data: URLs and is rendered as an href
 
-- [ ] **Effort:** S · <½ day · **Area:** xss
+- [x] **Effort:** S · <½ day · **Area:** xss
 - **Files:** `src/lib/validations/teacher-onboarding.ts`, `src/features/teacher-onboarding/components/credential-uploader.tsx`, `src/actions/teacher-onboarding.ts`
 - **What:** teacherOnboardingSchema.qualifications[].credentialUrl is z.union([z.literal(''), z.url()]); z.url() accepts javascript:alert(1) and data:text/html. The value is persisted verbatim and rendered as an href in the credential uploader. Blast radius is self-only today because the admin moderation view does not link it — fix it before anyone adds that link. Constrain to https:, or better, accept only the app's own /api/v1/storage/credentials?path=... form that uploadTeacherCredential produces and reject arbitrary external URLs.
 - **Done when:** javascript: and data: values fail schema validation; existing rows are backfilled or nulled; the admin review UI can safely link the field.
 
 ### ⚪ `SEC-14` Validate raw string ids in the server actions that skip Zod
 
-- [ ] **Effort:** S · <½ day · **Area:** server-actions
+- [x] **Effort:** S · <½ day · **Area:** server-actions
 - **Files:** `src/actions/organization-invites.ts`, `src/actions/availability.ts`, `src/actions/messaging.ts`
 - **What:** revokeOrganizationInvite(invitationId), deleteAvailabilityException(id), startConversationWithTeacher/startConversationWithStudent(userId) and acceptOrganizationInvite(token) pass unvalidated strings straight into Prisma uuid columns, raising P2023 500s and noisy logs. Authorization is still correct in each case so this is not an IDOR, but revokeOrganizationInvite also queries the invitation before authorizing, so an unauthenticated shape probe learns whether an id exists. Wrap each with the z.uuid().safeParse guard used elsewhere and reorder the revoke path to authorize first.
 - **Done when:** Each action returns VALIDATION_ERROR for a non-uuid input; revokeOrganizationInvite performs its authorization check before its first db read.
 
 ### ⚪ `SEC-16` Stop transmitting the PayFast API passphrase as an HTTP header
 
-- [ ] **Effort:** S · <½ day · **Area:** secrets
+- [x] **Effort:** S · <½ day · **Area:** secrets
 - **Files:** `src/services/payfast/subscriptions.ts`
 - **What:** buildSignedHeaders and updatePayfastSubscription put `passphrase` into the same object used both to generate the signature and as the outgoing request headers to api.payfast.co.za. PayFast's spec uses the passphrase only as signature salt; it should never be transmitted, where it can land in proxy/edge logs and PayFast-side request logging, and an unexpected header can itself cause signature rejections. Build the signature payload from a separate map and send only merchant-id, version, timestamp and signature as headers.
 - **Done when:** Outbound request headers contain no passphrase; subscription update and cancel calls still succeed against sandbox.
@@ -180,82 +180,84 @@ These are live defects in the current PayPal + PayFast paths. Fix them even thou
 
 ### 🔴 `MON-01` Guard PayPal capture on attempt and booking state to stop double charges
 
-- [ ] **Effort:** M · 1–2 days · **Area:** lesson-payments
+- [x] **Effort:** M · 1–2 days · **Area:** lesson-payments
 - **Files:** `src/app/api/v1/payments/paypal/complete/route.ts`, `src/server/payments/confirm.ts`, `src/actions/payments.ts`
 - **What:** The only state check before capturing money is `if (attempt.status === 'succeeded')`. Attempts in expired, failed, pending or requires_action all fall through and any APPROVED order is captured, and confirmBookingPayment itself never checks booking.status. startLessonCheckout mints a new PaymentAttempt and PayPal order per minute and old approved orders are never voided when a sibling succeeds, so a student who opened checkout twice can approve both and be charged twice; a cancelled booking can still be charged. Require attempt.status in {pending, requires_action}, attempt.expiresAt > now, and the parent booking/purchase still pending_payment/pending before calling capturePayPalOrder; otherwise redirect with an expired message without capturing. Void or mark non-capturable the sibling orders when one attempt succeeds or the booking is cancelled/expired.
 - **Done when:** Returning to the complete route for an expired attempt or a cancelled booking takes no money and shows an expired message; approving two orders for the same booking results in exactly one capture.
 
 ### 🔴 `MON-02` confirmBookingPayment must not resurrect cancelled or expired bookings
 
-- [ ] **Effort:** M · 1–2 days · **Area:** lesson-payments
+- [x] **Effort:** M · 1–2 days · **Area:** lesson-payments
 - **Files:** `src/server/payments/confirm.ts`
 - **What:** The booking update at ~123-131 sets status 'confirmed' unconditionally; the only short-circuit (line 99) requires the booking to already be confirmed. Sequence: booking A expires and the slot is freed (collision checks only consider pending_payment/confirmed), student B books and pays the same slot, then the late capture/return/webhook for A flips it from cancelled back to confirmed — the teacher now has two confirmed paid bookings for one slot and one student must be refunded manually through a provider the platform does not control. Refuse to confirm when booking.status is not pending_payment: record the event, mark the attempt succeeded, and auto-open a RefundRequest flagged for teacher and admin. If revival is ever permitted, re-run the slot-collision check inside the same transaction.
 - **Done when:** Confirming a payment whose booking is cancelled leaves it cancelled, creates a refund request, and never yields two confirmed bookings for one teacher slot; covered by a regression test.
 
 ### 🔴 `MON-04` PayPal webhook parses capture events with order-shaped fields, so confirm and deny are dead code
 
-- [ ] **Effort:** M · 1–2 days · **Area:** webhooks
+- [x] **Effort:** M · 1–2 days · **Area:** webhooks
 - **Files:** `src/app/api/v1/webhooks/paypal/route.ts`, `src/services/paypal/checkout.ts`
 - **What:** PAYMENT.CAPTURE.COMPLETED delivers a capture-shaped resource (custom_id, supplementary_data.related_ids.order_id) with no purchase_units, but attemptId and teacherMerchantId are read from event.resource.purchase_units[0], so the guard at line 69 always skips confirmation. CHECKOUT.ORDER.APPROVED is an order but has no capture yet so capture?.id is undefined and it is skipped too. PAYMENT.CAPTURE.DENIED has the same bug, so denials are never recorded. Signature verification is done correctly, but the entire confirm/deny section is inert and the browser redirect is the only real confirmation path — meaning course purchases are never confirmed or reversed by webhook. Resolve the attempt from resource.custom_id or resource.supplementary_data.related_ids.order_id against providerCheckoutId, exactly as the REFUNDED handler at line 109 already does.
 - **Done when:** Replaying real sandbox CAPTURE.COMPLETED, CAPTURE.DENIED and ORDER.APPROVED payloads through the route confirms, denies and captures respectively; the fixture payloads are committed as integration tests.
 
 ### 🔴 `MON-12` Recurring PayFast ITNs silently revert later plan changes
 
-- [ ] **Effort:** M · 1–2 days · **Area:** subscriptions
+- [x] **Effort:** M · 1–2 days · **Area:** subscriptions
 - **Files:** `src/app/api/v1/webhooks/payfast/route.ts`, `src/actions/billing.ts`, `src/server/billing/run-lifecycle.ts`
 - **What:** Every COMPLETE ITN applies planId: custom_str2 and billingInterval: custom_str3, but PayFast echoes the ORIGINAL checkout custom fields on every recurring charge for the life of the token, while the app changes plans in place on that same token (updatePayfastSubscription for upgrades, run-lifecycle for scheduled downgrades) altering only amount and frequency. So a teacher upgraded Starter to Business is charged the Business amount and then reset to Starter by the renewal ITN, and every scheduled downgrade is reverted at the next renewal. The org query does not even select payfastToken, so there is no first-activation branch. Take plan and interval from custom fields only on the first activation of a token; on renewals keep the org's current plan and interval and only extend the period, and reconcile amount_gross against the current plan price.
 - **Done when:** An upgrade followed by a renewal ITN leaves the org on the upgraded plan; a cron-applied scheduled downgrade survives the next renewal ITN; both cases covered by tests.
 
 ### 🔴 `MON-13` CANCELLED ITN strands the org on a paid plan forever
 
-- [ ] **Effort:** S · <½ day · **Area:** subscriptions
+- [x] **Effort:** S · <½ day · **Area:** subscriptions
 - **Files:** `src/app/api/v1/webhooks/payfast/route.ts`, `src/server/billing/run-lifecycle.ts`, `src/services/payfast/subscriptions.ts`
 - **What:** When PayFast sends payment_status=CANCELLED the webhook sets only cancelAtPeriodEnd: true and keeps payfastToken. At period end the lifecycle cron requires cancelPayfastSubscription(token) to succeed before downgrading, but the subscription is already cancelled at PayFast so the call returns an error, providerCancelled is false, failures increments and the branch is skipped — every night, forever. The org keeps paid entitlements indefinitely without ever being charged again: direct recurring revenue loss and unbounded free access. Null the payfastToken on a CANCELLED ITN so the `!payfastToken ||` short-circuit applies the downgrade, and make cancelPayfastSubscription treat an 'already cancelled' response as success.
 - **Done when:** After a CANCELLED ITN the next lifecycle run downgrades the org at period end; a regression test covers the already-cancelled provider response.
 
 ### 🟠 `MON-03` Make expiry-job state transitions conditional in both the booking and course branches
 
-- [ ] **Effort:** S · <½ day · **Area:** lesson-payments
+- [x] **Effort:** S · <½ day · **Area:** lesson-payments
 - **Files:** `src/server/payments/confirm.ts`, `src/actions/payments.ts`
 - **What:** expireAbandonedPayments selects candidate ids and then updates by id with no status predicate, so a confirmation landing between the select and the update flips a paid, confirmed booking to cancelled with reason 'Payment window expired' while the succeeded attempt survives — money captured, lesson cancelled. The course branch is worse: it sets the purchase to cancelled and deletes the coupon redemption while confirmCoursePayment may already have granted an enrollment that is never revoked, leaving the student silently enrolled against a cancelled purchase. Use updateMany with `status: 'pending_payment'` / `status: 'pending'` in the WHERE clause and skip the rest of the transaction when zero rows are affected. Together with MON-02 this closes the race in both directions.
 - **Done when:** A test that confirms a booking and a course purchase between the select and the update leaves both confirmed, the enrollment intact, and the coupon redemption untouched.
 
 ### 🟠 `MON-05` Add a server-side capture fallback and a session-tolerant return route
 
-- [ ] **Effort:** M · 1–2 days · **Area:** lesson-payments · **Blocked by:** MON-04
+- [x] **Effort:** M · 1–2 days · **Area:** lesson-payments · **Blocked by:** MON-04
 - **Files:** `src/app/api/v1/payments/paypal/complete/route.ts`, `src/app/api/v1/webhooks/paypal/route.ts`, `src/server/payments/confirm.ts`
 - **What:** Capture only ever happens inside the authenticated GET return route, where requireAuth() throws UnauthorizedError for anonymous requests. If the buyer approves inside PayPal's in-app webview where the session cookie is absent, closes the tab after clicking Pay Now, or their session expired, the order stays APPROVED forever, is never captured, and the booking silently expires while the student believes they paid. Capture server-side on CHECKOUT.ORDER.APPROVED after validating state, make the return route tolerate an anonymous session by looking up the attempt by order token and verifying state (or degrade to a 'finish signing in to complete payment' flow rather than throwing), and add a reconciliation job that queries PayPal for requires_action attempts before the expiry job cancels them.
 - **Done when:** Closing the tab immediately after approving still results in a confirmed booking within one webhook delivery; an anonymous return no longer 401s; the reconciliation job recovers an orphaned APPROVED order.
 
 ### 🟠 `MON-09` Manual refunds: verify receipt, apply refund effects, and keep both ledgers in sync
 
-- [ ] **Effort:** M · 1–2 days · **Area:** refunds
+- [x] **Effort:** M · 1–2 days · **Area:** refunds
 - **Files:** `src/actions/refunds.ts`, `src/server/payments/confirm.ts`, `src/server/courses/certificates.ts`
 - **What:** markRefundSent accepts any free-text providerReference of length >= 3 and immediately sets the request to refunded with providerRefundedCents = requestedAmountCents. Nothing verifies money moved; PaymentAttempt.refundedCents is never updated so the attempt still reads fully paid; CoursePurchase.status stays succeeded and CourseEnrollment.revokedAt stays null, so getEnrolledCourseDetail keeps serving every lesson video and signed asset indefinitely, and any issued certificate stays valid. The reversal logic exists but lives only in the webhook path (applyRefundToAttempt), which is backwards for a business model where manual refunds are the normal case. Extract a shared applyRefundEffects and call it from the manual path in one transaction; relabel the state as 'teacher reports refunded — awaiting your confirmation' with a student confirm/deny step, and keep escalation open until confirmed.
 - **Done when:** A manual refund revokes the enrollment and certificate, sets the purchase refunded, updates PaymentAttempt.refundedCents, and stops serving course assets; the webhook and manual paths call the same shared function.
 
 ### 🟠 `MON-11` Post-payment side effects can be permanently lost after money is captured
 
-- [ ] **Effort:** M · 1–2 days · **Area:** lesson-payments
+- [x] **Effort:** M · 1–2 days · **Area:** lesson-payments
 - **Files:** `src/server/payments/confirm.ts`, `src/server/video/sessions.ts`, `src/services/livekit/client.ts`
 - **What:** ensureVideoSessionForBooking runs uncaught after the commit and throws when the plan lacks videoSessions, when the booking already started, or when LiveKit env vars are missing (createLiveKitRoom has no isLiveKitConfigured guard, unlike deleteLiveKitRoom). The throw skips notifyBookingConfirmed and the calendar sync, which run after it in the same .then. For deterministic failures every retry throws identically: the student has paid, the booking shows confirmed, and there is no room, no notification and no calendar event — permanently. Make it non-throwing for expected states (log and return null), run room creation, notifications and calendar sync independently via allSettled, raise a real alert (not just logger.warn) when a paid booking ends up with no VideoSession, and block checkout up front if a plan may not sell video lessons rather than failing after payment.
 - **Done when:** With LiveKit env vars removed, a confirmed payment still notifies both parties and records the booking, and an alert is raised; no unhandled rejection and no webhook 500.
 
 ### 🟠 `MON-14` Scheduled plan change can set the recurring amount to zero
 
-- [ ] **Effort:** S · <½ day · **Area:** subscriptions
+- [x] **Effort:** S · <½ day · **Area:** subscriptions
 - **Files:** `src/server/billing/run-lifecycle.ts`, `src/services/payfast/subscriptions.ts`, `src/lib/env.ts`
 - **What:** `amountCents: Math.round(usdCents * (env.PAYFAST_USD_ZAR_RATE ?? 0))` — the rate is optional in env validation. The interactive checkout path refuses to run without it, but the nightly cron has no such guard: with the var missing or blank every pending plan change calls updatePayfastSubscription with amount 0, either erroring silently every night so the change never applies, or, if accepted, setting the teacher's recurring charge to zero while granting the new plan. Remove the `?? 0`, fail the branch loudly with a counted failure and log line, and validate amountCents > 0 inside updatePayfastSubscription before calling the API.
 - **Done when:** With the rate unset the lifecycle run logs a configuration failure and applies no plan change; no provider call is ever made with amount 0.
 
 ### 🟠 `MON-15` Past-due subscribers can clear grace and dunning without paying
 
-- [ ] **Effort:** S · <½ day · **Area:** subscriptions
+- [x] **Effort:** S · <½ day · **Area:** subscriptions
 - **Files:** `src/actions/billing.ts`, `src/server/billing/run-lifecycle.ts`
 - **What:** When an org already has a payfastToken, createSubscriptionCheckout for any equal-or-higher-priced plan (the guard only blocks strictly cheaper plans) calls updatePayfastSubscription — which changes the future recurring amount but takes no payment — and then immediately sets subscriptionStatus 'active' and clears graceStartedAt, graceEndsAt and dunningStage. A teacher in past_due after a failed charge can simply re-select their own current plan and instantly exit the 7-day growth block and the 14-day grace window with no money moving, and each subsequent FAILED ITN restarts a fresh 14-day grace, so the cycle repeats indefinitely. Never clear grace/dunning or set active from the token-update path; only a verified COMPLETE ITN may clear past_due state.
 - **Done when:** A past_due org re-selecting its plan stays past_due with grace timers intact; a subsequent successful ITN clears them.
 
 ### 🟠 `MON-16` No real payment-recovery path for past_due subscribers
+
+> **Deferred:** Needs a real recovery flow (cancel the dead token, fresh signed checkout). Belongs with the P2 provider migration rather than being built twice.
 
 - [ ] **Effort:** M · 1–2 days · **Area:** subscriptions
 - **Files:** `src/actions/billing.ts`, `src/server/billing/run-lifecycle.ts`, `src/features/billing/components/billing-plan-selector.tsx`
@@ -264,54 +266,56 @@ These are live defects in the current PayPal + PayFast paths. Fix them even thou
 
 ### 🟠 `MON-17` No watchdog for missed renewal or FAILED ITNs
 
-- [ ] **Effort:** S · <½ day · **Area:** subscriptions
+- [x] **Effort:** S · <½ day · **Area:** subscriptions
 - **Files:** `src/server/billing/run-lifecycle.ts`
 - **What:** Grace only ever starts from a FAILED ITN. The lifecycle scan selects orgs by trialEndsAt, graceStartedAt, pendingChangeAt, cancelAtPeriodEnd or complimentaryExpiresAt — an active org whose currentPeriodEnd has passed with no COMPLETE ITN matches nothing and is never inspected. If PayFast does not send a FAILED ITN for a given failure mode, or delivery is lost during a deploy window, 5xx or validation outage (retries are finite), the teacher keeps paid entitlements indefinitely and the platform never notices. Add a branch for subscriptionStatus active + token not null + currentPeriodEnd older than a small buffer that starts the grace flow and alerts the founder, so billing state converges even when ITNs are missed.
 - **Done when:** An org whose period end passed with no ITN enters grace on the next nightly run and generates an alert.
 
 ### 🟠 `MON-23` billing_date is computed in server UTC against a UTC+2 gateway, breaking checkout nightly
 
-- [ ] **Effort:** S · <½ day · **Area:** subscriptions
+- [x] **Effort:** S · <½ day · **Area:** subscriptions
 - **Files:** `src/actions/billing.ts`
 - **What:** `fields.set('billing_date', new Date().toISOString().slice(0,10))` — production runs UTC while PayFast operates on SAST and requires billing_date to be today or later in its own timezone. Between 22:00 and 23:59:59 UTC the SAST date has already rolled forward, so the submitted date is yesterday from the gateway's perspective and every subscription checkout is rejected. That is roughly 8% of every day, failing intermittently with no obvious cause in application logs, and 22:00-00:00 UTC is prime evening across the Americas for an international teacher base. Compute with DateTime.now().setZone('Africa/Johannesburg').toISODate(), and adopt the general rule that provider-facing dates are always formatted in the provider's own timezone.
 - **Done when:** A checkout initiated at 22:30 UTC is accepted by the sandbox; a unit test with a frozen 22:30 UTC clock asserts the SAST date is submitted.
 
 ### 🟠 `MON-27` Accepting a reschedule proposal can move a paid lesson into the past
 
-- [ ] **Effort:** S · <½ day · **Area:** bookings
+- [x] **Effort:** S · <½ day · **Area:** bookings
 - **Files:** `src/actions/bookings.ts`
 - **What:** acceptBookingReschedule validates that the proposal is pending, within the 48-hour window, and that the CURRENT booking start is in the future — but never that proposal.proposedStartsAt > now, and proposeBookingReschedule only validates the time at proposal time. So a lesson tomorrow can be proposed for today 18:00, the student opens the email at 21:00 and accepts, and the confirmed, already-paid booking's startsAt is rewritten to a time that has passed. startSession's window (startsAt-15min to endsAt+30min) is already over, so the lesson can never be held and there is no refund path. Reject when proposedStartsAt <= now and mark the proposal expired; expire proposals at min(createdAt + 48h, proposedStartsAt).
 - **Done when:** Accepting a proposal whose proposed time has passed fails with a clear message and marks the proposal expired; a proposal automatically expires at its proposed start time.
 
 ### 🟠 `MON-28` Add scheduled lesson finalization and stop the finalizer overwriting cancelled bookings
 
-- [ ] **Effort:** M · 1–2 days · **Area:** bookings
+- [x] **Effort:** M · 1–2 days · **Area:** bookings
 - **Files:** `src/server/video/sessions.ts`, `src/actions/video.ts`, `src/actions/bookings.ts`, `vercel.json`, `src/app/api/v1/jobs/expire-pending-payments/route.ts`
 - **What:** A booking becomes 'completed' only when the teacher clicks End or when either party happens to load /sessions/[id] more than 30 minutes after endsAt — there is no cron for it (the jobs directory has only expire-pending-payments, session-reminders, process-email-outbox and subscription-lifecycle). If the teacher forgets and nobody revisits, the booking stays confirmed forever: the student never sees the review form, submitReview rejects, teacher analytics undercount, refund windows never open and the north-star metric is wrong. The same lazy finalizer also transitions any session whose endsAt+30 has passed without checking booking.status, so visiting the page for a properly cancelled (possibly refunded) booking flips it from cancelled to no_show, corrupting the cancellation record and no-show analytics. Add a finalize-sessions cron every 15 minutes applying the live→completed / scheduled→no_show transition, guard the lazy finalizer on booking.status === 'confirmed', and mark or delete the VideoSession inside cancelBooking's transaction.
 - **Done when:** A confirmed lesson with no page visit is completed within 15 minutes of endsAt+30; visiting the session page for a cancelled booking leaves it cancelled; no-show analytics exclude cancellations.
 
 ### 🟠 `MON-31` course-covers storage bucket is never provisioned, making the course marketplace inert
 
-- [ ] **Effort:** S · <½ day · **Area:** course-commerce
+- [x] **Effort:** S · <½ day · **Area:** course-commerce
 - **Files:** `src/actions/courses.ts`, `supabase/migrations/20260719234500_storage_hardening.sql`, `supabase/README.md`, `src/server/courses/media.ts`
 - **What:** uploadCourseCover writes to supabase.storage.from('course-covers') and reads back getPublicUrl, but that bucket exists nowhere: the storage-hardening migration inserts only avatars, credentials, course-media, course-files and case-evidence; supabase/README.md documents a different set; and the only createBucket calls are for course-media and the teacher intro bucket. Meanwhile canSubmitCourse hard-blocks submission with 'Add a course cover image' when coverImageUrl is null, and the upload failure is swallowed into a generic 'please try again'. On a fresh production deploy the entire course marketplace is inert and the teacher blames their image file. Provision the bucket (add it to the migration or create it lazily like ensureCourseMediaBucket), surface the real storage error distinctly, and keep covers private and signed until the course is published.
 - **Done when:** On a freshly provisioned environment a teacher can upload a cover and submit a course; a storage misconfiguration produces a distinct, actionable error rather than a generic retry prompt.
 
 ### 🟠 `MON-32` No admin takedown for published courses and sanctioned teachers stay in the catalog
 
-- [ ] **Effort:** M · 1–2 days · **Area:** moderation
+- [x] **Effort:** M · 1–2 days · **Area:** moderation
 - **Files:** `src/actions/admin.ts`, `src/server/courses/queries.ts`, `src/features/admin/components/course-moderation-actions.tsx`, `src/app/admin/courses/page.tsx`
 - **What:** approveCourse and rejectCourse both refuse anything that is not pending_approval, the moderation component renders null unless status is pending_approval, and getCourseModerationQueue only ever lists pending_approval — so when a rightsholder sends a takedown notice for a live course the admin has literally no button and the only options are a raw DB edit or suspending the teacher. Separately, searchPublishedCourses and getPublishedCourseBySlug do not filter on teacher account status, so a suspended or sanctioned seller's catalog stays live and purchasable. Add takedownCourse(courseId, reason) that sets rejected/suspended, writes an AdminAuditLog row and notifies the teacher while preserving existing enrollments (or revoking them for illegal content); add an admin browse view over published courses; and add a teacher accountStatus and active-sanction exclusion to discovery.
 - **Done when:** An admin takes down a published course in one action with an audit entry and teacher notification; suspending a teacher removes their courses from /courses and their sales pages on the next request.
 
 ### 🟡 `MON-06` Require capture status COMPLETED before confirming a booking
 
-- [ ] **Effort:** S · <½ day · **Area:** lesson-payments · **Blocked by:** MON-04
+- [x] **Effort:** S · <½ day · **Area:** lesson-payments · **Blocked by:** MON-04
 - **Files:** `src/services/paypal/checkout.ts`, `src/app/api/v1/payments/paypal/complete/route.ts`, `src/server/payments/confirm.ts`
 - **What:** The return route checks order.status !== 'COMPLETED' but parsePayPalOrder extracts captures[0].id and amount while dropping captures[0].status. A capture can be PENDING (for example RECEIVING_PREFERENCE_MANDATES_MANUAL_ACTION when the teacher's account does not auto-accept the payment currency, which is plausible with cross-border buyers and multiple settlement currencies) while the order reads COMPLETED — so the booking is confirmed and the room provisioned although the teacher has no funds, and a later denial is not handled because the DENIED webhook is broken. Propagate capture.status, confirm only on COMPLETED, and hold PENDING in a processing state that resolves on the CAPTURE.COMPLETED/DENIED webhooks.
 - **Done when:** A PENDING capture leaves the attempt processing and the booking unconfirmed with both parties messaged; the subsequent COMPLETED webhook confirms it and DENIED fails it cleanly.
 
 ### 🟡 `MON-07` Checkout double-submit crashes on the idempotency key and mints orphan orders
+
+> **Deferred:** Deferred with the PayPal rail (gated). Idempotency-key collisions and orphan orders only matter if PayPal is re-enabled.
 
 - [ ] **Effort:** S · <½ day · **Area:** lesson-payments
 - **Files:** `src/actions/payments.ts`
@@ -320,6 +324,8 @@ These are live defects in the current PayPal + PayFast paths. Fix them even thou
 
 ### 🟡 `MON-08` PayPal auth assertion is an empty string and the partner refund path is dead code
 
+> **Deferred:** Deferred with the PayPal rail (gated). The auth assertion and partner refund path are dead code while the flag is off.
+
 - [ ] **Effort:** S · <½ day · **Area:** refunds · **Blocked by:** PAY-01
 - **Files:** `src/services/paypal/checkout.ts`, `src/services/payments/refunds.ts`, `src/actions/refunds.ts`
 - **What:** createPayPalOrder sends {'PayPal-Auth-Assertion': ''} whenever PAYPAL_PARTNER_MERCHANT_ID is set — the JWT (base64 header . base64 {iss: client_id, payer_id: merchant_id} .) is never built, so in live partner mode the header is malformed. refundPayPalCapture, the only code able to execute a verified refund against a teacher's capture using the granted THIRD_PARTY REFUND permission, sends no assertion at all and is never called from anywhere, so the refund feature ships with no programmatic path even though onboarding requests the REFUND feature. Either build the assertion correctly and wire refundPayPalCapture into the approved-refund flow with the webhook as source of truth, or delete the dead code and stop requesting the feature. Decide together with PAY-01 so the work is not thrown away.
@@ -327,105 +333,105 @@ These are live defects in the current PayPal + PayFast paths. Fix them even thou
 
 ### 🟡 `MON-10` Duplicate confirmations re-provision the video room and can 500-loop the webhook
 
-- [ ] **Effort:** S · <½ day · **Area:** lesson-payments
+- [x] **Effort:** S · <½ day · **Area:** lesson-payments
 - **Files:** `src/server/payments/confirm.ts`, `src/server/video/sessions.ts`, `src/services/livekit/rooms.ts`
 - **What:** After the transaction commits, ensureVideoSessionForBooking runs uncaught and runs again on every duplicate confirmation (webhook and return confirm with different providerEventIds), each time calling createLiveKitRoom and upserting a possibly new livekitRoomName that invalidates a join link already emailed. Worse, it throws when booking.startsAt <= now, so a payment confirmed after the scheduled start throws after the DB commit: the webhook returns 500 and the provider retries indefinitely, each retry repeating the side effects. Return the existing session when one is present and tolerate a past startsAt for a paid booking.
 - **Done when:** Confirming the same payment twice produces exactly one VideoSession with a stable room name and an HTTP 200; a confirmation arriving after the scheduled start does not 500.
 
 ### 🟡 `MON-18` ITN signature verification drops empty fields and may reject every legitimate ITN
 
-- [ ] **Effort:** S · <½ day · **Area:** webhooks
+- [x] **Effort:** S · <½ day · **Area:** webhooks
 - **Files:** `src/services/payfast/signature.ts`, `src/app/api/v1/webhooks/payfast/route.ts`
 - **What:** createPayfastSignature excludes any field whose value is an empty string and is reused for ITN verification. Excluding blanks is correct when GENERATING the checkout signature, but PayFast's published ITN verification procedure builds the param string from every posted field except signature, in received order, without filtering empties — and real ITN payloads routinely contain empty fields (unused custom_str/custom_int, empty name_last). If PayFast includes those keys, every production ITN fails verification with 400 and no subscription ever activates. Sandbox may mask this, so it must be verified empirically. Add a dedicated verifyItnSignature that concatenates all received non-signature fields in received order without dropping empties, and keep the existing function for checkout-form generation only.
 - **Done when:** Verified against a captured real sandbox ITN containing empty fields: the dedicated verification function passes, checkout signature generation is unchanged, and both are covered by tests.
 
 ### 🟡 `MON-20` Grace expiry leaves orgs permanently blocked from even Free-tier activity
 
-- [ ] **Effort:** S · <½ day · **Area:** subscriptions
+- [x] **Effort:** S · <½ day · **Area:** subscriptions
 - **Files:** `src/server/billing/run-lifecycle.ts`, `src/server/billing/lifecycle.ts`
 - **What:** Grace expiry sets planId=free and subscriptionStatus='cancelled', and isGrowthBlocked returns true unconditionally for cancelled status — a gate that blocks new bookings and course actions everywhere. So a lapsed teacher cannot use even Free-plan allowances and is read-only forever unless they buy a paid plan, contradicting PROJECT.md's '14 days read-only' and docs/PayFast.md's state table (cancelled → free with Free limits). It punishes teachers whose card merely expired and destroys win-back. The same update also never clears pendingPlanId/pendingChangeAt. Set subscriptionStatus to active on the Free plan (Free limits already constrain growth) or time-bound the cancelled block, and clear the pending fields in the same update.
 - **Done when:** After grace expiry the org can create a Free-tier booking within Free limits, and pendingPlanId/pendingChangeAt are null.
 
 ### 🟡 `MON-21` Complimentary grant permanently destroys a paying org's subscription
 
-- [ ] **Effort:** M · 1–2 days · **Area:** subscriptions
+- [x] **Effort:** M · 1–2 days · **Area:** subscriptions
 - **Files:** `src/actions/admin-subscriptions.ts`, `src/server/billing/entitlements.ts`, `src/server/billing/run-lifecycle.ts`
 - **What:** Granting a complimentary plan to an org with an active paid subscription cancels the PayFast subscription and nulls the token. When the complimentary period expires, both expiry paths drop the org to Free — complimentaryPreviousPlanId is stored but never used to restore anything, and the cancelled billing cannot be resurrected. An admin granting a one-month thank-you upgrade to a paying Business subscriber silently converts them into a Free, non-paying org that must re-checkout from scratch: recurring revenue destroyed by a goodwill gesture. Block or loudly warn when the org has an active token (require explicit confirmation that the subscription will be destroyed), and implement restore-to-previous-plan by prompting re-checkout before expiry using the stored previous plan id.
 - **Done when:** Granting complimentary access to a paying org requires explicit confirmation, and at expiry the org is prompted back onto complimentaryPreviousPlanId rather than silently dropped to Free.
 
 ### 🟡 `MON-22` Promotional plan discounts become permanent lifetime discounts
 
-- [ ] **Effort:** S · <½ day · **Area:** subscriptions
+- [x] **Effort:** S · <½ day · **Area:** subscriptions
 - **Files:** `src/actions/billing.ts`, `src/server/billing/pricing.ts`
 - **What:** An active PlanSale percentOff is applied to recurring_amount itself, so a time-limited promotion (a 30% launch weekend) becomes a lifetime discount for everyone who checked out during it, and the amount is never re-baselined when the sale ends. Existing subscribers are also locked at the amount computed on their checkout date indefinitely. Decide explicitly and implement one: charge the discounted amount as the first-cycle `amount` with `recurring_amount` at list price, or document the lifetime-discount intent so revenue projections and the pricing page reflect it.
 - **Done when:** A subscriber who checks out during a 30% sale is charged list price at the first renewal after the sale ends, or the lifetime intent is written into the pricing docs and shown at checkout.
 
 ### 🟡 `MON-24` Subscription invoices hardcode ZAR for a USD-priced catalog
 
-- [ ] **Effort:** S · <½ day · **Area:** subscriptions
+- [x] **Effort:** S · <½ day · **Area:** subscriptions
 - **Files:** `src/app/api/v1/webhooks/payfast/route.ts`, `prisma/schema.prisma`, `src/app/dashboard/teacher/billing/page.tsx`
 - **What:** The ITN handler creates subscriptionInvoice with `currency: 'ZAR'` as a literal and SubscriptionInvoice.currency defaults to 'ZAR' in the schema — the only remaining ZAR default, while every other currency column defaults to USD. The billing page renders it through formatCurrency, which routes ZAR to en-ZA, so a teacher in Germany who selected a plan advertised at $29/month receives an invoice reading 'R 539,00'. Persist presentment amount and currency (USD, what the teacher was quoted) and settled amount and currency separately, change the schema default to USD with a data migration, and display the quoted currency primarily with settlement as a secondary line.
 - **Done when:** An invoice for a $29 plan renders '$29.00' with the settled amount as a secondary line; the schema default is USD and existing rows are migrated.
 
 ### 🟡 `MON-26` Coupon maxRedemptions over-redeems under concurrency and the cleanup is dead code
 
-- [ ] **Effort:** M · 1–2 days · **Area:** course-commerce
+- [x] **Effort:** M · 1–2 days · **Area:** course-commerce
 - **Files:** `src/server/courses/pricing.ts`, `src/server/payments/confirm.ts`, `src/actions/payments.ts`
 - **What:** resolveCoursePrice rejects a coupon when confirmed redemptions >= maxRedemptions, but for paid purchases the CourseCouponRedemption row is written only after payment confirms, so in-flight checkouts are invisible and the limit is never re-validated at confirmation. Forty students opening a 'first 10 at 80% off' coupon in the same minute all pass the check, are all quoted the discounted price, and all complete checkout. The compensating cleanups (deleteMany by purchaseId in the checkout failure path and in expireAbandonedPayments) can never match a row because none exists yet. Reserve the redemption inside the same transaction that creates the pending CoursePurchase, so the existing cleanup actually releases it on cancel or expiry, and/or re-count and re-validate inside confirmCoursePayment before granting enrollment.
 - **Done when:** Forty concurrent checkouts against a maxRedemptions=10 coupon produce exactly ten discounted purchases; the cleanup deleteMany measurably releases reservations on cancel and expiry.
 
 ### 🟡 `MON-29` Add a DB-level double-booking constraint and close the propose/cancel slot-hold gaps
 
-- [ ] **Effort:** M · 1–2 days · **Area:** bookings
+- [x] **Effort:** M · 1–2 days · **Area:** bookings
 - **Files:** `prisma/schema.prisma`, `src/actions/bookings.ts`, `src/server/availability/slots.ts`
 - **What:** Booking has no exclusion or uniqueness constraint on (teacherId, time range) — only plain indexes — so concurrency safety rests entirely on every write path remembering a Serializable transaction with a collision check. createBooking, scheduleLessonAsTeacher and acceptBookingReschedule do; proposeBookingReschedule does not: its slot-hold check runs outside any transaction and the proposal is created in a separate non-serializable one, so a student booking a slot concurrently with a teacher proposing it can both succeed. Separately, cancelBooking never cancels the booking's pending reschedule proposals, and all slot-hold queries filter proposals only on status and expiresAt rather than the parent booking's status, so a cancelled lesson's proposed slot stays unbookable for up to 48 hours of lost inventory. Add a btree_gist exclusion constraint on (teacher_id, tstzrange(starts_at, ends_at)) WHERE status IN ('pending_payment','confirmed') via a raw migration, move the propose-hold check inside a serializable transaction, and cancel pending proposals inside cancelBooking's transaction.
 - **Done when:** A concurrent create + propose for the same slot yields exactly one hold; cancelling a booking frees its proposed slot immediately; the exclusion constraint exists in a checked-in migration and app-level checks still produce friendly errors.
 
 ### 🟡 `MON-30` Reminder deduplication ignores reschedules, so lessons are reminded at the wrong time or not at all
 
-- [ ] **Effort:** S · <½ day · **Area:** notifications
+- [x] **Effort:** S · <½ day · **Area:** notifications
 - **Files:** `src/app/api/v1/jobs/session-reminders/route.ts`, `src/server/notifications/notify.ts`, `src/actions/bookings.ts`
 - **What:** The reminder job dedupes by finding ANY prior 'session.reminder' notification whose metadata.bookingId matches, and buildEmailIdempotencyKey is keyed on bookingId alone — while acceptBookingReschedule rewrites startsAt on the same booking row. So if a reminder fired for the original 10:00 slot and the lesson moves to 18:00, the 17:00 job run finds alreadySent and skips: both parties' only reminder points at a time that no longer exists, a direct missed-lesson risk given calendar sync is best-effort. Include the lesson start timestamp in both the notification metadata dedupe key and the email idempotency key so each (booking, scheduled time) pair gets exactly one reminder, and verify the reschedule-accepted notification states the new time.
 - **Done when:** Rescheduling a booking that already had a reminder produces exactly one new reminder for the new time, and a booking never receives two reminders for the same start time.
 
 ### 🟡 `MON-33` Any edit to a published course silently delists it and forces a fresh review
 
-- [ ] **Effort:** S · <½ day · **Area:** course-commerce
+- [x] **Effort:** S · <½ day · **Area:** course-commerce
 - **Files:** `src/actions/courses.ts`
 - **What:** updateCourse computes substantiveChange across title, description, subjectId, priceCents, currency, level and certificateEnabled, and when the course is live resets it to `draft` — not pending_approval — so the course does not even re-enter the moderation queue automatically. A teacher fixing a typo, flipping the certificate toggle, or dropping the price for a promotion instantly removes the course from /courses and 404s its sales page, with no warning in the UI, losing days of traffic and sales before they realise they must resubmit and wait out the 48-hour review SLA. Trigger re-review only on material content changes (title, description, curriculum), never on price, currency or certificateEnabled; keep the course live and purchasable during re-review; set pending_approval automatically; and warn in the edit UI before saving.
 - **Done when:** Changing price or certificateEnabled leaves the course published; a title or curriculum change keeps it purchasable while enqueued for review, with an explicit in-UI warning before save.
 
 ### 🟡 `MON-34` Buyers are shown the teacher's private billing status and hit dead-end checkouts
 
-- [ ] **Effort:** S · <½ day · **Area:** course-commerce
+- [x] **Effort:** S · <½ day · **Area:** course-commerce
 - **Files:** `src/actions/payments.ts`, `src/server/courses/queries.ts`, `src/server/billing/lifecycle.ts`
 - **What:** startCourseCheckout calls getOrganizationGrowthWriteBlock and returns its string verbatim to the buyer, and the purchase button toasts it — so a student clicking Buy is told a stranger's subscription payment is at least 7 days overdue and that they should 'recover billing'. The course is still listed with a working Buy button because searchPublishedCourses does not filter on billing state, so the student hits a dead end with no explanation and the teacher never learns they lost the sale. Return a neutral buyer-facing message and log the real reason server-side, exclude courses from past-due or lapsed organisations from discovery and the sales page, and notify the teacher that their courses have been delisted.
 - **Done when:** A buyer never sees another user's billing state; courses from past-due orgs do not appear in /courses and their sales pages are not purchasable; the affected teacher is notified.
 
 ### 🟡 `MON-35` Certificates are issued on self-reported progress and survive refunds
 
-- [ ] **Effort:** M · 1–2 days · **Area:** course-commerce
+- [x] **Effort:** M · 1–2 days · **Area:** course-commerce
 - **Files:** `src/server/courses/certificates.ts`, `src/actions/courses.ts`, `prisma/schema.prisma`, `src/app/certificates/[code]/page.tsx`, `src/lib/refunds/policy.ts`
 - **What:** Eligibility is simply that every lesson has a CourseLessonProgress row with completedAt, and those rows come from markLessonComplete — a plain 'Mark complete' button with no watched-duration, dwell-time or assessment check. A student can click through a 40-lesson course in under a minute and receive a verifiable credential. CourseCertificate has no revokedAt column, and applyRefundToAttempt revokes the enrollment but leaves the certificate valid, while the public verification page renders whatever it finds as valid with no status field. The refund-eligibility progress check reads the same self-marked rows, so the refund window is gameable from the same data. Require a real completion signal (player-reported watch percentage, minimum dwell, or a quiz pass), add revokedAt/revocationReason, revoke whenever the enrollment is revoked or the purchase refunded, and render revoked state prominently on the verification page.
 - **Done when:** Clicking through every lesson in under a minute does not issue a certificate; refunding a purchase marks the certificate revoked and the public verification page says so.
 
 ### 🟡 `MON-36` Reconcile course entitlements with the plan catalog and delete the duplicate usage helper
 
-- [ ] **Effort:** M · 1–2 days · **Area:** entitlements
+- [x] **Effort:** M · 1–2 days · **Area:** entitlements
 - **Files:** `src/actions/courses.ts`, `prisma/seed.ts`, `src/server/courses/access.ts`, `src/server/billing/entitlements.ts`, `src/server/billing/pricing.ts`, `PROJECT.md`
 - **What:** PROJECT.md, which declares itself the single source of truth, promises Free = 1 course and Starter and above = unlimited at $9/$19/$39. The seed sets courseLimit 0/0/5/10 at $12/$29/$49 with Business capped at 10, and COURSE_AUTHORING_PLANS hard-gates authoring to professional and business, so a Starter subscriber told they have unlimited courses hits a Professional-only wall and a Business subscriber hits a ceiling the spec calls unlimited. Marketing bullets are generated from the DB values, so the public pricing page disagrees with spec-derived copy elsewhere. Separately getCourseUsage is implemented twice with different shapes (access.ts, used by createCourse, and entitlements.ts, which additionally drives the upsell), so the upsell never fires on one path. Pick one source of truth, make the authoring gate data-driven off courseLimit rather than a hardcoded slug set, and delete the duplicate.
 - **Done when:** Plan limits and prices exist in exactly one place, the pricing page and PROJECT.md agree with it, and hitting a course limit produces the upgrade upsell rather than a bare error.
 
 ### ⚪ `MON-19` Monthly period-end drifts on month-end billing anniversaries
 
-- [ ] **Effort:** S · <½ day · **Area:** subscriptions
+- [x] **Effort:** S · <½ day · **Area:** subscriptions
 - **Files:** `src/app/api/v1/webhooks/payfast/route.ts`
 - **What:** nextPeriodEnd uses date.setUTCMonth(date.getUTCMonth() + 1) on the stored currentPeriodEnd, so a Jan 31 anchor overflows to Mar 3, and because each renewal extends the previously stored value the anniversary creeps forward a few days over successive month-end cycles. This affects displayed renewal dates, invoice periodEnd, and pendingChangeAt timing since scheduled downgrades take effect at currentPeriodEnd. Clamp to the last day of the target month using standard billing-anniversary logic, or anchor renewals to the original signup day-of-month.
 - **Done when:** Unit test: Jan 31, Feb 29 and Aug 31 anchors produce Feb 28/29, Mar 29 and Sep 30 respectively, with zero cumulative drift across 24 simulated cycles.
 
 ### ⚪ `MON-25` The 14-day paid trial is unreachable dead code that the docs advertise
 
-- [ ] **Effort:** S · <½ day · **Area:** subscriptions
+- [x] **Effort:** S · <½ day · **Area:** subscriptions
 - **Files:** `src/server/billing/lifecycle.ts`, `src/server/billing/run-lifecycle.ts`, `docs/PayFast.md`
 - **What:** startPaidTrial is exported and unit-tested but never called from any registration, checkout or admin flow — grep finds usages only in lifecycle.ts and its own test. Meanwhile docs/PayFast.md's state table promises 'trialing — full Pro features, 14 days', and both the ITN handler and the lifecycle cron carry trialing branches that are unreachable in practice. New teachers land directly on Free. Either wire the trial into teacher onboarding (grant trialing plus a trial plan at solo-org creation) or delete the function, the unreachable branches and the docs claim so the marketing surface matches reality.
 - **Done when:** Either a newly onboarded teacher org lands in trialing with a trialEndsAt and exits correctly at expiry, or startPaidTrial, the trialing branches and the docs row are all removed.
