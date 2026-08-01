@@ -82,10 +82,13 @@ describe("normalizeVideoEmbedUrl", () => {
 });
 
 describe("CSP alignment", () => {
+  // The policy moved from next.config.ts into src/lib/security/csp.ts when it gained a
+  // per-request nonce (SEC-12), so assert against the builder rather than a file's text.
   it("every allowlisted host appears in the frame-src directive", async () => {
-    const { readFileSync } = await import("node:fs");
-    const config = readFileSync("next.config.ts", "utf8");
-    const frameSrc = /"frame-src ([^"]+)"/.exec(config)?.[1] ?? "";
+    const { buildContentSecurityPolicy } = await import("./csp");
+    const policy = buildContentSecurityPolicy({ nonce: "test", isProduction: true });
+    const frameSrc = policy.split("; ").find((part) => part.startsWith("frame-src ")) ?? "";
+
     for (const host of VIDEO_EMBED_HOSTS) {
       expect(frameSrc, `frame-src is missing ${host}, so embeds will be blocked`).toContain(host);
     }

@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { updateSession } from "@/lib/supabase/middleware";
+import {
+  buildContentSecurityPolicy,
+  CSP_NONCE_HEADER,
+  generateCspNonce,
+} from "@/lib/security/csp";
 import { safeRedirectPath } from "@/lib/security/redirect";
 
 const publicExact = new Set([
@@ -34,6 +39,24 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
+  // SEC-12: the CSP is built per request so it can carry a fresh nonce, which is why it
+  // lives here rather than in next.config.ts. The nonce is set on the *request* headers so
+  // Next applies it to its own hydration scripts and server components can read it for
+  // next-themes; it is also echoed on the response for debugging.
+  const nonce = generateCspNonce();
+  request.headers.set(CSP_NONCE_HEADER, nonce);
+  const csp = buildContentSecurityPolicy({
+    nonce,
+    isProduction: process.env.NODE_ENV === "production",
+  });
+
+  const result = await handleRequest(request);
+  result.headers.set("Content-Security-Policy", csp);
+  result.headers.set(CSP_NONCE_HEADER, nonce);
+  return result;
+}
+
+async function handleRequest(request: NextRequest): Promise<NextResponse> {
   const { response, userId } = await updateSession(request);
   const { pathname } = request.nextUrl;
 

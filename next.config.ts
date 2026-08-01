@@ -2,26 +2,12 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const isProduction = process.env.NODE_ENV === "production";
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"} https://www.paypal.com https://www.paypalobjects.com https://accounts.google.com`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
-  "img-src 'self' data: blob: https://*.supabase.co https://*.paypal.com https://*.paypalobjects.com",
-  "media-src 'self' blob: https://*.supabase.co https://*.livekit.cloud",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://api-m.paypal.com https://api-m.sandbox.paypal.com https://*.ingest.sentry.io",
-  // Video embed hosts must match VIDEO_EMBED_HOSTS in src/lib/security/urls.ts — a test
-  // asserts the two stay in sync. Without these, every lesson video iframe is blocked.
-  "frame-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://accounts.google.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.loom.com",
-  "form-action 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "upgrade-insecure-requests",
-].join("; ");
 
+// SEC-12: Content-Security-Policy is NOT set here. It carries a per-request nonce so that
+// script-src can drop 'unsafe-inline', which a static header cannot express — it is built in
+// src/lib/security/csp.ts and applied by src/middleware.ts. Everything below is
+// request-independent and stays as a static header.
 const securityHeaders = [
-  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

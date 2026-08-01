@@ -6,6 +6,8 @@ import { useState, type ReactNode } from "react";
 
 interface ProvidersProps {
   children: ReactNode;
+  /** Per-request CSP nonce, applied to next-themes' inline anti-flicker script (SEC-12). */
+  nonce?: string;
 }
 
 // next-themes injects an inline <script> to prevent theme flicker before hydration.
@@ -24,7 +26,7 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   };
 }
 
-export function Providers({ children }: ProvidersProps): ReactNode {
+export function Providers({ children, nonce }: ProvidersProps): ReactNode {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -38,7 +40,13 @@ export function Providers({ children }: ProvidersProps): ReactNode {
   );
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      enableSystem
+      disableTransitionOnChange
+      nonce={nonce}
+    >
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </ThemeProvider>
   );
