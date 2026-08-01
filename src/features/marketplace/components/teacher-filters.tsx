@@ -6,9 +6,12 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { teachingLanguageOptions } from "@/lib/languages";
 
 const selectClassName =
   "h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none [&>option]:bg-background";
+
+const languageOptions = teachingLanguageOptions();
 
 const maxRateOptions = [
   { value: "", label: "Any rate" },
@@ -63,7 +66,7 @@ export function TeacherFilters({
     });
   }
 
-  const hasFilters = ["q", "subject", "maxRate", "minRating", "sort"].some((key) =>
+  const hasFilters = ["q", "subject", "language", "maxRate", "minRating", "sort"].some((key) =>
     searchParams.get(key),
   );
 
@@ -100,6 +103,22 @@ export function TeacherFilters({
           {subjects.map((subject) => (
             <option key={subject.slug} value={subject.slug}>
               {subject.name}
+            </option>
+          ))}
+        </select>
+
+        {/* INT-10: for an international marketplace this is the filter students reach for
+            first — it decides whether a lesson is possible at all. */}
+        <select
+          className={selectClassName}
+          value={searchParams.get("language") ?? ""}
+          onChange={(event) => applyParam("language", event.target.value)}
+          aria-label="Filter by teaching language"
+        >
+          <option value="">Any language</option>
+          {languageOptions.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.name}
             </option>
           ))}
         </select>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toEditableLanguages } from "@/lib/languages";
 import { redirect } from "next/navigation";
 
 import { ProfileEditor } from "@/features/teacher-onboarding/components/profile-editor";
@@ -33,6 +34,9 @@ export default async function TeacherProfileSettingsPage() {
           currency: isLessonCurrency(profile.currency) ? profile.currency : "USD",
           introVideoUrl: profile.introVideoUrl ?? "",
           introVideoPath: profile.introVideoPath ?? "",
+          // INT-10: existing profiles were backfilled to English by the migration, so this
+          // is only empty for a profile created before that ran.
+          languages: toEditableLanguages(profile.languages),
           subjectIds: profile.subjects.map((subject) => subject.subjectId),
           subjectSpecialties: Object.fromEntries(
             profile.subjects

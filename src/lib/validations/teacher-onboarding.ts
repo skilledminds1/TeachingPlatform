@@ -38,6 +38,25 @@ export const teacherOnboardingSchema = z.object({
   // Empty allowed for grandfathered approved profiles; save/submit enforce when required.
   introVideoUrl: z.union([z.literal(""), z.url("Upload an introduction video")]),
   introVideoPath: z.string().trim().max(500),
+  // INT-10: at least one teaching language is required. A profile without one cannot be
+  // matched to a student who filters by language, which is the first thing they filter on.
+  languages: z
+    .array(
+      z.object({
+        // Kept as a plain string on purpose. Any .refine() here produces a ZodEffects,
+        // which makes the schema's input and output types diverge; zodResolver then yields
+        // a Resolver type react-hook-form rejects for the ENTIRE form, not just this field.
+        // Membership is checked in saveTeacherProfile, which is the real trust boundary.
+        code: z.string().trim().min(2).max(10),
+        proficiency: z.enum(["native", "fluent", "advanced", "conversational"]),
+      }),
+    )
+    .min(1, "Add at least one teaching language")
+    .max(6),
+  // NOTE: the "no duplicate languages" check lives in saveTeacherProfile, not here. An
+  // array-level .refine() wraps the field in a ZodEffects, which makes the schema's input
+  // and output types diverge — and zodResolver then produces a Resolver type react-hook-form
+  // rejects across the whole form. Keeping this object plain keeps the form types clean.
   subjectIds: z.array(z.uuid()).min(1, "Select at least one subject").max(3),
   subjectSpecialties: z.record(z.uuid(), z.array(z.string().trim().min(1).max(80)).max(8)),
   qualifications: z

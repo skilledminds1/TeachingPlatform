@@ -738,6 +738,7 @@ model TeacherProfile {
   user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   subjects       TeacherSubject[]
+  languages      TeacherLanguage[]
   qualifications TeacherQualification[]
 
   @@index([organizationId])
@@ -763,6 +764,38 @@ model TeacherQualification {
   @@index([teacherProfileId])
   @@index([status])
   @@map("teacher_qualifications")
+}
+
+/// INT-10: languages a teacher can actually teach in.
+///
+/// There was no language field anywhere in the schema. For an international marketplace
+/// this is the primary axis students search on — italki is organised entirely around it,
+/// and for subject tutoring it decides whether a lesson is even possible. A student in
+/// Brazil could previously filter by subject and price and still land on a teacher with no
+/// shared language.
+///
+/// Stored as BCP-47 codes ("en", "pt-BR") so display names come from Intl.DisplayNames
+/// rather than a table of translations we would have to maintain.
+model TeacherLanguage {
+  teacherProfileId String              @map("teacher_profile_id") @db.Uuid
+  /// BCP-47 language code, lowercase.
+  code             String
+  proficiency      LanguageProficiency @default(conversational)
+
+  teacherProfile TeacherProfile @relation(fields: [teacherProfileId], references: [id], onDelete: Cascade)
+
+  @@id([teacherProfileId, code])
+  @@index([code])
+  @@map("teacher_languages")
+}
+
+enum LanguageProficiency {
+  native
+  fluent
+  advanced
+  conversational
+
+  @@map("language_proficiency")
 }
 
 model TeacherSubject {
@@ -1121,14 +1154,14 @@ model CourseLessonAsset {
 }
 
 model CourseCertificate {
-  id               String   @id @default(uuid()) @db.Uuid
-  courseId         String   @map("course_id") @db.Uuid
-  studentId        String   @map("student_id") @db.Uuid
-  teacherId        String   @map("teacher_id") @db.Uuid
-  verificationCode String   @unique @map("verification_code")
-  studentName      String   @map("student_name")
-  courseTitle      String   @map("course_title")
-  teacherName      String   @map("teacher_name")
+  id               String    @id @default(uuid()) @db.Uuid
+  courseId         String    @map("course_id") @db.Uuid
+  studentId        String    @map("student_id") @db.Uuid
+  teacherId        String    @map("teacher_id") @db.Uuid
+  verificationCode String    @unique @map("verification_code")
+  studentName      String    @map("student_name")
+  courseTitle      String    @map("course_title")
+  teacherName      String    @map("teacher_name")
   issuedAt         DateTime  @default(now()) @map("issued_at")
   // MON-35: a certificate must be revocable. Without this it outlived the enrollment it was
   // earned through, so the public verification page kept vouching for a student whose

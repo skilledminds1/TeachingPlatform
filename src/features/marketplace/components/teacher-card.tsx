@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatCurrency } from "@/lib/format";
+import { languageName } from "@/lib/languages";
 
 import { RatingStars } from "./rating-stars";
 
@@ -13,6 +14,7 @@ type TeacherCardData = {
   currency: string;
   user: { name: string; avatarUrl: string | null };
   subjects: Array<{ subject: { name: string; slug: string } }>;
+  languages: Array<{ code: string; proficiency: string }>;
   rating: { average: number; count: number };
 };
 
@@ -51,6 +53,23 @@ export function TeacherCard({ teacher }: { teacher: TeacherCardData }) {
         <p className="text-sm font-medium leading-snug">{teacher.headline}</p>
       ) : null}
       <p className="line-clamp-2 text-sm text-muted-foreground">{teacher.bio}</p>
+
+      {/* INT-10: surface languages on the card. A student filtering by language needs to
+          see the match without opening every profile. */}
+      {teacher.languages.length > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Teaches in{" "}
+          <span className="font-medium text-foreground">
+            {teacher.languages
+              .slice(0, 3)
+              .map((language) => languageName(language.code))
+              .join(", ")}
+          </span>
+          {teacher.languages.length > 3
+            ? ` +${teacher.languages.length - 3} more`
+            : ""}
+        </p>
+      ) : null}
 
       <div className="mt-auto flex flex-wrap gap-1.5">
         {teacher.subjects.slice(0, 4).map(({ subject }) => (

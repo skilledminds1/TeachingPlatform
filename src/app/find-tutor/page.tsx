@@ -43,6 +43,7 @@ export default async function FindTutorPage({
     searchTeachers({
       query: first("q"),
       subject: first("subject"),
+      language: first("language"),
       maxRateCents: Number.isFinite(maxRate) && maxRate > 0 ? maxRate : undefined,
       minRating: Number.isFinite(minRating) && minRating > 0 ? minRating : undefined,
       sort:

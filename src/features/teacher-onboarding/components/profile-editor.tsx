@@ -24,6 +24,7 @@ import { StatusBadge, statusTone } from "@/features/admin/components/status-badg
 import { LESSON_CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { formatStatus } from "@/lib/format";
 import { TIMEZONE_OPTIONS } from "@/lib/timezone";
+import { LanguageEditor } from "./language-editor";
 import { cn } from "@/lib/utils";
 import {
   countWords,
@@ -56,7 +57,7 @@ const sections = [
 type SectionId = (typeof sections)[number]["id"];
 
 const sectionFields: Record<SectionId, Array<keyof TeacherOnboardingInput>> = {
-  about: ["name", "timezone"],
+  about: ["name", "timezone", "languages"],
   photo: ["avatarUrl"],
   description: ["headline", "bio"],
   video: ["introVideoUrl", "introVideoPath"],
@@ -127,6 +128,7 @@ export function ProfileEditor({
   const bio = useWatch({ control: form.control, name: "bio" });
   const headline = useWatch({ control: form.control, name: "headline" });
   const currency = useWatch({ control: form.control, name: "currency" }) ?? "USD";
+  const watchedLanguages = useWatch({ control: form.control, name: "languages" }) ?? [];
   const selectedSubjects =
     useWatch({ control: form.control, name: "subjectIds" }) ?? [];
   const subjectSpecialties =
@@ -243,6 +245,24 @@ export function ProfileEditor({
                   Lesson times are shown to students in their own timezone.
                 </FieldDescription>
                 <FieldError errors={[form.formState.errors.timezone]} />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="languages">Languages you teach in</FieldLabel>
+                <LanguageEditor
+                  value={watchedLanguages}
+                  onChange={(next) =>
+                    form.setValue("languages", next, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  error={form.formState.errors.languages?.message}
+                />
+                <FieldDescription>
+                  Students filter by language first — list every language you can genuinely
+                  teach in.
+                </FieldDescription>
               </Field>
             </FieldGroup>
           </div>

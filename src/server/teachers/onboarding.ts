@@ -20,6 +20,7 @@ export async function getTeacherOnboardingData() {
       where: { userId: user.id },
       include: {
         subjects: { select: { subjectId: true, specialties: true } },
+        languages: { select: { code: true, proficiency: true } },
         qualifications: {
           orderBy: { createdAt: "asc" },
           select: {

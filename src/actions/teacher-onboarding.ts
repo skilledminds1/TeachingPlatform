@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isTeachingLanguage } from "@/lib/languages";
 
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -473,6 +474,21 @@ export async function saveTeacherOnboarding(
     specialties: parsed.data.subjectSpecialties[subjectId] ?? [],
   }));
 
+  // Checked here rather than in the schema: an array-level refine would wrap the field in
+  // a ZodEffects and break react-hook-form's resolver typing for the entire form.
+  const languageCodes = parsed.data.languages.map((language) => language.code);
+  if (new Set(languageCodes).size !== languageCodes.length) {
+    return fail("Each language can only be listed once.", "VALIDATION_ERROR");
+  }
+  if (!languageCodes.every((code) => isTeachingLanguage(code))) {
+    return fail("Select a supported teaching language.", "VALIDATION_ERROR");
+  }
+
+  const languageRows = parsed.data.languages.map((language) => ({
+    code: language.code,
+    proficiency: language.proficiency,
+  }));
+
   const profileData = {
     bio: parsed.data.bio,
     headline: parsed.data.headline,
@@ -505,6 +521,10 @@ export async function saveTeacherOnboarding(
             deleteMany: {},
             create: subjectRows,
           },
+          languages: {
+            deleteMany: {},
+            create: languageRows,
+          },
           qualifications: {
             deleteMany: {},
             create: parsed.data.qualifications.map((qualification) => ({
@@ -527,6 +547,9 @@ export async function saveTeacherOnboarding(
           slug: `${baseSlug}-${user.id.slice(0, 8)}`,
           subjects: {
             create: subjectRows,
+          },
+          languages: {
+            create: languageRows,
           },
           qualifications: {
             create: parsed.data.qualifications.map((qualification) => ({

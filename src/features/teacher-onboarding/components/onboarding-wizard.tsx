@@ -32,6 +32,7 @@ import {
   type TeacherOnboardingInput,
 } from "@/lib/validations/teacher-onboarding";
 import { TIMEZONE_OPTIONS } from "@/lib/timezone";
+import { LanguageEditor } from "./language-editor";
 import { LESSON_CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +57,7 @@ const steps = [
 ] as const;
 
 const stepFields: Array<Array<keyof TeacherOnboardingInput>> = [
-  ["name", "timezone", "avatarUrl"],
+  ["name", "timezone", "languages", "avatarUrl"],
   ["headline", "bio", "qualifications"],
   ["hourlyRate", "currency", "subjectIds"],
   ["introVideoUrl", "introVideoPath"],
@@ -90,6 +91,7 @@ export function OnboardingWizard({
   const headline = useWatch({ control: form.control, name: "headline" });
   const hourlyRate = useWatch({ control: form.control, name: "hourlyRate" });
   const currency = useWatch({ control: form.control, name: "currency" }) ?? "USD";
+  const watchedLanguages = useWatch({ control: form.control, name: "languages" }) ?? [];
   const selectedSubjects =
     useWatch({ control: form.control, name: "subjectIds" }) ?? [];
   const subjectSpecialties =
@@ -221,6 +223,24 @@ export function OnboardingWizard({
                     Lesson times are shown to students in their own timezone.
                   </FieldDescription>
                   <FieldError errors={[form.formState.errors.timezone]} />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="languages">Languages you teach in</FieldLabel>
+                  <LanguageEditor
+                    value={watchedLanguages}
+                    onChange={(next) =>
+                      form.setValue("languages", next, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }
+                    error={form.formState.errors.languages?.message}
+                  />
+                  <FieldDescription>
+                    Students filter by language first — list every language you can
+                    genuinely teach in.
+                  </FieldDescription>
                 </Field>
               </FieldGroup>
             </div>

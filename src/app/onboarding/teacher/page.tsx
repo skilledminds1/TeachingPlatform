@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toEditableLanguages } from "@/lib/languages";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -74,6 +75,7 @@ export default async function TeacherOnboardingPage() {
                 : "USD",
             introVideoUrl: profile?.introVideoUrl ?? "",
             introVideoPath: profile?.introVideoPath ?? "",
+            languages: toEditableLanguages(profile?.languages ?? []),
             subjectIds: profile?.subjects.map((subject) => subject.subjectId) ?? [],
             subjectSpecialties: Object.fromEntries(
               (profile?.subjects ?? [])

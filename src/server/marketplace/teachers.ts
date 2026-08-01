@@ -9,6 +9,8 @@ export type TeacherSearchFilters = {
   subject?: string;
   maxRateCents?: number;
   minRating?: number;
+  /** INT-10: BCP-47 code. The primary axis students search on in an international market. */
+  language?: string;
   sort?: TeacherSort;
 };
 
@@ -42,6 +44,11 @@ export async function searchTeachers(filters: TeacherSearchFilters) {
       },
     ];
   }
+  // INT-10: a student needs a teacher they can actually talk to. Without this filter they
+  // could narrow by subject and price and still land on someone with no shared language.
+  if (filters.language) {
+    where.languages = { some: { code: filters.language } };
+  }
   if (filters.subject) {
     where.subjects = { some: { subject: { slug: filters.subject } } };
   }
@@ -63,6 +70,7 @@ export async function searchTeachers(filters: TeacherSearchFilters) {
       userId: true,
       user: { select: { name: true, avatarUrl: true } },
       subjects: { select: { subject: { select: { name: true, slug: true } } } },
+      languages: { select: { code: true, proficiency: true } },
     },
   });
 
