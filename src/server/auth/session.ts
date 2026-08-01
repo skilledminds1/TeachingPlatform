@@ -1,4 +1,5 @@
 import type { User as AuthUser } from "@supabase/supabase-js";
+import { isValidIanaTimeZone } from "@/lib/timezone-validation";
 import type { OrgRole, Prisma, User } from "@prisma/client";
 import { redirect } from "next/navigation";
 
@@ -58,7 +59,7 @@ export function hasTeacherMembership(user: {
 
 export async function syncUserFromAuth(
   authUser: AuthUser,
-  options?: { role?: RegisterRole },
+  options?: { role?: RegisterRole; timeZone?: string | null },
 ): Promise<User> {
   const email = authUser.email;
   if (!email) {
@@ -95,6 +96,12 @@ export async function syncUserFromAuth(
     );
   }
 
+  // INT-01: store the zone the browser reported at signup. Without it every account on
+  // earth inherited the Africa/Johannesburg column default, and nothing ever prompted —
+  // students were never asked at all, so a New York student saw every lesson 6-7 hours off
+  // until they found a buried settings form.
+  const timezone = isValidIanaTimeZone(options?.timeZone) ? options?.timeZone : undefined;
+
   return db.$transaction(async (transaction) => {
     const user = await transaction.user.create({
       data: {
@@ -102,6 +109,7 @@ export async function syncUserFromAuth(
         email,
         name,
         avatarUrl,
+        ...(timezone ? { timezone } : {}),
       },
     });
 

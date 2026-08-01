@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/server/auth/session";
 
 export default async function AdminAppealsPage() {
-  await requirePlatformAdmin();
+  const admin = await requirePlatformAdmin();
   const appeals = await db.appeal.findMany({
     orderBy: { submittedAt: "desc" },
     include: {
@@ -27,7 +27,7 @@ export default async function AdminAppealsPage() {
             <p className="font-medium">{appeal.appellant.name} · {formatStatus(appeal.sanction.type)}</p>
             <span className="rounded-full bg-muted px-2 py-1 text-xs">{formatStatus(appeal.status)}</span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">{appeal.appellant.email} · {formatDateTime(appeal.submittedAt)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{appeal.appellant.email} · {formatDateTime(appeal.submittedAt, admin.timezone)}</p>
           <p className="mt-3 text-sm"><strong>Sanction:</strong> {appeal.sanction.reason}</p>
           <p className="mt-2 text-sm"><strong>Appeal:</strong> {appeal.reason}</p>
           {appeal.case ? (

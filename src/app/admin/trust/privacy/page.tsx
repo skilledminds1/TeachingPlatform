@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/server/auth/session";
 
 export default async function AdminPrivacyRequestsPage() {
-  await requirePlatformAdmin();
+  const admin = await requirePlatformAdmin();
   const requests = await db.privacyRequest.findMany({
     orderBy: { submittedAt: "desc" },
     include: {
@@ -30,7 +30,7 @@ export default async function AdminPrivacyRequestsPage() {
             <span className="rounded-full bg-muted px-2 py-1 text-xs">{formatStatus(request.status)}</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {request.requester.email} · {formatDateTime(request.submittedAt)}
+            {request.requester.email} · {formatDateTime(request.submittedAt, admin.timezone)}
             {request.assignedAdmin ? ` · ${request.assignedAdmin.name}` : ""}
           </p>
           {request.details ? <p className="mt-3 text-sm">{request.details}</p> : null}

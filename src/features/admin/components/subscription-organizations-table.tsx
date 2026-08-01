@@ -42,9 +42,12 @@ type OrganizationRow = {
 export function SubscriptionOrganizationsTable({
   organizations,
   plans,
+  viewerTimeZone,
 }: {
   organizations: OrganizationRow[];
   plans: PlanOption[];
+  /** INT-03: the viewer's IANA zone — client components cannot read the session. */
+  viewerTimeZone: string;
 }) {
   const [query, setQuery] = useState("");
   const filtered = useMemo(() => {
@@ -129,7 +132,7 @@ export function SubscriptionOrganizationsTable({
                           <StatusBadge tone="info">Complimentary</StatusBadge>
                           <p className="text-xs text-muted-foreground">
                             {organization.complimentaryExpiresAt
-                              ? `Expires ${formatDateTime(organization.complimentaryExpiresAt)}`
+                              ? `Expires ${formatDateTime(organization.complimentaryExpiresAt, viewerTimeZone)}`
                               : "Permanent"}
                           </p>
                           {organization.complimentaryNote ? (

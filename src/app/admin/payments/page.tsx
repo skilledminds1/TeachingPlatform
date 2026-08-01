@@ -3,9 +3,11 @@ import { CircleDollarSign, FileText, Handshake, ShieldAlert } from "lucide-react
 import { AdminPageHeader } from "@/features/admin/components/admin-page-header";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { formatCurrency, formatDateTime, formatStatus } from "@/lib/format";
+import { requirePlatformAdmin } from "@/server/auth/session";
 import { getAdminPaymentOperations } from "@/server/admin/payments";
 
 export default async function AdminPaymentsPage() {
+  const admin = await requirePlatformAdmin();
   const data = await getAdminPaymentOperations();
 
   return (
@@ -69,7 +71,7 @@ export default async function AdminPaymentsPage() {
                     </StatusBadge>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {formatDateTime(request.requestedAt)}
+                    {formatDateTime(request.requestedAt, admin.timezone)}
                   </td>
                 </tr>
               ))}
@@ -154,7 +156,7 @@ export default async function AdminPaymentsPage() {
                       </StatusBadge>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {formatDateTime(payment.createdAt)}
+                      {formatDateTime(payment.createdAt, admin.timezone)}
                     </td>
                   </tr>
                 );
@@ -186,7 +188,7 @@ export default async function AdminPaymentsPage() {
                 {formatCurrency(invoice.amountCents, invoice.currency)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Issued {formatDateTime(invoice.issuedAt)}
+                Issued {formatDateTime(invoice.issuedAt, admin.timezone)}
               </p>
             </article>
           ))}

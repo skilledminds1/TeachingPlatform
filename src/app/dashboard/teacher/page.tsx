@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { StatCard } from "@/features/admin/components/stat-card";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { SubmitProfileButton } from "@/features/teacher-onboarding/components/submit-profile-button";
-import { formatCurrency, formatDateTime, formatStatus } from "@/lib/format";
+import { formatCurrency, formatDateTime, formatStatus, formatNumber } from "@/lib/format";
 import {
   getLiveLessonUsage,
   getStudentUsage,
@@ -142,13 +142,13 @@ export default async function TeacherDashboardPage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Students"
-              value={analytics.kpis.uniqueStudents.toLocaleString("en-ZA")}
+              value={formatNumber(analytics.kpis.uniqueStudents)}
               detail={`${analytics.kpis.newStudents} new this period`}
               icon={Users}
             />
             <StatCard
               label="Course enrollments"
-              value={analytics.kpis.enrollments.toLocaleString("en-ZA")}
+              value={formatNumber(analytics.kpis.enrollments)}
               detail={`${analytics.kpis.activeCourses} published course${
                 analytics.kpis.activeCourses === 1 ? "" : "s"
               }`}
@@ -156,7 +156,7 @@ export default async function TeacherDashboardPage() {
             />
             <StatCard
               label="Completed live lessons"
-              value={analytics.kpis.completedLessons.toLocaleString("en-ZA")}
+              value={formatNumber(analytics.kpis.completedLessons)}
               detail={`${liveLessonUsage.usedMinutes / 60} / ${
                 liveLessonUsage.limit === null ? "Unlimited" : liveLessonUsage.limit / 60
               } live hours used`}

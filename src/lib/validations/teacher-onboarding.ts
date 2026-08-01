@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidIanaTimeZone } from "@/lib/timezone-validation";
 
 import { LESSON_CURRENCIES } from "@/lib/currencies";
 import { isHttpsUrl } from "@/lib/security/urls";
@@ -15,7 +16,12 @@ const lessonCurrencyCodes = LESSON_CURRENCIES.map((item) => item.code) as [
 
 export const teacherOnboardingSchema = z.object({
   name: z.string().trim().min(2, "Enter your full name").max(100),
-  timezone: z.string().trim().min(1, "Select a timezone").max(100),
+  // INT-02: this accepted free text while student settings enforced an allowlist — two
+  // opposite contracts on the same column. Both now use the runtime IANA list.
+  timezone: z
+    .string()
+    .trim()
+    .refine(isValidIanaTimeZone, "Select a valid timezone"),
   avatarUrl: z.url("Upload a profile photo"),
   headline: z.string().trim().min(10, "Headline must be at least 10 characters").max(120),
   bio: z

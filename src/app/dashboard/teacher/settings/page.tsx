@@ -26,7 +26,7 @@ export default async function TeacherSettingsPage() {
         notificationPreferences={notificationPreferences}
       />
 
-      <LegalAcceptanceHistory acceptances={acceptances} />
+      <LegalAcceptanceHistory viewerTimeZone={user.timezone} acceptances={acceptances} />
     </div>
   );
 }

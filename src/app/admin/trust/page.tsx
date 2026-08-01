@@ -13,7 +13,7 @@ export default async function AdminTrustPage() {
   // SEC-05: the page queries moderation cases and safety reports (including reporter
   // identities) directly, so it must assert authorization itself. The admin layout's check
   // is for UX; the data loader is the security boundary.
-  await requirePlatformAdmin();
+  const admin = await requirePlatformAdmin();
 
   const [cases, reports, appealCount, privacyCount] = await Promise.all([
     db.moderationCase.findMany({
@@ -85,7 +85,7 @@ export default async function AdminTrustPage() {
             <p className="mt-2 text-sm">{report.description}</p>
             <p className="mt-2 text-xs text-muted-foreground">
               {report.reporter.name} ({report.reporter.email})
-              {report.subject ? ` reported ${report.subject.name}` : ""} · {formatDateTime(report.createdAt)}
+              {report.subject ? ` reported ${report.subject.name}` : ""} · {formatDateTime(report.createdAt, admin.timezone)}
             </p>
             <SafetyReportReviewForm reportId={report.id} />
           </article>

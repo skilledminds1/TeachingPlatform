@@ -42,9 +42,12 @@ function toLocalInputValue(value: string | Date): string {
 export function PlanSaleManager({
   plans,
   sales,
+  viewerTimeZone,
 }: {
   plans: PlanOption[];
   sales: SaleItem[];
+  /** INT-03: the viewer's IANA zone — client components cannot read the session. */
+  viewerTimeZone: string;
 }) {
   const paidPlans = useMemo(
     () => plans.filter((plan) => plan.slug !== "free"),
@@ -61,7 +64,7 @@ export function PlanSaleManager({
           </p>
         ) : (
           sales.map((sale) => (
-            <SaleCard key={sale.id} sale={sale} plans={paidPlans} />
+            <SaleCard key={sale.id} sale={sale} plans={paidPlans} viewerTimeZone={viewerTimeZone} />
           ))
         )}
       </div>
@@ -225,7 +228,15 @@ function SaleForm({
   );
 }
 
-function SaleCard({ sale, plans }: { sale: SaleItem; plans: PlanOption[] }) {
+function SaleCard({
+  sale,
+  plans,
+  viewerTimeZone,
+}: {
+  sale: SaleItem;
+  plans: PlanOption[];
+  viewerTimeZone: string;
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -264,7 +275,7 @@ function SaleCard({ sale, plans }: { sale: SaleItem; plans: PlanOption[] }) {
           <span className="text-xs font-medium text-emerald-600">{sale.percentOff}% off</span>
         </div>
         <p className="text-sm text-muted-foreground">
-          {formatDateTime(sale.startsAt)} → {formatDateTime(sale.endsAt)} ·{" "}
+          {formatDateTime(sale.startsAt, viewerTimeZone)} → {formatDateTime(sale.endsAt, viewerTimeZone)} ·{" "}
           {sale.intervalScope === "both" ? "all intervals" : sale.intervalScope}
         </p>
         <p className="text-xs text-muted-foreground">

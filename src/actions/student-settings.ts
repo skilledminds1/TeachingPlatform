@@ -6,19 +6,15 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { TIMEZONE_OPTIONS } from "@/lib/timezone";
+import { isValidIanaTimeZone } from "@/lib/timezone-validation";
 import { avatarFileSchema } from "@/lib/validations/teacher-onboarding";
 import { requireAuth } from "@/server/auth/session";
 import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
 import { fail, ok, type ActionResult } from "@/types/action";
 
-const timezoneValues = new Set<string>(
-  TIMEZONE_OPTIONS.map((option) => option.value),
-);
-
 const studentSettingsSchema = z.object({
   name: z.string().trim().min(2, "Enter your full name.").max(100),
-  timezone: z.string().refine((value) => timezoneValues.has(value), {
+  timezone: z.string().refine(isValidIanaTimeZone, {
     message: "Choose a valid timezone.",
   }),
 });

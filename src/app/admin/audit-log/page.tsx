@@ -4,9 +4,11 @@ import { AdminPageHeader } from "@/features/admin/components/admin-page-header";
 import { EmptyState } from "@/features/admin/components/empty-state";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { formatDateTime, formatStatus } from "@/lib/format";
+import { requirePlatformAdmin } from "@/server/auth/session";
 import { getAdminAuditLogs } from "@/server/admin/dashboard";
 
 export default async function AdminAuditLogPage() {
+  const admin = await requirePlatformAdmin();
   const logs = await getAdminAuditLogs();
 
   return (
@@ -54,7 +56,7 @@ export default async function AdminAuditLogPage() {
                         <p className="font-mono text-xs text-muted-foreground">{log.targetId}</p>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">
-                        {formatDateTime(log.createdAt)}
+                        {formatDateTime(log.createdAt, admin.timezone)}
                       </td>
                     </tr>
                   );

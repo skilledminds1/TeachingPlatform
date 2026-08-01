@@ -12,7 +12,7 @@ import { requirePlatformAdmin } from "@/server/auth/session";
 import { getAdminCase } from "@/server/trust/cases";
 
 export default async function AdminCasePage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePlatformAdmin();
+  const admin = await requirePlatformAdmin();
   const route = await params;
   const [item, admins] = await Promise.all([
     getAdminCase(route.id),
@@ -55,7 +55,7 @@ export default async function AdminCasePage({ params }: { params: Promise<{ id: 
                   <span className="font-semibold">
                     {message.sender.isPlatformAdmin ? `Platform Owner / Admin · ${message.sender.name}` : message.sender.name}
                   </span>
-                  <span className="text-muted-foreground">{formatDateTime(message.createdAt)}</span>
+                  <span className="text-muted-foreground">{formatDateTime(message.createdAt, admin.timezone)}</span>
                 </div>
                 <p className="mt-2 whitespace-pre-wrap text-sm">{message.body}</p>
               </article>
@@ -70,7 +70,7 @@ export default async function AdminCasePage({ params }: { params: Promise<{ id: 
             {item.notes.map((note) => (
               <article key={note.id} className="rounded-lg bg-muted p-3 text-sm">
                 <p className="whitespace-pre-wrap">{note.body}</p>
-                <p className="mt-2 text-xs text-muted-foreground">{note.author.name} · {formatDateTime(note.createdAt)}</p>
+                <p className="mt-2 text-xs text-muted-foreground">{note.author.name} · {formatDateTime(note.createdAt, admin.timezone)}</p>
               </article>
             ))}
           </div>

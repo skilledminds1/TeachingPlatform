@@ -5,7 +5,10 @@ import { formatDateTime, formatStatus } from "@/lib/format";
 
 export function LegalAcceptanceHistory({
   acceptances,
+  viewerTimeZone,
 }: {
+  /** INT-03: the viewer's IANA zone. */
+  viewerTimeZone: string;
   acceptances: Array<{
     id: string;
     acceptedAt: Date;
@@ -41,7 +44,7 @@ export function LegalAcceptanceHistory({
               </Link>
               <p className="mt-1 text-xs text-muted-foreground">
                 Version {acceptance.document.version} · Accepted{" "}
-                {formatDateTime(acceptance.acceptedAt)}
+                {formatDateTime(acceptance.acceptedAt, viewerTimeZone)}
               </p>
             </div>
             <div className="flex gap-2">

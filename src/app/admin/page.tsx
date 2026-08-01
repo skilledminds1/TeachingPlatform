@@ -15,10 +15,12 @@ import { AdminPageHeader } from "@/features/admin/components/admin-page-header";
 import { EmptyState } from "@/features/admin/components/empty-state";
 import { StatCard } from "@/features/admin/components/stat-card";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
-import { formatCurrency, formatDate, formatDateTime, formatStatus } from "@/lib/format";
+import { formatCurrency, formatDate, formatDateTime, formatStatus, formatNumber } from "@/lib/format";
+import { requirePlatformAdmin } from "@/server/auth/session";
 import { getAdminDashboardData } from "@/server/admin/dashboard";
 
 export default async function AdminDashboardPage() {
+  const admin = await requirePlatformAdmin();
   const { metrics, recentUsers, recentAuditLogs } = await getAdminDashboardData();
 
   return (
@@ -31,19 +33,19 @@ export default async function AdminDashboardPage() {
       <section aria-label="Platform metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total users"
-          value={metrics.userCount.toLocaleString("en-ZA")}
+          value={formatNumber(metrics.userCount)}
           detail="Active platform accounts"
           icon={Users}
         />
         <StatCard
           label="Teacher profiles"
-          value={metrics.teacherCount.toLocaleString("en-ZA")}
+          value={formatNumber(metrics.teacherCount)}
           detail={`${metrics.approvedTeacherCount} approved`}
           icon={BookOpenCheck}
         />
         <StatCard
           label="Organizations"
-          value={metrics.organizationCount.toLocaleString("en-ZA")}
+          value={formatNumber(metrics.organizationCount)}
           detail="Solo practices and academies"
           icon={Building2}
         />
@@ -192,7 +194,7 @@ export default async function AdminDashboardPage() {
                     <div className="shrink-0 text-right">
                       <StatusBadge tone={statusTone(status)}>{status}</StatusBadge>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {formatDateTime(log.createdAt)}
+                        {formatDateTime(log.createdAt, admin.timezone)}
                       </p>
                     </div>
                   </li>

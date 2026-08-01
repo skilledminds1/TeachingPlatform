@@ -91,7 +91,7 @@ export default async function StudentSettingsPage() {
           <EmailPreferencesForm initialPreferences={notificationPreferences} />
         </section>
 
-        <LegalAcceptanceHistory acceptances={acceptances} />
+        <LegalAcceptanceHistory viewerTimeZone={user.timezone} acceptances={acceptances} />
       </main>
     </div>
   );

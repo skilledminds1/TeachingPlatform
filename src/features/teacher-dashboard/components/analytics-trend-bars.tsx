@@ -1,4 +1,4 @@
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatNumber } from "@/lib/format";
 
 export function AnalyticsTrendBars({
   points,
@@ -39,7 +39,7 @@ export function AnalyticsTrendBars({
           const valueLabel =
             metric === "netCents"
               ? formatCurrency(value, currency)
-              : value.toLocaleString("en-ZA");
+              : formatNumber(value);
 
           return (
             <div key={point.key} className="group relative flex min-w-0 flex-1 flex-col justify-end">

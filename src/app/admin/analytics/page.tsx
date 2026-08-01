@@ -15,14 +15,14 @@ import { AdminPageHeader } from "@/features/admin/components/admin-page-header";
 import { StatCard } from "@/features/admin/components/stat-card";
 import { AnalyticsRangeFilter } from "@/features/teacher-dashboard/components/analytics-range-filter";
 import { AnalyticsTrendBars } from "@/features/teacher-dashboard/components/analytics-trend-bars";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatNumber } from "@/lib/format";
 import {
   getPlatformAnalytics,
   parseAnalyticsRange,
 } from "@/server/admin/platform-analytics";
 
 function rate(value: number, numerator: number, denominator: number) {
-  return `${value}% · ${numerator.toLocaleString("en-ZA")} of ${denominator.toLocaleString("en-ZA")}`;
+  return `${value}% · ${formatNumber(numerator)} of ${formatNumber(denominator)}`;
 }
 
 export default async function AdminAnalyticsPage({
@@ -166,7 +166,7 @@ export default async function AdminAnalyticsPage({
                 <tr key={`${row.product}-${row.currency}`}>
                   <td className="px-6 py-4 font-medium">{row.currency}</td>
                   <td className="px-4 py-4">{row.product}</td>
-                  <td className="px-4 py-4">{row.count.toLocaleString("en-ZA")}</td>
+                  <td className="px-4 py-4">{formatNumber(row.count)}</td>
                   <td className="px-4 py-4">{row.grossLabel}</td>
                   <td className="px-4 py-4">{row.refundedLabel}</td>
                   <td className="px-6 py-4 font-semibold">{row.netLabel}</td>
@@ -192,13 +192,13 @@ export default async function AdminAnalyticsPage({
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Refund requests"
-            value={data.refunds.requestCount.toLocaleString("en-ZA")}
+            value={formatNumber(data.refunds.requestCount)}
             detail={`${data.refunds.unresolvedCount} unresolved`}
             icon={RefreshCcw}
           />
           <StatCard
             label="Provider disputes"
-            value={data.refunds.disputeCount.toLocaleString("en-ZA")}
+            value={formatNumber(data.refunds.disputeCount)}
             detail={`${data.refunds.openDisputeCount} open or under review`}
             icon={ShieldAlert}
           />
@@ -261,7 +261,7 @@ export default async function AdminAnalyticsPage({
         />
         <StatCard
           label="Scheduled cancellations"
-          value={data.subscriptions.scheduledToCancel.toLocaleString("en-ZA")}
+          value={formatNumber(data.subscriptions.scheduledToCancel)}
           detail="Active paid organizations cancelling at period end"
           icon={ShieldAlert}
         />

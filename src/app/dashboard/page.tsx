@@ -124,7 +124,7 @@ export default async function StudentDashboardPage() {
                         <div>
                           <p className="text-sm font-medium">{booking.teacher.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {formatDateTime(booking.startsAt)}
+                            {formatDateTime(booking.startsAt, user.timezone)}
                           </p>
                         </div>
                       </div>
@@ -168,7 +168,7 @@ export default async function StudentDashboardPage() {
                       <div>
                         <p className="text-sm font-medium">{booking.teacher.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatDateTime(booking.startsAt)}
+                          {formatDateTime(booking.startsAt, user.timezone)}
                         </p>
                       </div>
                       {booking.review ? (

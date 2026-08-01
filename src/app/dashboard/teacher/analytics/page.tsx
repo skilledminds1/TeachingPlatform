@@ -13,7 +13,7 @@ import { StatCard } from "@/features/admin/components/stat-card";
 import { AnalyticsRangeFilter } from "@/features/teacher-dashboard/components/analytics-range-filter";
 import { AnalyticsTrendBars } from "@/features/teacher-dashboard/components/analytics-trend-bars";
 import { courseStatusTone } from "@/features/courses/lib/labels";
-import { formatCurrency, formatStatus } from "@/lib/format";
+import { formatCurrency, formatStatus, formatNumber } from "@/lib/format";
 import {
   getTeacherAnalytics,
   parseAnalyticsRange,
@@ -86,19 +86,19 @@ export default async function TeacherAnalyticsPage({
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Students"
-              value={data.kpis.uniqueStudents.toLocaleString("en-ZA")}
-              detail={`${data.kpis.newStudents.toLocaleString("en-ZA")} new · ${formatDelta(data.kpis.newStudentsDelta)}`}
+              value={formatNumber(data.kpis.uniqueStudents)}
+              detail={`${formatNumber(data.kpis.newStudents)} new · ${formatDelta(data.kpis.newStudentsDelta)}`}
               icon={Users}
             />
             <StatCard
               label="Course enrollments"
-              value={data.kpis.enrollments.toLocaleString("en-ZA")}
+              value={formatNumber(data.kpis.enrollments)}
               detail={formatDelta(data.kpis.enrollmentsDelta)}
               icon={BookOpen}
             />
             <StatCard
               label="Completed live lessons"
-              value={data.kpis.completedLessons.toLocaleString("en-ZA")}
+              value={formatNumber(data.kpis.completedLessons)}
               detail={formatDelta(data.kpis.completedLessonsDelta)}
               icon={CalendarCheck}
             />

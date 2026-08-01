@@ -4,6 +4,7 @@ import { AdminPageHeader } from "@/features/admin/components/admin-page-header";
 import { PlanCatalogEditor } from "@/features/admin/components/plan-catalog-editor";
 import { PlanSaleManager } from "@/features/admin/components/plan-sale-manager";
 import { SubscriptionOrganizationsTable } from "@/features/admin/components/subscription-organizations-table";
+import { requirePlatformAdmin } from "@/server/auth/session";
 import {
   getAdminPlanCatalog,
   getAdminPlanSales,
@@ -11,6 +12,7 @@ import {
 } from "@/server/admin/subscriptions";
 
 export default async function AdminSubscriptionsPage() {
+  const admin = await requirePlatformAdmin();
   const [organizations, plans, sales] = await Promise.all([
     getAdminSubscriptionOrganizations(),
     getAdminPlanCatalog(),
@@ -30,7 +32,7 @@ export default async function AdminSubscriptionsPage() {
         description="Grant complimentary upgrades, edit plan pricing and features, and run scheduled public sales."
       />
 
-      <SubscriptionOrganizationsTable
+      <SubscriptionOrganizationsTable viewerTimeZone={admin.timezone}
         organizations={organizations.map((organization) => ({
           id: organization.id,
           name: organization.name,
@@ -101,7 +103,7 @@ export default async function AdminSubscriptionsPage() {
             Public percent-off discounts applied automatically while active.
           </p>
         </div>
-        <PlanSaleManager
+        <PlanSaleManager viewerTimeZone={admin.timezone}
           plans={planOptions}
           sales={sales.map((sale) => ({
             id: sale.id,
