@@ -24,10 +24,10 @@ import {
 } from "@/lib/validations/courses";
 import { getCurrentUser, requireAuth } from "@/server/auth/session";
 import { getOrganizationGrowthWriteBlock } from "@/server/billing/write-gate";
+import { getCourseUsage } from "@/server/billing/entitlements";
 import {
   assertCourseOwnership,
   canSubmitCourse,
-  getCourseUsage,
   getTeacherCourseContext,
 } from "@/server/courses/access";
 import { issueCertificateIfEligible } from "@/server/courses/certificates";
@@ -163,10 +163,13 @@ export async function createCourse(
   }
   const usage = await getCourseUsage(context.organization.id);
   if (usage.atLimit) {
+    const upgradeHint = usage.recommendedPlan
+      ? ` Upgrade to ${usage.recommendedPlan.name} to create another course.`
+      : " Upgrade your plan to create another course.";
     return fail(
       `Your ${usage.plan.name} plan allows ${usage.limit} course${
         usage.limit === 1 ? "" : "s"
-      }. Upgrade your plan to create another course.`,
+      }.${upgradeHint}`,
       "PLAN_LIMIT_EXCEEDED",
     );
   }
@@ -229,15 +232,24 @@ export async function updateCourse(
     ...parsedData,
     subjectId: hasSubjectId ? parsedData.subjectId : undefined,
   };
-  const substantiveChange = (Object.keys(data) as (keyof typeof data)[]).some((key) => {
-    return data[key] !== undefined && data[key] !== current[key];
-  });
+  // MON-33: only changes to what was actually moderated should trigger re-review. Price,
+  // currency, level and certificateEnabled were previously treated as substantive, so a
+  // teacher correcting a typo in their price silently delisted a live, selling course. It
+  // also dropped to `draft` rather than `pending_approval`, so the course never re-entered
+  // the queue — the teacher had to notice and resubmit, then wait out the 48-hour SLA.
+  const REVIEWABLE_FIELDS = ["title", "description", "subjectId"] as const;
+  const contentChanged = REVIEWABLE_FIELDS.some(
+    (key) => data[key] !== undefined && data[key] !== current[key],
+  );
+
   await db.course.update({
     where: { id: courseId },
     data: {
       ...data,
-      ...(course.status === "published" && substantiveChange
-        ? { status: "draft", publishedAt: null }
+      // Keep the course live and purchasable while it is re-reviewed, and requeue it
+      // automatically instead of silently parking it in draft.
+      ...(course.status === "published" && contentChanged
+        ? { status: "pending_approval" }
         : {}),
     },
   });

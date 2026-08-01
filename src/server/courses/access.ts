@@ -60,33 +60,10 @@ export async function assertCourseOwnership(courseId: string, userId: string) {
   return course;
 }
 
-export async function getCourseUsage(organizationId: string) {
-  const [organization, courseCount] = await Promise.all([
-    db.organization.findUniqueOrThrow({
-      where: { id: organizationId },
-      select: {
-        plan: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            courseLimit: true,
-          },
-        },
-      },
-    }),
-    db.course.count({ where: { organizationId, deletedAt: null } }),
-  ]);
-
-  const limit = organization.plan.courseLimit;
-  return {
-    courseCount,
-    limit,
-    remaining: limit === null ? null : Math.max(0, limit - courseCount),
-    atLimit: limit !== null && courseCount >= limit,
-    plan: organization.plan,
-  };
-}
+// MON-36: getCourseUsage lived here AND in @/server/billing/entitlements with different
+// shapes. createCourse imported this one, which has no recommendedPlan, so the upgrade
+// suggestion computed by the entitlements version never reached a teacher who hit the
+// limit. Deleted in favour of the single entitlements implementation.
 
 export async function canSubmitCourse(courseId: string, userId: string) {
   const course = await db.course.findFirst({

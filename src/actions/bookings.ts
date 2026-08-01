@@ -637,23 +637,48 @@ export async function proposeBookingReschedule(
     }
   }
 
-  const proposal = await db.$transaction(async (tx) => {
-    await tx.bookingRescheduleProposal.updateMany({
-      where: { bookingId: booking.id, status: "pending" },
-      data: { status: "cancelled", respondedAt: new Date() },
-    });
-    return tx.bookingRescheduleProposal.create({
-      data: {
-        bookingId: booking.id,
-        proposedById: teacher.id,
-        proposedStartsAt: startsAt,
-        proposedEndsAt: endsAt,
-        reason: parsed.data.reason?.trim() || null,
-        status: "pending",
-        expiresAt: new Date(Date.now() + RESCHEDULE_HOLD_HOURS * 3_600_000),
-      },
-    });
-  });
+  // MON-29: the slot-hold check above ran outside any transaction and the proposal was then
+  // written in a separate, non-serializable one — the only booking write path without that
+  // protection. A student booking the slot concurrently with this proposal could both
+  // succeed, and the teacher only discovered it when the student's accept failed with
+  // "slot taken". Re-check inside a Serializable transaction so the read and the write see
+  // the same snapshot.
+  const proposal = await db.$transaction(
+    async (tx) => {
+      const conflict = await tx.booking.findFirst({
+        where: {
+          teacherId: booking.teacherId,
+          id: { not: booking.id },
+          status: { in: ["pending_payment", "confirmed"] },
+          startsAt: { lt: endsAt },
+          endsAt: { gt: startsAt },
+        },
+        select: { id: true },
+      });
+      if (conflict) return null;
+
+      await tx.bookingRescheduleProposal.updateMany({
+        where: { bookingId: booking.id, status: "pending" },
+        data: { status: "cancelled", respondedAt: new Date() },
+      });
+      return tx.bookingRescheduleProposal.create({
+        data: {
+          bookingId: booking.id,
+          proposedById: teacher.id,
+          proposedStartsAt: startsAt,
+          proposedEndsAt: endsAt,
+          reason: parsed.data.reason?.trim() || null,
+          status: "pending",
+          expiresAt: new Date(Date.now() + RESCHEDULE_HOLD_HOURS * 3_600_000),
+        },
+      });
+    },
+    { isolationLevel: "Serializable" },
+  );
+
+  if (!proposal) {
+    return fail("That time was just taken. Choose another slot.", "CONFLICT");
+  }
 
   await notifyRescheduleProposed(proposal.id).catch(() => undefined);
   revalidatePath("/dashboard");

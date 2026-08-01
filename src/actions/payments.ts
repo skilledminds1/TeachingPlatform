@@ -208,8 +208,18 @@ export async function startCourseCheckout(
   if (course.teacherId === user.id) {
     return fail("You cannot purchase your own course.", "FORBIDDEN");
   }
+  // MON-34: the write-gate message is written for the TEACHER ("payment is at least 7 days
+  // overdue…") and was returned verbatim to the buyer, leaking the seller's private billing
+  // status into a shopper-facing toast. Log the real reason, show a neutral one.
   const billingBlock = await getOrganizationGrowthWriteBlock(course.organizationId);
-  if (billingBlock) return fail(billingBlock, "FORBIDDEN");
+  if (billingBlock) {
+    logger.warn("course_checkout_blocked_by_billing", {
+      courseId: course.id,
+      organizationId: course.organizationId,
+      reason: billingBlock,
+    });
+    return fail("This course is temporarily unavailable. Please try again later.", "FORBIDDEN");
+  }
   if (await usersHaveBlock(user.id, course.teacherId)) {
     return fail("You cannot start a new purchase with this user.", "FORBIDDEN");
   }

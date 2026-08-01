@@ -57,7 +57,10 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
   const where: Prisma.CourseWhereInput = {
     status: "published",
     deletedAt: null,
-    teacher: { deletedAt: null },
+    // MON-32: the catalog filtered only on soft-deletion, so a suspended or removed
+    // teacher's courses stayed listed and purchasable. Enforcement has to reach discovery,
+    // not just the account.
+    teacher: { deletedAt: null, accountStatus: "active" },
     ...(filters.level ? { level: filters.level } : {}),
     ...(filters.subjectId ? { subjectId: filters.subjectId } : {}),
     ...(filters.subjectSlug ? { subject: { slug: filters.subjectSlug } } : {}),
@@ -177,7 +180,14 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
 
 export async function getPublishedCourseBySlug(slug: string) {
   const course = await db.course.findFirst({
-    where: { slug, status: "published", deletedAt: null },
+    // MON-32: mirrors the catalog filter. Without it a suspended teacher's course was
+    // delisted from search but still reachable — and purchasable — by direct URL.
+    where: {
+      slug,
+      status: "published",
+      deletedAt: null,
+      teacher: { deletedAt: null, accountStatus: "active" },
+    },
     select: {
       id: true,
       slug: true,

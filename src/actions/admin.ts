@@ -157,6 +157,64 @@ export async function approveCourse(
   return ok({ approved: true });
 }
 
+/**
+ * MON-32: take a LIVE course off the marketplace.
+ *
+ * approveCourse and rejectCourse both refuse anything that is not `pending_approval`, so
+ * once a course was published the only person who could remove it was the teacher who owns
+ * it. An admin faced with infringing or unsafe content that had already passed review had
+ * no lever at all.
+ *
+ * Existing enrollments are deliberately left intact: students paid the teacher directly and
+ * the platform cannot refund them, so revoking access would take away something already
+ * bought. Removing it from discovery stops the harm spreading.
+ */
+export async function takedownCourse(
+  input: unknown,
+): Promise<ActionResult<{ removed: true }>> {
+  const parsed = rejectCourseSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "Invalid course.", "VALIDATION_ERROR");
+  }
+  const admin = await requirePlatformAdmin();
+  const course = await db.course.findFirst({
+    where: { id: parsed.data.courseId, deletedAt: null },
+    select: { id: true, slug: true, status: true },
+  });
+  if (!course) return fail("Course not found.", "NOT_FOUND");
+  if (course.status !== "published") {
+    return fail("Only a published course can be taken down.", "CONFLICT");
+  }
+
+  await db.$transaction([
+    db.course.update({
+      where: { id: course.id },
+      data: {
+        status: "rejected",
+        reviewedAt: new Date(),
+        publishedAt: null,
+        rejectionReason: parsed.data.reason,
+      },
+    }),
+    db.adminAuditLog.create({
+      data: {
+        adminUserId: admin.id,
+        action: "course.takedown",
+        targetType: "Course",
+        targetId: course.id,
+        metadata: { previousStatus: course.status, reason: parsed.data.reason },
+      },
+    }),
+  ]);
+  await notifyCourseRejected(course.id).catch(() => undefined);
+  revalidatePath("/admin");
+  revalidatePath("/admin/courses");
+  revalidatePath(`/admin/courses/${course.id}`);
+  revalidatePath("/courses");
+  revalidatePath(`/courses/${course.slug}`);
+  return ok({ removed: true });
+}
+
 export async function rejectCourse(
   input: unknown,
 ): Promise<ActionResult<{ rejected: true }>> {
