@@ -280,6 +280,11 @@ export async function notifySessionReminder(bookingId: string) {
   if (!booking?.videoSession) return;
 
   const href = `/sessions/${booking.videoSession.id}`;
+  // Key on the scheduled start, not just the booking. A reschedule rewrites startsAt on the
+  // SAME row, so a bookingId-only key made the job treat the already-sent reminder as
+  // covering the new time: both parties' only reminder pointed at a slot that no longer
+  // existed, and no second one could ever be sent.
+  const scheduledFor = booking.startsAt.toISOString();
   await Promise.all(
     [booking.teacher, booking.student].map((person) =>
       createNotification({
@@ -288,12 +293,17 @@ export async function notifySessionReminder(bookingId: string) {
         title: "Lesson starting soon",
         body: `Your lesson starts at ${formatDateTime(booking.startsAt, person.timezone)}.`,
         href,
-        metadata: { bookingId: booking.id },
+        metadata: { bookingId: booking.id, startsAt: scheduledFor },
         email: {
           to: person.email,
           subject: "Your Amazing Skills lesson starts soon",
           category: "reminders",
-          idempotencyKey: buildEmailIdempotencyKey("session.reminder", booking.id, person.id),
+          idempotencyKey: buildEmailIdempotencyKey(
+            "session.reminder",
+            booking.id,
+            person.id,
+            scheduledFor,
+          ),
           template: {
             heading: "Lesson starting soon",
             paragraphs: [

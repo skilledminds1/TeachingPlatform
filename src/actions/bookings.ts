@@ -498,6 +498,15 @@ export async function cancelBooking(
         update: {},
       });
     }
+
+    // Release any pending reschedule proposal. Slot-hold queries filter proposals only on
+    // status and expiry, never on the parent booking, so a proposal left pending kept its
+    // proposed slot unbookable for up to 48 hours after the lesson was cancelled — costing
+    // the teacher sellable inventory for a lesson that no longer exists.
+    await tx.bookingRescheduleProposal.updateMany({
+      where: { bookingId: booking.id, status: "pending" },
+      data: { status: "cancelled", respondedAt: new Date() },
+    });
   });
   if (booking.videoSession) {
     await deleteLiveKitRoom(booking.videoSession.livekitRoomName);
@@ -693,6 +702,20 @@ export async function acceptBookingReschedule(
           }
           if (proposal.booking.status !== "confirmed" || proposal.booking.startsAt <= new Date()) {
             return { conflict: true as const };
+          }
+          // The PROPOSED time must also still be in the future. Only the proposal's 48-hour
+          // expiry and the booking's current start were checked, so a teacher could propose
+          // moving tomorrow's lesson to this evening and a student opening the email later
+          // that night would rewrite an already-paid booking to a time that had passed. The
+          // start window would be over, the lesson could never begin, and the finalizer
+          // would mark it no_show — student paid, got nothing, and the refund request is
+          // auto-flagged out of policy.
+          if (proposal.proposedStartsAt <= new Date()) {
+            await tx.bookingRescheduleProposal.update({
+              where: { id: proposal.id },
+              data: { status: "expired", respondedAt: new Date() },
+            });
+            return { expired: true as const };
           }
 
           const collision = await tx.booking.findFirst({

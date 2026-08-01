@@ -25,15 +25,21 @@ export async function GET(request: Request) {
       startsAt: { gte: windowStart, lte: windowEnd },
       videoSession: { isNot: null },
     },
-    select: { id: true },
+    select: { id: true, startsAt: true },
   });
 
   let sent = 0;
   for (const booking of bookings) {
+    // Dedupe on (booking, scheduled start). Matching on bookingId alone meant a rescheduled
+    // lesson never got a second reminder, leaving both parties with one that advertised the
+    // old time.
     const alreadySent = await db.notification.findFirst({
       where: {
         type: "session.reminder",
-        metadata: { path: ["bookingId"], equals: booking.id },
+        AND: [
+          { metadata: { path: ["bookingId"], equals: booking.id } },
+          { metadata: { path: ["startsAt"], equals: booking.startsAt.toISOString() } },
+        ],
       },
       select: { id: true },
     });

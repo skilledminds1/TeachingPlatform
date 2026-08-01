@@ -9,6 +9,10 @@
       "schedule": "*/10 * * * *"
     },
     {
+      "path": "/api/v1/jobs/finalize-sessions",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/v1/jobs/subscription-lifecycle",
       "schedule": "15 2 * * *"
     },

@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  LiveKitRoom,
-  RoomAudioRenderer,
-  VideoConference,
-} from "@livekit/components-react";
+import { LiveKitRoom, VideoConference } from "@livekit/components-react";
 import { ExternalLink, Play, RefreshCw, Square, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -70,8 +66,12 @@ export function SessionRoom({
             onDisconnected={() => setCredentials(null)}
             className="h-full"
           >
+            {/*
+              VideoConference renders RoomAudioRenderer internally. Mounting a second one
+              attached a duplicate <audio> element to every remote track, so participants
+              heard each other twice, slightly out of phase.
+            */}
             <VideoConference />
-            <RoomAudioRenderer />
           </LiveKitRoom>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -82,7 +82,17 @@ export function SessionRoom({
             <Button
               variant="destructive"
               disabled={isPending}
-              onClick={() =>
+              onClick={() => {
+                // Ending is irreversible: it closes the room for both participants and
+                // finalises the booking. One misclick during a paid lesson ended it with no
+                // confirmation and no way back.
+                if (
+                  !window.confirm(
+                    "End this lesson for everyone? The video room closes immediately and cannot be reopened.",
+                  )
+                ) {
+                  return;
+                }
                 startTransition(async () => {
                   const result = await endSession(sessionId);
                   if (!result.success) {
@@ -91,8 +101,8 @@ export function SessionRoom({
                   }
                   setCredentials(null);
                   router.refresh();
-                })
-              }
+                });
+              }}
             >
               <Square className="size-4" aria-hidden />
               End lesson for everyone
