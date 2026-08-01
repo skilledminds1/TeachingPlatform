@@ -83,7 +83,7 @@ trialing → active → past_due → cancelled → free
 
 | State | Platform behavior |
 |-------|-------------------|
-| trialing | Full Pro features; 14 days |
+| trialing | Full Pro features; 14 days. **Not currently reachable** — no registration, checkout or admin flow calls startPaidTrial, so new teachers land directly on Free. The webhook and lifecycle branches exist and work; only the entry point is missing (MON-25). |
 | active | Plan features enabled |
 | past_due | 7-day grace; warn user |
 | cancelled | Active until period end, then Free |

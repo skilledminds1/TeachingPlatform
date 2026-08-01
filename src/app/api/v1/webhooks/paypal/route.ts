@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { isLessonProviderEnabled } from "@/lib/payments/provider-flags";
 import { majorUnitsToCents } from "@/lib/payments/routing";
 import {
   applyRefundToAttempt,
@@ -12,6 +13,28 @@ import { notifyPaymentDispute } from "@/server/notifications/notify";
 import { verifyPayPalWebhookSignature } from "@/services/paypal/checkout";
 
 export async function POST(request: NextRequest) {
+  // Gated alongside PayPal linking (SEC-02). No PaymentAttempt can exist while the flag is
+  // off, so this handler has nothing legitimate to act on.
+  //
+  // KNOWN DEFECTS TO FIX BEFORE EVER SETTING LESSON_PAYMENTS_PAYPAL_ENABLED=true — these are
+  // deliberately left in place rather than repaired, because the Stripe rail replaces this
+  // path entirely and fixing a handler we intend to delete is throwaway work:
+  //
+  //  MON-04: the confirm and deny branches below read `resource.purchase_units[0]`, but
+  //    PAYMENT.CAPTURE.COMPLETED and PAYMENT.CAPTURE.DENIED deliver a *capture* resource,
+  //    which has no purchase_units — it carries custom_id and
+  //    supplementary_data.related_ids.order_id instead. Both branches therefore never fire.
+  //    CHECKOUT.ORDER.APPROVED does carry purchase_units but has no capture yet, so it is
+  //    skipped too. Resolve the attempt the way the REFUNDED branch already does.
+  //  MON-05: nothing here captures an approved order, so the authenticated browser redirect
+  //    is the only path that completes a payment. An abandoned tab loses the sale.
+  //  MON-06: parsePayPalOrder drops the capture's own status, and an order reads COMPLETED
+  //    as soon as a capture exists — including a PENDING one. Require capture status
+  //    COMPLETED before granting access.
+  if (!isLessonProviderEnabled("paypal")) {
+    return new NextResponse("Not found", { status: 404 });
+  }
+
   const body = await request.text();
   const valid = await verifyPayPalWebhookSignature({
     headers: request.headers,

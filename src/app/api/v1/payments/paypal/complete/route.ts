@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { isLessonProviderEnabled } from "@/lib/payments/provider-flags";
 import { majorUnitsToCents } from "@/lib/payments/routing";
 import { requireAuth } from "@/server/auth/session";
 import {
@@ -19,6 +20,21 @@ function paymentRedirect(request: NextRequest, path: string, status: string): Ne
 }
 
 export async function GET(request: NextRequest) {
+  // Gated alongside PayPal linking (SEC-02) — no attempt can exist while the flag is off.
+  //
+  // KNOWN DEFECT TO FIX BEFORE ENABLING (MON-01): the only state check before capturing is
+  // `attempt.status === "succeeded"`. Attempts that are expired or failed fall straight
+  // through to capture, and neither attempt.expiresAt nor the parent booking/purchase status
+  // is consulted. Two ways that takes money it should not: a student who opened checkout
+  // twice can approve both orders and be charged twice for one lesson (startLessonCheckout
+  // mints a fresh attempt and order per minute, and siblings are only marked expired in the
+  // database, never voided at PayPal); and after the payment window closes or either party
+  // cancels, a stale approve URL still captures. Require pending/requires_action, an unexpired
+  // attempt, and a live parent before calling capturePayPalOrder.
+  if (!isLessonProviderEnabled("paypal")) {
+    return new NextResponse("Not found", { status: 404 });
+  }
+
   const user = await requireAuth();
   const orderId = request.nextUrl.searchParams.get("token");
   if (!orderId) {

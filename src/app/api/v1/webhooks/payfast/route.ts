@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/observability/logger";
 import { constantTimeEqual } from "@/lib/security/compare";
-import { createPayfastSignature } from "@/services/payfast/signature";
+import { verifyPayfastItnSignature } from "@/services/payfast/signature";
 import { startPaymentGrace } from "@/server/billing/lifecycle";
 import { nextPeriodEnd } from "@/server/billing/periods";
 
@@ -19,14 +19,15 @@ export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   const params = new URLSearchParams(rawBody);
   const receivedSignature = params.get("signature");
-  const expectedSignature = createPayfastSignature(
-    params.entries(),
-    env.PAYFAST_PASSPHRASE,
-  );
 
   if (
     !receivedSignature ||
-    !constantTimeEqual(receivedSignature, expectedSignature) ||
+    !verifyPayfastItnSignature({
+      fields: params.entries(),
+      received: receivedSignature,
+      passphrase: env.PAYFAST_PASSPHRASE,
+      compare: constantTimeEqual,
+    }) ||
     !constantTimeEqual(params.get("merchant_id") ?? "", env.PAYFAST_MERCHANT_ID)
   ) {
     return new NextResponse("Invalid signature", { status: 400 });

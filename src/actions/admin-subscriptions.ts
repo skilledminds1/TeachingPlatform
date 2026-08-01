@@ -19,6 +19,15 @@ const grantSchema = z
     permanent: z.boolean(),
     expiresAt: z.string().datetime().optional().nullable(),
     note: z.string().trim().max(500).optional().nullable(),
+    /**
+     * MON-21: granting complimentary access to an organization with a live PayFast
+     * subscription cancels that subscription and nulls the token, and nothing can bring it
+     * back — complimentaryPreviousPlanId is stored but never used to restore anything. When
+     * the complimentary period ends the org drops to Free and must re-checkout from scratch.
+     * A one-month thank-you upgrade to a paying Business customer therefore converts them
+     * into a non-paying one. The admin has to acknowledge that explicitly.
+     */
+    confirmCancelsPaidSubscription: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     if (!value.permanent) {
@@ -136,6 +145,17 @@ export async function grantComplimentaryPlan(
   }
 
   if (organization.payfastToken) {
+    // MON-21: this is destructive and irreversible — require the caller to have been told.
+    if (!parsed.data.confirmCancelsPaidSubscription) {
+      return fail(
+        "This organization has an active paid subscription. Granting complimentary access " +
+          "cancels it permanently — it cannot be restored automatically, and they will have " +
+          "to check out again when the complimentary period ends. Re-submit with " +
+          "confirmation to proceed.",
+        "CONFLICT",
+      );
+    }
+
     const payfastConfigured = Boolean(
       env.PAYFAST_MERCHANT_ID && env.PAYFAST_PASSPHRASE,
     );

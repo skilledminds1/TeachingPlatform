@@ -44,8 +44,10 @@ export function ComplimentaryGrantDialog({
   const [expiresAt, setExpiresAt] = useState("");
   const [note, setNote] = useState("");
   const [isPending, startTransition] = useTransition();
+  // MON-21: holds the server's warning until the admin confirms the destructive grant.
+  const [pendingConfirmation, setPendingConfirmation] = useState<string | null>(null);
 
-  function submit() {
+  function submit(confirmCancelsPaidSubscription = false) {
     startTransition(async () => {
       const result = await grantComplimentaryPlan({
         organizationId,
@@ -57,8 +59,16 @@ export function ComplimentaryGrantDialog({
             ? new Date(expiresAt).toISOString()
             : null,
         note: note.trim() || null,
+        confirmCancelsPaidSubscription,
       });
       if (!result.success) {
+        // MON-21: the server refuses the first attempt when the organization has a live paid
+        // subscription, because granting cancels it irreversibly. Surface exactly what will
+        // happen and let the admin opt in, rather than doing it silently.
+        if (result.code === "CONFLICT" && !confirmCancelsPaidSubscription) {
+          setPendingConfirmation(result.error);
+          return;
+        }
         toast.error(result.error);
         return;
       }
@@ -171,13 +181,39 @@ export function ComplimentaryGrantDialog({
             </div>
           </div>
 
+          {pendingConfirmation ? (
+            <div className="mx-5 mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+              <p className="text-sm font-medium text-destructive">
+                This organization is paying you
+              </p>
+              <p className="mt-1 text-sm text-destructive/90">{pendingConfirmation}</p>
+            </div>
+          ) : null}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPendingConfirmation(null);
+                setOpen(false);
+              }}
+              disabled={isPending}
+            >
               Cancel
             </Button>
-            <Button onClick={submit} disabled={isPending || !planId}>
-              {isPending ? "Saving…" : "Grant upgrade"}
-            </Button>
+            {pendingConfirmation ? (
+              <Button
+                variant="destructive"
+                onClick={() => submit(true)}
+                disabled={isPending || !planId}
+              >
+                {isPending ? "Saving…" : "Cancel their subscription and grant"}
+              </Button>
+            ) : (
+              <Button onClick={() => submit()} disabled={isPending || !planId}>
+                {isPending ? "Saving…" : "Grant upgrade"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
