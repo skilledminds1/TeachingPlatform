@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { isLessonProviderEnabled } from "@/lib/payments/provider-flags";
 import { requireTeacher } from "@/server/auth/session";
 
 function paymentsRedirect(request: NextRequest, result: "connected" | "error") {
@@ -12,6 +13,20 @@ function paymentsRedirect(request: NextRequest, result: "connected" | "error") {
 }
 
 export async function GET(request: NextRequest) {
+  // SEC-02: this route is the attack surface. The partner-referral branch below fires on the
+  // mere presence of attacker-controlled query params and writes providerAccountId with no
+  // state check, so a crafted link repoints a teacher's payout destination. It is gated
+  // behind the PayPal feature flag (default off) rather than hardened, because the flow is
+  // being replaced by the Stripe rail and is functionally broken anyway -- it stores
+  // PayPal's tracking id where the merchant id belongs.
+  //
+  // Do NOT enable LESSON_PAYMENTS_PAYPAL_ENABLED until the branch below requires the signed
+  // paypal_connect_state cookie, verifies the merchant server-side against PayPal's
+  // merchant-integrations lookup, and reads merchantIdInPayPal instead of merchantId.
+  if (!isLessonProviderEnabled("paypal")) {
+    return new NextResponse("Not found", { status: 404 });
+  }
+
   const trackingId = request.nextUrl.searchParams.get("tracking_id");
   const merchantId =
     request.nextUrl.searchParams.get("merchantId") ||

@@ -1,4 +1,3 @@
-import { env } from "@/lib/env";
 import { db } from "@/lib/db";
 import { configuredLessonProviders } from "@/lib/payments/provider-flags";
 import { requireTeacher } from "@/server/auth/session";
@@ -32,7 +31,11 @@ export async function getTeacherPaymentSettings() {
       maskedAccountId: `••••${account.providerAccountId.slice(-6)}`,
     })),
     configured: {
-      paypal: configured.paypal || Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET),
+      // SEC-02: report only what the flag actually permits. This previously fell back to
+      // "credentials are present", so with the feature flag off the UI still offered a
+      // Connect button that the server now refuses -- and, worse, that button was the route
+      // to the un-CSRF-protected linking callback.
+      paypal: configured.paypal,
     },
     lessonFlags: configured,
   };
