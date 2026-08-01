@@ -1,14 +1,20 @@
 import { db } from "@/lib/db";
+import { logger } from "@/lib/observability/logger";
 import { env, hasGoogleCalendarEnv, requireGoogleCalendarEnv } from "@/lib/env";
+import { decryptSecret, encryptSecret, hasSecretBoxKey } from "@/lib/security/secret-box";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 const GOOGLE_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars";
 const SCOPES = ["https://www.googleapis.com/auth/calendar.events", "openid", "email"].join(" ");
 
+// SEC-11: refresh tokens are durable credentials for a teacher's personal calendar, so
+// the integration stays disabled unless they can be encrypted at rest. Failing closed here
+// is better than silently storing them in plaintext.
 export function googleCalendarConfigured(): boolean {
-  return hasGoogleCalendarEnv();
+  return hasGoogleCalendarEnv() && hasSecretBoxKey();
 }
 
 export function googleCalendarRedirectUri(): string {
@@ -98,15 +104,15 @@ export async function upsertCalendarConnection(input: {
     create: {
       userId: input.userId,
       provider: "google",
-      accessToken: input.accessToken,
-      refreshToken: input.refreshToken,
+      accessToken: encryptSecret(input.accessToken),
+      refreshToken: encryptSecret(input.refreshToken),
       tokenExpiresAt: input.expiresAt,
       googleEmail: input.email,
       calendarId: "primary",
     },
     update: {
-      accessToken: input.accessToken,
-      refreshToken: input.refreshToken,
+      accessToken: encryptSecret(input.accessToken),
+      refreshToken: encryptSecret(input.refreshToken),
       tokenExpiresAt: input.expiresAt,
       googleEmail: input.email,
     },
@@ -114,6 +120,24 @@ export async function upsertCalendarConnection(input: {
 }
 
 export async function deleteCalendarConnection(userId: string) {
+  // SEC-11: deleting the row alone left the grant live at Google indefinitely — the teacher
+  // believes they disconnected, but the refresh token keeps working for anyone holding a
+  // copy (a backup, a dump, a leaked replica). Revoke first, then delete regardless: a
+  // failed revocation must not block the user from disconnecting.
+  const connection = await getCalendarConnection(userId);
+  if (connection) {
+    try {
+      await fetch(GOOGLE_REVOKE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ token: decryptSecret(connection.refreshToken) }),
+        cache: "no-store",
+      });
+    } catch (error) {
+      logger.warn("google_calendar_revoke_failed", { userId, error });
+    }
+  }
+
   await db.calendarConnection.deleteMany({
     where: { userId, provider: "google" },
   });
@@ -142,7 +166,7 @@ async function refreshAccessToken(connectionId: string, refreshToken: string) {
   const expiresAt = new Date(Date.now() + json.expires_in * 1000);
   await db.calendarConnection.update({
     where: { id: connectionId },
-    data: { accessToken: json.access_token, tokenExpiresAt: expiresAt },
+    data: { accessToken: encryptSecret(json.access_token), tokenExpiresAt: expiresAt },
   });
   return json.access_token;
 }
@@ -155,10 +179,18 @@ async function getValidAccessToken(userId: string): Promise<{
   if (!connection) return null;
 
   if (connection.tokenExpiresAt.getTime() > Date.now() + 60_000) {
-    return { accessToken: connection.accessToken, calendarId: connection.calendarId };
+    return {
+      accessToken: decryptSecret(connection.accessToken),
+      calendarId: connection.calendarId,
+    };
   }
 
-  const accessToken = await refreshAccessToken(connection.id, connection.refreshToken);
+  // Legacy rows are still plaintext; decryptSecret passes those through unchanged, and the
+  // refresh below rewrites the access token encrypted.
+  const accessToken = await refreshAccessToken(
+    connection.id,
+    decryptSecret(connection.refreshToken),
+  );
   return { accessToken, calendarId: connection.calendarId };
 }
 
