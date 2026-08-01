@@ -1,12 +1,22 @@
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/observability/logger";
-import { DUNNING_NOTICE_DAYS, nextDunningStage } from "@/server/billing/lifecycle";
+import {
+  DUNNING_NOTICE_DAYS,
+  nextDunningStage,
+  startPaymentGrace,
+} from "@/server/billing/lifecycle";
 import { createNotification } from "@/server/notifications/notify";
 import {
   cancelPayfastSubscription,
   updatePayfastSubscription,
 } from "@/services/payfast/subscriptions";
+
+/**
+ * How long past currentPeriodEnd an active subscription may sit before we assume the
+ * renewal notification was lost. Generous enough to absorb normal provider retry delay.
+ */
+const MISSED_RENEWAL_GRACE_DAYS = 2;
 
 type LifecycleSummary = {
   scanned: number;
@@ -14,6 +24,7 @@ type LifecycleSummary = {
   cancellationsApplied: number;
   planChangesApplied: number;
   graceExpired: number;
+  missedRenewals: number;
   complimentaryExpired: number;
   noticesSent: number;
   failures: number;
@@ -67,6 +78,16 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
         { pendingChangeAt: { lte: now } },
         { cancelAtPeriodEnd: true, currentPeriodEnd: { lte: now } },
         { complimentaryExpiresAt: { lte: now } },
+        // MON-17: an active subscription whose period lapsed without a renewal ITN.
+        // Grace previously started ONLY from a FAILED notification, so if PayFast never
+        // sent one — an unhandled failure mode, a lost delivery during a deploy, a 5xx,
+        // exhausted retries — the organization matched nothing here and kept paid
+        // entitlements indefinitely while never being charged again.
+        {
+          subscriptionStatus: "active",
+          payfastToken: { not: null },
+          currentPeriodEnd: { lt: new Date(now.getTime() - MISSED_RENEWAL_GRACE_DAYS * 86_400_000) },
+        },
       ],
     },
     include: { pendingPlan: true },
@@ -77,6 +98,7 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
     cancellationsApplied: 0,
     planChangesApplied: 0,
     graceExpired: 0,
+    missedRenewals: 0,
     complimentaryExpired: 0,
     noticesSent: 0,
     failures: 0,
@@ -253,11 +275,22 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
             data: {
               planId: freePlan.id,
               payfastToken: null,
-              subscriptionStatus: "cancelled",
+              // MON-20: previously "cancelled", which isGrowthBlocked treats as blocked
+              // unconditionally — so a teacher whose card simply expired was left read-only
+              // forever, unable to use even the Free plan's own allowance. The spec says
+              // they drop to Free with Free limits, and the Free plan already constrains
+              // growth on its own.
+              subscriptionStatus: "active",
               currentPeriodEnd: null,
               cancelAtPeriodEnd: false,
               graceStartedAt: null,
               graceEndsAt: null,
+              dunningStage: 0,
+              dunningLastNoticeAt: null,
+              // Stale pending* rows otherwise matched the scan query on every future run.
+              pendingPlanId: null,
+              pendingBillingInterval: null,
+              pendingChangeAt: null,
             },
           });
           summary.graceExpired += 1;
@@ -288,6 +321,37 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
             summary.noticesSent += 1;
           }
         }
+      }
+
+      // MON-17: an active paid subscription whose period lapsed without any renewal
+      // notification. Something was missed — a lost webhook, exhausted provider retries, a
+      // failure mode PayFast does not report as FAILED — and the organization would
+      // otherwise keep paid entitlements forever without being charged. Start the normal
+      // grace flow so billing state converges even when notifications go astray.
+      if (
+        organization.subscriptionStatus === "active" &&
+        organization.payfastToken &&
+        organization.currentPeriodEnd &&
+        organization.currentPeriodEnd.getTime() <
+          now.getTime() - MISSED_RENEWAL_GRACE_DAYS * 86_400_000 &&
+        !organization.graceStartedAt
+      ) {
+        logger.error("subscription_renewal_missing", {
+          organizationId: organization.id,
+          currentPeriodEnd: organization.currentPeriodEnd,
+        });
+        await db.organization.update({
+          where: { id: organization.id },
+          data: startPaymentGrace(now),
+        });
+        summary.missedRenewals += 1;
+        await notifyAdmins(
+          organization.id,
+          "billing.renewal_missing",
+          "We could not confirm your subscription renewal",
+          "Your billing period ended but we have not received confirmation of a renewal payment. Please check your payment method — paid access continues during the grace period.",
+        );
+        continue;
       }
     } catch {
       summary.failures += 1;

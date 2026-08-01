@@ -2,9 +2,11 @@
 
 import { randomBytes } from "node:crypto";
 
+import { DateTime } from "luxon";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
+import { PAYFAST_TIMEZONE } from "@/services/payfast/signature";
 import { env } from "@/lib/env";
 import { requireTeacher } from "@/server/auth/session";
 import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
@@ -112,7 +114,14 @@ export async function createSubscriptionCheckout(
     sales.get(plan.id),
   );
   const usdCents = priced.effectiveCents;
-  const amountZar = ((usdCents / 100) * env.PAYFAST_USD_ZAR_RATE).toFixed(2);
+  const toZar = (cents: number) => ((cents / 100) * env.PAYFAST_USD_ZAR_RATE!).toFixed(2);
+  // First charge honours any active promotion.
+  const amountZar = toZar(usdCents);
+  // MON-22: renewals bill at list price. Previously the discounted figure was sent as
+  // `recurring_amount` too, so a time-limited promotion ("30% off launch weekend") became a
+  // permanent discount for anyone who happened to check out during it — PayFast fixes
+  // recurring_amount for the life of the token and nothing ever re-baselined it.
+  const recurringZar = toZar(priced.listCents);
   const appUrl = env.NEXT_PUBLIC_APP_URL;
   const appHost = new URL(appUrl).hostname;
   const isLocalApp = appHost === "localhost" || appHost === "127.0.0.1";
@@ -175,18 +184,19 @@ export async function createSubscriptionCheckout(
         "INTERNAL_ERROR",
       );
     }
+    // MON-15: this path changes the FUTURE recurring amount at PayFast; it takes no payment
+    // now. Clearing graceStartedAt/graceEndsAt/dunningStage here let a past-due teacher
+    // escape the 7-day growth block and 14-day grace window simply by re-selecting their
+    // current plan — and since each subsequent FAILED ITN restarts a fresh grace period, the
+    // cycle could repeat indefinitely without a cent changing hands. Only a verified
+    // COMPLETE ITN may clear past-due state, so those fields are deliberately left alone.
     await db.organization.update({
       where: { id: membership.organizationId },
       data: {
         planId: plan.id,
         billingInterval: parsed.data.interval,
-        subscriptionStatus: "active",
         cancelAtPeriodEnd: false,
         trialEndsAt: null,
-        graceStartedAt: null,
-        graceEndsAt: null,
-        dunningStage: 0,
-        dunningLastNoticeAt: null,
         pendingPlanId: null,
         pendingBillingInterval: null,
         pendingChangeAt: null,
@@ -228,8 +238,15 @@ export async function createSubscriptionCheckout(
   fields.set("custom_str3", parsed.data.interval);
   fields.set("custom_str4", String(usdCents));
   fields.set("subscription_type", "1");
-  fields.set("billing_date", new Date().toISOString().slice(0, 10));
-  fields.set("recurring_amount", amountZar);
+  // MON-23: PayFast operates on South African time (UTC+2) and rejects a billing_date in
+  // the past. Deriving it from server UTC meant that between 22:00 and 23:59 UTC the
+  // submitted date was already yesterday to PayFast and checkout failed — roughly 8% of
+  // every day, and precisely the evening hours across the Americas.
+  fields.set(
+    "billing_date",
+    DateTime.now().setZone(PAYFAST_TIMEZONE).toFormat("yyyy-MM-dd"),
+  );
+  fields.set("recurring_amount", recurringZar);
   fields.set("frequency", parsed.data.interval === "annual" ? "6" : "3");
   fields.set("cycles", "0");
   fields.set("signature", createPayfastSignature(fields.entries(), env.PAYFAST_PASSPHRASE));

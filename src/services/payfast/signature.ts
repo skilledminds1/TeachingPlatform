@@ -1,3 +1,6 @@
+/** PayFast operates on South African time; dates sent to it must be computed in this zone. */
+export const PAYFAST_TIMEZONE = "Africa/Johannesburg";
+
 import { createHash } from "node:crypto";
 
 function payfastEncode(value: string): string {

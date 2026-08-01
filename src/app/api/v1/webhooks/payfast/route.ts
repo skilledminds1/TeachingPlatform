@@ -7,13 +7,8 @@ import { logger } from "@/lib/observability/logger";
 import { constantTimeEqual } from "@/lib/security/compare";
 import { createPayfastSignature } from "@/services/payfast/signature";
 import { startPaymentGrace } from "@/server/billing/lifecycle";
+import { nextPeriodEnd } from "@/server/billing/periods";
 
-function nextPeriodEnd(current: Date | null, interval: "monthly" | "annual"): Date {
-  const date = current && current > new Date() ? new Date(current) : new Date();
-  if (interval === "annual") date.setUTCFullYear(date.getUTCFullYear() + 1);
-  else date.setUTCMonth(date.getUTCMonth() + 1);
-  return date;
-}
 
 /** PayFast ITN — platform teacher subscriptions only (not student lesson payments). */
 export async function POST(request: NextRequest) {
@@ -131,13 +126,57 @@ async function handleSubscriptionItn(params: URLSearchParams) {
 
   const organization = await db.organization.findUnique({
     where: { id: organizationId },
-    select: { id: true, currentPeriodEnd: true, graceStartedAt: true, graceEndsAt: true },
+    select: {
+      id: true,
+      currentPeriodEnd: true,
+      graceStartedAt: true,
+      graceEndsAt: true,
+      payfastToken: true,
+      planId: true,
+      billingInterval: true,
+    },
   });
+  if (!organization) {
+    return new NextResponse("Billing account not found", { status: 404 });
+  }
+
+  // MON-12: PayFast echoes the ORIGINAL checkout's custom fields on every recurring charge
+  // for the life of a subscription token. Plans are changed in place on the same token
+  // (updatePayfastSubscription only alters amount and frequency at PayFast), so custom_str2
+  // and custom_str3 stay frozen at whatever was bought first. Applying them on every ITN
+  // meant a teacher who upgraded Starter -> Business was charged the Business amount at
+  // renewal and then silently reverted to Starter; an interval change likewise left the org
+  // extended by one month on an annual subscription.
+  //
+  // Treat the custom fields as authoritative only for the FIRST activation of a token.
+  // Afterwards the organization's own record is the source of truth and the ITN just renews.
+  const token = params.get("token");
+  const isRenewalOfKnownToken =
+    paymentStatus === "COMPLETE" &&
+    Boolean(organization.payfastToken) &&
+    Boolean(token) &&
+    organization.payfastToken === token;
+
+  const effectivePlanId = isRenewalOfKnownToken ? organization.planId : planId;
+  const effectiveInterval = isRenewalOfKnownToken
+    ? (organization.billingInterval as "monthly" | "annual")
+    : interval;
+
+  if (isRenewalOfKnownToken && (organization.planId !== planId || organization.billingInterval !== interval)) {
+    logger.info("payfast_itn_stale_custom_fields_ignored", {
+      organizationId,
+      itnPlanId: planId,
+      currentPlanId: organization.planId,
+      itnInterval: interval,
+      currentInterval: organization.billingInterval,
+    });
+  }
+
   const plan = await db.plan.findUnique({
-    where: { id: planId },
+    where: { id: effectivePlanId },
     select: { id: true, name: true },
   });
-  if (!organization || !plan) {
+  if (!plan) {
     return new NextResponse("Billing account not found", { status: 404 });
   }
 
@@ -155,12 +194,12 @@ async function handleSubscriptionItn(params: URLSearchParams) {
 
       if (paymentStatus === "COMPLETE") {
         const periodStart = new Date();
-        const periodEnd = nextPeriodEnd(organization.currentPeriodEnd, interval);
+        const periodEnd = nextPeriodEnd(organization.currentPeriodEnd, effectiveInterval);
         await tx.organization.update({
           where: { id: organizationId },
           data: {
-            planId,
-            billingInterval: interval,
+            planId: effectivePlanId,
+            billingInterval: effectiveInterval,
             subscriptionStatus: "active",
             payfastToken: params.get("token"),
             currentPeriodEnd: periodEnd,
@@ -190,8 +229,12 @@ async function handleSubscriptionItn(params: URLSearchParams) {
               billingEventId: billingEvent.id,
               providerPaymentId: providerEventId,
               amountCents: Math.round(amountGross * 100),
-              currency: "ZAR",
-              description: `Amazing Skills ${plan.name} subscription (${interval})`,
+              // MON-24: PayFast settles in ZAR, so the amount charged really is rand — but
+              // the currency was a hardcoded literal rather than a statement about the
+              // gateway. Read it from the ITN so the invoice reflects what the payer was
+              // actually billed, and so this does not silently lie if the rail changes.
+              currency: params.get("currency")?.toUpperCase() || "ZAR",
+              description: `Amazing Skills ${plan.name} subscription (${effectiveInterval})`,
               periodStart,
               periodEnd,
             },
