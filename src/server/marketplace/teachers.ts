@@ -14,10 +14,12 @@ export type TeacherSearchFilters = {
   sort?: TeacherSort;
 };
 
+// INT-12: order by the USD-normalised rate. Ordering by hourlyRateCents mixed currencies,
+// so "price: low to high" ranked a EUR 40 teacher below a USD 45 one despite costing more.
 const orderBy: Record<TeacherSort, Prisma.TeacherProfileOrderByWithRelationInput> = {
   recommended: { submittedAt: "desc" },
-  price_asc: { hourlyRateCents: "asc" },
-  price_desc: { hourlyRateCents: "desc" },
+  price_asc: { hourlyRateUsdCents: "asc" },
+  price_desc: { hourlyRateUsdCents: "desc" },
   rating: { submittedAt: "desc" }, // re-sorted by aggregate rating below
   newest: { createdAt: "desc" },
 };
@@ -52,8 +54,10 @@ export async function searchTeachers(filters: TeacherSearchFilters) {
   if (filters.subject) {
     where.subjects = { some: { subject: { slug: filters.subject } } };
   }
+  // INT-12: the bucket labels are written in dollars ("Up to $50/hour"), so compare against
+  // the USD-normalised column rather than each teacher's own units.
   if (filters.maxRateCents) {
-    where.hourlyRateCents = { lte: filters.maxRateCents };
+    where.hourlyRateUsdCents = { lte: filters.maxRateCents };
   }
 
   const profiles = await db.teacherProfile.findMany({
@@ -66,6 +70,7 @@ export async function searchTeachers(filters: TeacherSearchFilters) {
       headline: true,
       bio: true,
       hourlyRateCents: true,
+      hourlyRateUsdCents: true,
       currency: true,
       userId: true,
       user: { select: { name: true, avatarUrl: true } },

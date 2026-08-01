@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { toUsdCentsForRanking } from "@/lib/fx";
 import { isTeachingLanguage } from "@/lib/languages";
 
 import { db } from "@/lib/db";
@@ -489,11 +490,17 @@ export async function saveTeacherOnboarding(
     proficiency: language.proficiency,
   }));
 
+  const hourlyRateCents = Math.round(Number(parsed.data.hourlyRate) * 100);
+
   const profileData = {
     bio: parsed.data.bio,
     headline: parsed.data.headline,
-    hourlyRateCents: Math.round(Number(parsed.data.hourlyRate) * 100),
+    hourlyRateCents,
     currency: parsed.data.currency,
+    // INT-12: recompute on every save so the marketplace price filter and sort stay
+    // coherent when a teacher changes either their rate or their settlement currency.
+    // Display and ranking only — nothing is ever charged from this value.
+    hourlyRateUsdCents: toUsdCentsForRanking(hourlyRateCents, parsed.data.currency),
     introVideoUrl,
     introVideoPath,
     status:
