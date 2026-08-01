@@ -25,6 +25,8 @@ export default async function CertificatePage({
       teacherName: true,
       issuedAt: true,
       verificationCode: true,
+      revokedAt: true,
+      revocationReason: true,
     },
   });
   if (!certificate) notFound();
@@ -41,7 +43,26 @@ export default async function CertificatePage({
       </header>
 
       <main className="mx-auto max-w-4xl px-6 py-10">
-        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        {/*
+          MON-35: this page is the credential's public proof, so a revoked certificate must
+          say so plainly and before anything else. It previously rendered whatever it found
+          as valid, which kept vouching for students whose purchase had been refunded.
+        */}
+        {certificate.revokedAt ? (
+          <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/10 p-5">
+            <p className="font-semibold text-destructive">This certificate is no longer valid</p>
+            <p className="mt-1 text-sm text-destructive/90">
+              It was revoked on {formatDate(certificate.revokedAt)}
+              {certificate.revocationReason ? ` — ${certificate.revocationReason}.` : "."}
+            </p>
+          </div>
+        ) : null}
+
+        <div
+          className={`overflow-hidden rounded-2xl border border-border bg-card shadow-sm ${
+            certificate.revokedAt ? "opacity-60 grayscale" : ""
+          }`}
+        >
           <div className="border-b border-border bg-gradient-to-br from-primary/15 via-transparent to-transparent px-8 py-10 text-center">
             <p className="text-xs font-medium tracking-[0.2em] text-primary uppercase">
               Certificate of completion

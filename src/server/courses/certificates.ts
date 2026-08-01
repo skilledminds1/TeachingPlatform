@@ -4,7 +4,11 @@ export async function issueCertificateIfEligible(courseId: string, studentId: st
   const existing = await db.courseCertificate.findUnique({
     where: { courseId_studentId: { courseId, studentId } },
   });
-  if (existing) return existing;
+  // MON-35: only a live certificate short-circuits. A revoked one falls through so
+  // eligibility is re-checked — the enrollment filter below requires revokedAt: null, so it
+  // is only reinstated if the student genuinely has access again (for example after
+  // re-purchasing), and the upsert clears the revocation.
+  if (existing && !existing.revokedAt) return existing;
 
   const course = await db.course.findFirst({
     where: {
@@ -58,6 +62,8 @@ export async function issueCertificateIfEligible(courseId: string, studentId: st
       courseTitle: course.title,
       teacherName: course.teacher.name,
     },
-    update: {},
+    // Reinstate a previously revoked certificate when access is genuinely restored. The
+    // verification code is preserved so any link already shared stays valid.
+    update: { revokedAt: null, revocationReason: null },
   });
 }

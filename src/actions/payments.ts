@@ -17,6 +17,9 @@ import { getScopeRestriction, usersHaveBlock } from "@/server/trust/enforcement"
 import { createPayPalOrder } from "@/services/paypal/checkout";
 import { fail, ok, type ActionResult } from "@/types/action";
 
+/** Thrown inside the checkout transaction when a coupon's redemption limit is already met. */
+class CouponUnavailableError extends Error {}
+
 const startCheckoutSchema = z.object({
   bookingId: z.uuid(),
   provider: z.enum(["paypal"]),
@@ -286,7 +289,8 @@ export async function startCourseCheckout(
   }
 
   const expiresAt = paymentWindowExpiry();
-  const { purchase, attempt } = await db.$transaction(async (tx) => {
+  const created = await db
+    .$transaction(async (tx) => {
     const createdPurchase = await tx.coursePurchase.create({
       data: {
         courseId: course.id,
@@ -319,8 +323,59 @@ export async function startCourseCheckout(
       },
       select: { id: true },
     });
-    return { purchase: createdPurchase, attempt: createdAttempt };
-  });
+
+    // MON-26: reserve the coupon slot now, not at confirmation. The redemption row used to
+    // be written only after payment succeeded, so `_count.redemptions` never saw in-flight
+    // checkouts and a limited coupon could be over-redeemed by however many students were
+    // mid-checkout. Reserving here also makes the existing cleanup live: the failure path
+    // below and expireAbandonedPayments both delete redemptions by purchaseId, which
+    // previously could never match a row for a paid purchase.
+    if (price.couponId) {
+      const coupon = await tx.courseCoupon.findUnique({
+        where: { id: price.couponId },
+        select: { maxRedemptions: true, _count: { select: { redemptions: true } } },
+      });
+      if (
+        coupon?.maxRedemptions !== null &&
+        coupon !== null &&
+        coupon._count.redemptions >= coupon.maxRedemptions
+      ) {
+        throw new CouponUnavailableError();
+      }
+      await tx.courseCouponRedemption.create({
+        data: {
+          couponId: price.couponId,
+          purchaseId: createdPurchase.id,
+          studentId: user.id,
+        },
+      });
+    }
+
+      return { purchase: createdPurchase, attempt: createdAttempt };
+    })
+    .catch((error: unknown) => {
+      // The coupon's last slot was taken by a concurrent checkout, or this student already
+      // holds a redemption (the [couponId, studentId] unique constraint). Either way the
+      // discount is no longer available and no money has moved yet.
+      if (
+        error instanceof CouponUnavailableError ||
+        (typeof error === "object" &&
+          error &&
+          "code" in error &&
+          (error as { code?: string }).code === "P2002")
+      ) {
+        return null;
+      }
+      throw error;
+    });
+
+  if (!created) {
+    return fail(
+      "That coupon has just reached its redemption limit. Try again without it.",
+      "CONFLICT",
+    );
+  }
+  const { purchase, attempt } = created;
 
   try {
     const order = await createPayPalOrder({

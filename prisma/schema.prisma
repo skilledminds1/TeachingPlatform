@@ -1129,8 +1129,13 @@ model CourseCertificate {
   studentName      String   @map("student_name")
   courseTitle      String   @map("course_title")
   teacherName      String   @map("teacher_name")
-  issuedAt         DateTime @default(now()) @map("issued_at")
-  createdAt        DateTime @default(now()) @map("created_at")
+  issuedAt         DateTime  @default(now()) @map("issued_at")
+  // MON-35: a certificate must be revocable. Without this it outlived the enrollment it was
+  // earned through, so the public verification page kept vouching for a student whose
+  // purchase had been refunded or whose access had been revoked.
+  revokedAt        DateTime? @map("revoked_at")
+  revocationReason String?   @map("revocation_reason")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   student User   @relation("CourseCertificateStudent", fields: [studentId], references: [id], onDelete: Cascade)

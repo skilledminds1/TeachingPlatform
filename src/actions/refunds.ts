@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
+import { applyRefundEffects } from "@/server/payments/confirm";
 import {
   isBookingRefundPolicyEligible,
   isCourseRefundPolicyEligible,
@@ -234,18 +235,52 @@ export async function markRefundSent(
       teacherId: teacher.id,
       status: "teacher_approved",
     },
-    select: { id: true, requestedAmountCents: true },
+    select: {
+      id: true,
+      requestedAmountCents: true,
+      coursePurchaseId: true,
+      paymentAttemptId: true,
+      paymentAttempt: { select: { id: true, amountCents: true, refundedCents: true } },
+    },
   });
   if (!request) return fail("Approved refund request not found.", "NOT_FOUND");
 
-  await db.refundRequest.update({
-    where: { id: request.id },
-    data: {
-      status: "refunded",
-      providerRefundId: parsed.data.providerReference,
-      providerRefundedCents: request.requestedAmountCents,
-      resolvedAt: new Date(),
-    },
+  // MON-09: this used to update the RefundRequest row alone, leaving PaymentAttempt reading
+  // as fully paid and unrefunded while the request read "refunded" — two ledgers that
+  // permanently disagreed — and leaving the student enrolled in a course they had been
+  // refunded for. Because the platform never holds funds, this manual path is the EXPECTED
+  // route for most refunds, not an edge case.
+  await db.$transaction(async (tx) => {
+    await tx.refundRequest.update({
+      where: { id: request.id },
+      data: {
+        status: "refunded",
+        providerRefundId: parsed.data.providerReference,
+        providerRefundedCents: request.requestedAmountCents,
+        resolvedAt: new Date(),
+      },
+    });
+
+    let fullyRefunded = true;
+    if (request.paymentAttempt) {
+      const refundedCents = Math.min(
+        request.paymentAttempt.amountCents,
+        request.paymentAttempt.refundedCents + request.requestedAmountCents,
+      );
+      fullyRefunded = refundedCents >= request.paymentAttempt.amountCents;
+      await tx.paymentAttempt.update({
+        where: { id: request.paymentAttempt.id },
+        data: {
+          refundedCents,
+          status: fullyRefunded ? "refunded" : "partially_refunded",
+        },
+      });
+    }
+
+    await applyRefundEffects(tx, {
+      coursePurchaseId: request.coursePurchaseId,
+      fullyRefunded,
+    });
   });
 
   revalidateRefundViews();

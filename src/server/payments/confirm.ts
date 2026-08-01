@@ -295,6 +295,9 @@ export async function confirmCoursePayment(input: {
       return { confirmed: false, coursePurchaseId: purchase.id };
     }
     if (purchase.courseCouponId) {
+      // MON-26: the redemption is now reserved when checkout starts, so the limit accounts
+      // for in-flight purchases. This remains as a backstop for purchases created before
+      // that change (and for the free/100%-off path), hence skipDuplicates.
       await tx.courseCouponRedemption.createMany({
         data: [
           {
@@ -419,17 +422,56 @@ export async function applyRefundToAttempt(input: {
         resolvedAt: refundedCents >= attempt.amountCents ? new Date() : null,
       },
     });
-    if (status === "refunded" && attempt.coursePurchaseId) {
-      await tx.coursePurchase.updateMany({
-        where: { id: attempt.coursePurchaseId },
-        data: { status: "refunded", paymentExpiresAt: null },
-      });
-      await tx.courseEnrollment.updateMany({
-        where: { purchaseId: attempt.coursePurchaseId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-    }
+    await applyRefundEffects(tx, {
+      coursePurchaseId: attempt.coursePurchaseId,
+      fullyRefunded: status === "refunded",
+    });
   });
+}
+
+/**
+ * Apply the downstream consequences of a refund: revoke course access and any certificate
+ * issued off the back of it.
+ *
+ * MON-09: this used to live only inside the provider-webhook path, so a refund the teacher
+ * made outside the platform — an EFT, or a refund issued from their own provider dashboard —
+ * left the student fully enrolled with the purchase still reading "succeeded". That is the
+ * wrong way round for this product: the platform never holds funds, so refunds handled
+ * directly between teacher and student are the EXPECTED route, not the exception. Shared by
+ * both paths so they cannot diverge again.
+ */
+export async function applyRefundEffects(
+  tx: Tx,
+  input: { coursePurchaseId: string | null; fullyRefunded: boolean },
+): Promise<void> {
+  if (!input.fullyRefunded || !input.coursePurchaseId) return;
+
+  const now = new Date();
+  await tx.coursePurchase.updateMany({
+    where: { id: input.coursePurchaseId },
+    data: { status: "refunded", paymentExpiresAt: null },
+  });
+  await tx.courseEnrollment.updateMany({
+    where: { purchaseId: input.coursePurchaseId, revokedAt: null },
+    data: { revokedAt: now },
+  });
+
+  // MON-35: a certificate outlived the enrollment it was earned through, so the public
+  // verification page kept vouching for a student whose purchase had been refunded.
+  const enrollments = await tx.courseEnrollment.findMany({
+    where: { purchaseId: input.coursePurchaseId },
+    select: { courseId: true, studentId: true },
+  });
+  for (const enrollment of enrollments) {
+    await tx.courseCertificate.updateMany({
+      where: {
+        courseId: enrollment.courseId,
+        studentId: enrollment.studentId,
+        revokedAt: null,
+      },
+      data: { revokedAt: now, revocationReason: "Purchase refunded" },
+    });
+  }
 }
 
 export async function expireAbandonedPayments(now = new Date()): Promise<number> {
