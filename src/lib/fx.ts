@@ -1,4 +1,8 @@
-import { DEFAULT_LESSON_CURRENCY, isLessonCurrency } from "@/lib/currencies";
+import {
+  DEFAULT_LESSON_CURRENCY,
+  isLessonCurrency,
+  minorUnitFactor,
+} from "@/lib/currencies";
 
 /**
  * Currency conversion for DISPLAY AND RANKING ONLY (INT-12).
@@ -29,18 +33,39 @@ import { DEFAULT_LESSON_CURRENCY, isLessonCurrency } from "@/lib/currencies";
  * authoritative; these exist so ranking never breaks outright.
  *
  * They drift: checked against the ECB feed the day after they were written, GBP was already
- * 6% out. Treat them as a floor on correctness, not a source of truth.
+ * 6% out. Treat them as a floor on correctness, not a source of truth. The values below were
+ * re-taken from the ECB feed on FX_RATES_REVIEWED_ON.
+ *
+ * INT-09: this table held only the five currencies the old settlement list offered. Every
+ * currency added to LESSON_CURRENCIES must appear here too, or `toUsdCentsForRanking` falls
+ * through to treating the teacher's price as though it were already USD — which puts a
+ * ¥8,000 lesson in the "under $100" bucket as $8,000 and buries the teacher.
+ * `src/lib/fx.test.ts` asserts the two lists agree so this cannot drift silently.
  */
 export const STATIC_USD_RATES: Record<string, number> = {
   USD: 1,
-  EUR: 0.92,
-  GBP: 0.79,
-  AUD: 1.52,
-  CAD: 1.36,
+  EUR: 0.8707,
+  GBP: 0.74508,
+  AUD: 1.4249,
+  CAD: 1.4041,
+  CHF: 0.8101,
+  CZK: 21.081,
+  DKK: 6.5087,
+  HKD: 7.8432,
+  ILS: 3.0574,
+  JPY: 160.24,
+  MXN: 17.3715,
+  NOK: 9.5272,
+  NZD: 1.7056,
+  PHP: 61.269,
+  PLN: 3.7558,
+  SEK: 9.5651,
+  SGD: 1.2849,
+  THB: 33.465,
 };
 
 /** When these reference rates were last reviewed, so staleness is visible rather than implied. */
-export const FX_RATES_REVIEWED_ON = "2026-07-31";
+export const FX_RATES_REVIEWED_ON = "2026-08-01";
 
 export function usdRate(currency: string): number | null {
   return STATIC_USD_RATES[currency.toUpperCase()] ?? null;
@@ -51,12 +76,20 @@ export function usdRate(currency: string): number | null {
  *
  * Returns null for a currency with no known rate rather than guessing — a wrong number here
  * would silently mis-rank a teacher, which is harder to notice than an absent one.
+ *
+ * INT-09: this divided minor units by the rate directly, which quietly assumed every
+ * currency shares USD's two decimal digits. A ¥8,000 lesson is 8000 minor units, so the old
+ * maths produced 8000/160.24 = 50 USD cents and ranked a ¥8,000/hour teacher at $0.50/hour —
+ * bottom of every "price: low to high" sort on the marketplace. Both exponents now enter the
+ * conversion explicitly.
  */
 export function toUsdCents(amountCents: number, currency: string): number | null {
   if (!Number.isFinite(amountCents)) return null;
   const rate = usdRate(currency);
   if (!rate) return null;
-  return Math.round(amountCents / rate);
+
+  const majorUnits = amountCents / minorUnitFactor(currency);
+  return Math.round((majorUnits / rate) * minorUnitFactor(DEFAULT_LESSON_CURRENCY));
 }
 
 /**

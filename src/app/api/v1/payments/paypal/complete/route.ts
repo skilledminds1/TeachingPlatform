@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
 import { isLessonProviderEnabled } from "@/lib/payments/provider-flags";
-import { majorUnitsToCents } from "@/lib/payments/routing";
+import { providerAmountToMinorUnits } from "@/lib/payments/routing";
 import { requireAuth } from "@/server/auth/session";
 import {
   confirmBookingPayment,
@@ -96,7 +96,8 @@ export async function GET(request: NextRequest) {
         captureId: order.captureId,
         referenceId: order.referenceId,
       },
-      amountCents: majorUnitsToCents(order.amount),
+      // INT-09: parsed against the currency the capture came back in. Guarded non-null above.
+      amountCents: providerAmountToMinorUnits(order.amount, order.currency),
       currency: order.currency,
       teacherMerchantId: order.payeeMerchantId,
     };

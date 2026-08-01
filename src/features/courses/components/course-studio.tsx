@@ -30,7 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/features/admin/components/status-badge";
 import { CourseCurriculumEditor } from "@/features/courses/components/course-curriculum-editor";
 import { courseStatusTone, formatCourseLevel } from "@/features/courses/lib/labels";
-import { LESSON_CURRENCIES, currencySymbol } from "@/lib/currencies";
+import { LESSON_CURRENCIES, currencySymbol, toMinorUnits } from "@/lib/currencies";
 import { formatStatus } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -140,7 +140,10 @@ export function CourseStudio({
     startTransition(async () => {
       const result = await updateCourse({
         courseId: course.id,
-        priceCents: Math.round(Number(price) * 100),
+        // INT-09: converted with the selected currency's own exponent. A course priced at
+        // 5000 in JPY is 5000 minor units, not 500000; the two fields are sent together so
+        // the amount and the currency it was scaled against cannot disagree.
+        priceCents: toMinorUnits(price, currency),
         currency: currency as (typeof LESSON_CURRENCIES)[number]["code"],
       });
       if (!result.success) {

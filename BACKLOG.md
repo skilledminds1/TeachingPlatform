@@ -643,8 +643,9 @@ Timezone, locale, currency, discovery. The platform currently assumes everyone l
 
 ### 🟡 `INT-09` Derive minor units per currency, then expand the settlement currency list
 
-- [ ] **Effort:** M · 1–2 days · **Area:** currency
+- [x] **Effort:** M · 1–2 days · **Area:** currency
 - **Files:** `src/lib/payments/routing.ts`, `src/lib/currencies.ts`, `src/lib/format.ts`, `src/lib/validations/teacher-onboarding.ts`, `src/features/teacher-onboarding/components/profile-editor.tsx`
+- **Outcome:** 19 currencies, up from 5. INR was NOT added — PayPal does not list it as a transaction currency at all, so it would repeat INT-08's ZAR incident; likewise BRL/CNY/MYR (PayPal in-country accounts only), HUF/TWD (PayPal and ISO 4217 disagree on the exponent) and RUB (no ECB rate). All are listed with their reason in `src/lib/currencies.ts` and should be revisited when the Stripe rail replaces PayPal. The exponent fix also corrected two conversions that had the same 100x assumption baked in: `toUsdCents` and `convertMinorUnits`, which ranked a ¥8,000 teacher at $0.50/hour. The country-based default pre-selection was not done — there is no country field on TeacherProfile to drive it.
 - **What:** amountFromCents returns (cents / 100).toFixed(2) for every provider-facing amount. This is latent today because all six listed currencies are two-decimal, but adding JPY or KRW (zero-decimal) would submit an amount 100 times wrong to the provider — so order matters: fix the exponent first, expand second. Derive the minor-unit exponent per currency via Intl.NumberFormat resolvedOptions and format accordingly. Then expand the list beyond six currencies, which is far too narrow for an international teacher base (no JPY, INR, BRL, MXN, PHP, SGD, HKD, NZD, PLN, CHF, SEK), ordered USD/EUR/GBP first, with the teacher's country pre-selecting a sensible default.
 - **Done when:** Unit tests cover a zero-decimal (JPY), two-decimal (USD) and three-decimal currency; a teacher in the Philippines can price in PHP and the exact amount reaches the provider.
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
 import { isLessonProviderEnabled } from "@/lib/payments/provider-flags";
-import { majorUnitsToCents } from "@/lib/payments/routing";
+import { providerAmountToMinorUnits } from "@/lib/payments/routing";
 import {
   applyRefundToAttempt,
   confirmBookingPayment,
@@ -100,7 +100,8 @@ export async function POST(request: NextRequest) {
         providerEventId: event.id,
         eventType: event.event_type,
         payload: event as object,
-        amountCents: majorUnitsToCents(amount),
+        // INT-09: parsed against the event's own currency, not assumed to be two-decimal.
+        amountCents: providerAmountToMinorUnits(amount, currency),
         currency,
         teacherMerchantId,
       };
@@ -128,7 +129,10 @@ export async function POST(request: NextRequest) {
   if (event.event_type === "PAYMENT.CAPTURE.REFUNDED") {
     const orderId = event.resource?.supplementary_data?.related_ids?.order_id;
     const amount = event.resource?.amount?.value;
-    if (orderId && amount) {
+    // INT-09: the currency is now required to read the amount at all. Without it there is
+    // no exponent, and a refund recorded against the wrong exponent misstates the ledger.
+    const refundCurrency = event.resource?.amount?.currency_code;
+    if (orderId && amount && refundCurrency) {
       const attempt = await db.paymentAttempt.findFirst({
         where: { provider: "paypal", providerCheckoutId: orderId },
       });
@@ -139,7 +143,7 @@ export async function POST(request: NextRequest) {
           providerRefundId: event.resource?.id,
           eventType: event.event_type,
           payload: event as object,
-          refundedCents: majorUnitsToCents(amount),
+          refundedCents: providerAmountToMinorUnits(amount, refundCurrency),
         });
       }
     }
@@ -162,9 +166,14 @@ export async function POST(request: NextRequest) {
             providerCaseId,
             status: resolved ? "closed" : "open",
             reason: event.resource?.reason,
-            amountCents: event.resource?.dispute_amount?.value
-              ? majorUnitsToCents(event.resource.dispute_amount.value)
-              : null,
+            amountCents:
+              event.resource?.dispute_amount?.value &&
+              event.resource.dispute_amount.currency_code
+                ? providerAmountToMinorUnits(
+                    event.resource.dispute_amount.value,
+                    event.resource.dispute_amount.currency_code,
+                  )
+                : null,
             currency: event.resource?.dispute_amount?.currency_code,
             payload: event as object,
             resolvedAt: resolved ? new Date() : null,

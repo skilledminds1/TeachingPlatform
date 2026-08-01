@@ -1,5 +1,5 @@
 import { env } from "@/lib/env";
-import { amountFromCents } from "@/lib/payments/routing";
+import { providerAmount } from "@/lib/payments/routing";
 import { getPayPalAccessToken } from "@/services/paypal/checkout";
 
 export async function refundPayPalCapture(input: {
@@ -21,7 +21,7 @@ export async function refundPayPalCapture(input: {
     },
     body: JSON.stringify({
       amount: {
-        value: amountFromCents(input.amountCents),
+        value: providerAmount(input.amountCents, input.currency),
         currency_code: input.currency,
       },
     }),

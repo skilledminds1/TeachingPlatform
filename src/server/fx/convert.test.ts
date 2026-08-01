@@ -19,11 +19,24 @@ describe("convertMinorUnits", () => {
     expect(convertMinorUnits(2500, "GBP", "GBP", context)).toBe(2500);
   });
 
-  it("routes through USD in both directions", () => {
-    // £25 -> USD -> JPY. 2500 / 0.745 * 147 ≈ 493,289 minor units.
+  /**
+   * INT-09: this assertion used to expect ≈493,289 and it was wrong — it had the old
+   * exponent-blind conversion baked into it. £25 is about ¥4,933, and JPY has no minor
+   * unit, so the answer is 4,933 minor units. The old maths returned a hundred times that,
+   * and a student in Tokyo was shown "≈ ¥493,289" beside a £25 lesson.
+   */
+  it("routes through USD in both directions, in each currency's own minor units", () => {
+    // £25 -> USD -> JPY. (2500 / 100) / 0.745 * 147 ≈ ¥4,933, and JPY minor units are yen.
     const jpy = convertMinorUnits(2500, "GBP", "JPY", context);
-    expect(jpy).toBeGreaterThan(400_000);
-    expect(jpy).toBeLessThan(600_000);
+    expect(jpy).toBeGreaterThan(4_000);
+    expect(jpy).toBeLessThan(6_000);
+  });
+
+  it("converts back out of a zero-decimal currency", () => {
+    // ¥4,933 -> GBP should land back near the £25 it came from, in pence.
+    const gbp = convertMinorUnits(4_933, "JPY", "GBP", context);
+    expect(gbp).toBeGreaterThan(2_400);
+    expect(gbp).toBeLessThan(2_600);
   });
 
   it("round-trips back to approximately the original amount", () => {

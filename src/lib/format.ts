@@ -1,3 +1,5 @@
+import { minorUnitFactor } from "@/lib/currencies";
+
 /**
  * Date, time and money formatting.
  *
@@ -27,13 +29,28 @@
  */
 export const DISPLAY_LOCALE = "en-GB";
 
-export function formatCurrency(cents: number, currency = "USD"): string {
+/**
+ * Render an integer minor-unit amount.
+ *
+ * INT-09: this divided by 100 and capped the display at 2 decimals for every currency, so
+ * ¥5000 rendered as "¥50" — the same hundredfold error the provider-facing serialiser had,
+ * showing on the teacher card and the checkout page. Both the divisor and the decimal cap
+ * now come from the currency's own minor-unit exponent.
+ *
+ * A whole amount still drops its fraction ($25, not $25.00). When there IS a fraction the
+ * digit count is left to Intl rather than pinned at 2, so a three-decimal currency renders
+ * all three.
+ */
+export function formatCurrency(minorUnits: number, currency = "USD"): string {
+  const factor = minorUnitFactor(currency);
+  const isWholeAmount = minorUnits % factor === 0;
+
   return new Intl.NumberFormat(DISPLAY_LOCALE, {
     style: "currency",
     currency,
     currencyDisplay: "narrowSymbol",
-    maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
-  }).format(cents / 100);
+    ...(isWholeAmount ? { maximumFractionDigits: 0 } : {}),
+  }).format(minorUnits / factor);
 }
 
 export function formatNumber(value: number): string {

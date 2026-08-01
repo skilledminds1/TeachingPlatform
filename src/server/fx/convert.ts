@@ -1,3 +1,4 @@
+import { minorUnitFactor } from "@/lib/currencies";
 import { getUsdRateTable, isStale } from "@/server/fx/rates";
 
 /**
@@ -20,7 +21,14 @@ export async function getConversionContext(now = new Date()): Promise<Conversion
   return { rates: table.rates, asOf: table.asOf, stale: isStale(table.asOf, now) };
 }
 
-/** Convert a minor-unit amount between two currencies, or null if either rate is unknown. */
+/**
+ * Convert a minor-unit amount between two currencies, or null if either rate is unknown.
+ *
+ * INT-09: rates are quoted in MAJOR units, so a minor-unit amount has to leave and re-enter
+ * minor units through each currency's own exponent. Applying the rate to the minor-unit
+ * integer directly was correct only while every listed currency had two decimals; with JPY
+ * on the list it was off by 100 in each direction.
+ */
 export function convertMinorUnits(
   amount: number,
   from: string,
@@ -36,8 +44,9 @@ export function convertMinorUnits(
   const toRate = context.rates[toCode];
   if (!fromRate || !toRate) return null;
 
-  // Both rates are quoted per 1 USD, so route through USD.
-  return Math.round((amount / fromRate) * toRate);
+  // Both rates are quoted per 1 USD, so route through USD in major units.
+  const majorUnits = amount / minorUnitFactor(fromCode);
+  return Math.round((majorUnits / fromRate) * toRate * minorUnitFactor(toCode));
 }
 
 /** Convert to USD minor units, for ranking. */

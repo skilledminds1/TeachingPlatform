@@ -1,5 +1,5 @@
 import { env } from "@/lib/env";
-import { amountFromCents } from "@/lib/payments/routing";
+import { providerAmount } from "@/lib/payments/routing";
 
 function paypalHost(): string {
   return env.PAYPAL_ENVIRONMENT === "live"
@@ -121,7 +121,10 @@ export async function createPayPalOrder(input: {
         custom_id: input.target.id,
         amount: {
           currency_code: input.currency,
-          value: amountFromCents(input.amountCents),
+          // INT-09: serialised against the order's own currency. A zero-decimal currency
+          // must arrive as "5000", not "50.00" — PayPal rejects the decimal point on JPY,
+          // and before that rejection it would have been a hundredth of the price.
+          value: providerAmount(input.amountCents, input.currency),
         },
         payee: {
           merchant_id: input.teacherMerchantId,

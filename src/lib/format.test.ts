@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { dateKeyInZone, formatDateTime, formatDayLabel, formatTime } from "./format";
+import {
+  dateKeyInZone,
+  formatCurrency,
+  formatDateTime,
+  formatDayLabel,
+  formatTime,
+} from "./format";
 import { isValidIanaTimeZone, supportedTimeZones } from "./timezone-validation";
 
 // 09:00 UTC on a Monday. Deliberately chosen so the same instant falls on a DIFFERENT
@@ -97,5 +103,31 @@ describe("isValidIanaTimeZone", () => {
     const zones = supportedTimeZones();
     expect(zones.length).toBeGreaterThan(300);
     expect(zones).toContain("Asia/Manila");
+  });
+});
+
+/**
+ * INT-09: formatCurrency divided by 100 and capped the display at two decimals for every
+ * currency, so a ¥5,000 lesson rendered as "¥50" on the teacher card, the booking page and
+ * checkout. Both numbers now come from the currency's own minor-unit exponent.
+ */
+describe("formatCurrency", () => {
+  it("renders a zero-decimal currency at full value", () => {
+    expect(formatCurrency(5000, "JPY")).toContain("5,000");
+    expect(formatCurrency(5000, "JPY")).not.toContain("50.00");
+  });
+
+  it("renders a two-decimal currency as before", () => {
+    // A whole amount drops the fraction; a part amount keeps it.
+    expect(formatCurrency(2500, "USD")).toBe("$25");
+    expect(formatCurrency(2550, "USD")).toBe("$25.50");
+  });
+
+  it("renders all three digits of a three-decimal currency", () => {
+    expect(formatCurrency(1234, "KWD")).toContain("1.234");
+  });
+
+  it("renders a Philippine peso price at its face value", () => {
+    expect(formatCurrency(150_000, "PHP")).toContain("1,500");
   });
 });

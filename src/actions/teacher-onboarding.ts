@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { minorUnitExponent, toMinorUnits } from "@/lib/currencies";
 import { toUsdCentsForRanking } from "@/lib/fx";
 import { isTeachingLanguage } from "@/lib/languages";
 
@@ -490,7 +491,25 @@ export async function saveTeacherOnboarding(
     proficiency: language.proficiency,
   }));
 
-  const hourlyRateCents = Math.round(Number(parsed.data.hourlyRate) * 100);
+  // INT-09: the rate is stored in the currency's own minor units, so the multiplier is the
+  // currency's exponent rather than a hardcoded 100. A Tokyo teacher typing 5000 used to be
+  // stored as 500000 — ¥500,000 an hour — because JPY has no minor unit at all.
+  //
+  // Checked here rather than in the schema for the same reason as the language rules above:
+  // the decimal limit depends on the currency field, and a cross-field .refine() wraps the
+  // object in a ZodEffects that breaks react-hook-form's resolver typing for the whole form.
+  const rateExponent = minorUnitExponent(parsed.data.currency);
+  const enteredDecimals = parsed.data.hourlyRate.split(".")[1]?.length ?? 0;
+  if (enteredDecimals > rateExponent) {
+    return fail(
+      rateExponent === 0
+        ? `${parsed.data.currency} amounts must be whole numbers.`
+        : `${parsed.data.currency} amounts allow at most ${rateExponent} decimal places.`,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  const hourlyRateCents = toMinorUnits(parsed.data.hourlyRate, parsed.data.currency);
 
   const profileData = {
     bio: parsed.data.bio,

@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { currentLegalDocumentsForRole } from "@/lib/legal/documents";
 import {
-  amountFromCents,
   amountsMatch,
-  majorUnitsToCents,
+  providerAmount,
+  providerAmountToMinorUnits,
   routeLessonProviders,
 } from "@/lib/payments/routing";
 import {
@@ -34,9 +34,9 @@ describe("PayFast signatures", () => {
 
 describe("payment amount conversion", () => {
   it("converts safely between cents and provider major units", () => {
-    expect(amountFromCents(12345)).toBe("123.45");
-    expect(majorUnitsToCents("12.345")).toBe(1235);
-    expect(amountsMatch(1235, "12.35")).toBe(true);
+    expect(providerAmount(12345, "USD")).toBe("123.45");
+    expect(providerAmountToMinorUnits("12.345", "USD")).toBe(1235);
+    expect(amountsMatch(1235, "12.35", "USD")).toBe(true);
   });
 
   it("does not route to an unlinked payment provider", () => {
