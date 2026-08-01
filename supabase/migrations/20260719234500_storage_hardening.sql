@@ -1,3 +1,9 @@
+-- SUPERSEDED (SEC-17): this now lives in
+-- prisma/migrations/20260731010000_storage_hardening/migration.sql, so it is applied
+-- automatically by `prisma migrate deploy` instead of by hand. Kept for reference and
+-- because it may already have been applied to an existing project; do not edit this copy.
+-- The Prisma version is idempotent and additionally provisions the course-covers bucket.
+
 -- Defense-in-depth storage configuration. Server-side service-role access bypasses
 -- these policies and remains available for validated application actions.
 insert into storage.buckets (id, name, public)

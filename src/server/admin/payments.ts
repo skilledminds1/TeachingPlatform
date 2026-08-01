@@ -1,8 +1,19 @@
 import { db } from "@/lib/db";
+import { recordAdminAccess } from "@/server/admin/audit";
 import { requirePlatformAdmin } from "@/server/auth/session";
 
 export async function getAdminPaymentOperations() {
-  await requirePlatformAdmin();
+  const admin = await requirePlatformAdmin();
+
+  // SEC-13: this reads every refund request, dispute, payment attempt and subscription
+  // invoice on the platform, including student and teacher identities. Reads of private
+  // data are auditable per PROJECT.md, and previously only writes were logged.
+  await recordAdminAccess({
+    adminUserId: admin.id,
+    action: "payments.viewed",
+    targetType: "platform",
+    targetId: admin.id,
+  });
 
   const [refundRequests, disputes, recentPayments, subscriptionInvoices] = await Promise.all([
     db.refundRequest.findMany({

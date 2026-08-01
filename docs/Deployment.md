@@ -109,8 +109,9 @@ migration jobs.
 
 1. Create project (separate for staging/production)
 2. Enable Email + Google auth
-3. Storage bucket: `avatars` (public read, auth write)
-4. Apply RLS from `supabase/migrations/`
+3. Storage buckets and their RLS policies are applied automatically by
+   `prisma migrate deploy` (prisma/migrations/20260731010000_storage_hardening).
+   No manual SQL step is required.
 
 ## Monitoring
 

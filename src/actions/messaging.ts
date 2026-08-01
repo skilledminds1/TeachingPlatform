@@ -1,5 +1,7 @@
 "use server";
 
+import { z } from "zod";
+
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
@@ -121,6 +123,11 @@ export async function startConversationWithTeacher(
   teacherUserId: string,
 ): Promise<ActionResult<{ conversationId: string }>> {
   const user = await requireAuth();
+  // SEC-14: validate before the id reaches Prisma, so a malformed value returns a clean
+  // validation error instead of an opaque 500 from a P2023.
+  if (!z.uuid().safeParse(teacherUserId).success) {
+    return fail("Invalid teacher.", "VALIDATION_ERROR");
+  }
   const restriction = await getScopeRestriction(user.id, "messaging");
   if (restriction) return fail(restriction, "FORBIDDEN");
   if (teacherUserId === user.id) {
@@ -149,6 +156,9 @@ export async function startConversationWithStudent(
   studentUserId: string,
 ): Promise<ActionResult<{ conversationId: string }>> {
   const teacher = await requireAuth();
+  if (!z.uuid().safeParse(studentUserId).success) {
+    return fail("Invalid student.", "VALIDATION_ERROR");
+  }
   const restriction = await getScopeRestriction(teacher.id, "messaging");
   if (restriction) return fail(restriction, "FORBIDDEN");
   if (!hasTeacherMembership(teacher)) {

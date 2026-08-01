@@ -18,6 +18,20 @@ import { describe, expect, it } from "vitest";
 const ADMIN_SERVER_DIR = join(process.cwd(), "src/server/admin");
 const ADMIN_APP_DIR = join(process.cwd(), "src/app/admin");
 
+/**
+ * Modules under src/server/admin that are deliberately NOT data loaders, and so are not
+ * expected to call requirePlatformAdmin themselves.
+ *
+ * Keep this list explicit and short: adding an entry must be a deliberate decision, not a
+ * side effect of loosening the rule. Anything that reads privileged data belongs under the
+ * guard, no exceptions.
+ */
+const NON_LOADER_MODULES = new Set([
+  // Audit-log writer. Takes the already-authenticated admin id as a parameter and is called
+  // BY guarded loaders — requiring the guard inside it would be circular.
+  "audit.ts",
+]);
+
 function sourceFiles(dir: string, predicate: (name: string) => boolean): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -34,7 +48,8 @@ function sourceFiles(dir: string, predicate: (name: string) => boolean): string[
 describe("admin server modules", () => {
   const files = sourceFiles(
     ADMIN_SERVER_DIR,
-    (name) => name.endsWith(".ts") && !name.endsWith(".test.ts"),
+    (name) =>
+      name.endsWith(".ts") && !name.endsWith(".test.ts") && !NON_LOADER_MODULES.has(name),
   );
 
   it("finds the admin server modules", () => {

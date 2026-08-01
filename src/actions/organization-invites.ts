@@ -155,8 +155,14 @@ export async function acceptOrganizationInvite(
 export async function revokeOrganizationInvite(
   invitationId: string,
 ): Promise<ActionResult<{ revoked: true }>> {
+  // SEC-14: this is a public RPC endpoint taking a raw string. Without validation a
+  // non-uuid value reaches Prisma and raises P2023, which escapes the ActionResult contract
+  // as an opaque 500 and makes error-based probing noisier than it needs to be.
+  const parsedId = z.uuid().safeParse(invitationId);
+  if (!parsedId.success) return fail("Invalid invitation.", "VALIDATION_ERROR");
+
   const invitation = await db.organizationInvitation.findUnique({
-    where: { id: invitationId },
+    where: { id: parsedId.data },
     select: { id: true, organizationId: true, status: true },
   });
   if (!invitation) return fail("Invitation not found.", "NOT_FOUND");

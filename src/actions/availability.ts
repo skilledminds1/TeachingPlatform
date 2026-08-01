@@ -1,5 +1,7 @@
 "use server";
 
+import { z } from "zod";
+
 import { revalidatePath } from "next/cache";
 import { DateTime } from "luxon";
 
@@ -214,8 +216,13 @@ export async function deleteAvailabilityException(
   id: string,
 ): Promise<ActionResult<{ deleted: true }>> {
   const user = await requireTeacher();
+  // SEC-14: validate before the value reaches Prisma, so a non-uuid returns a clean
+  // validation error rather than an opaque 500 from a P2023.
+  const parsedId = z.uuid().safeParse(id);
+  if (!parsedId.success) return fail("Invalid exception.", "VALIDATION_ERROR");
+
   const exception = await db.availabilityException.findFirst({
-    where: { id, userId: user.id },
+    where: { id: parsedId.data, userId: user.id },
     select: { id: true },
   });
   if (!exception) return fail("Availability exception not found.", "NOT_FOUND");
