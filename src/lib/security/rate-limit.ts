@@ -13,6 +13,15 @@ export type RateLimitResult = {
   limit: number;
   remaining: number;
   retryAfterSeconds: number;
+  /**
+   * True when the count came from this instance's memory rather than the shared store.
+   *
+   * On serverless every instance holds its own Map and cold starts reset it, so a degraded
+   * result is close to no protection at all against a distributed or merely parallel
+   * attacker. Callers guarding credentials must fail closed on this — see
+   * `enforceActionRateLimit`.
+   */
+  degraded: boolean;
 };
 
 type Entry = { count: number; resetAt: number };
@@ -31,13 +40,25 @@ function memoryLimit(options: RateLimitOptions, now = Date.now()): RateLimitResu
     limit: options.limit,
     remaining: Math.max(0, options.limit - entry.count),
     retryAfterSeconds: Math.max(1, Math.ceil((entry.resetAt - now) / 1_000)),
+    degraded: true,
   };
 }
 
+let client: Redis | null = null;
+
+export function hasSharedRateLimitStore(): boolean {
+  return Boolean(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN,
+  );
+}
+
 function upstash(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  return url && token ? new Redis({ url, token }) : null;
+  if (!hasSharedRateLimitStore()) return null;
+  client ??= new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL as string,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN as string,
+  });
+  return client;
 }
 
 export async function checkRateLimit(options: RateLimitOptions): Promise<RateLimitResult> {
@@ -54,6 +75,7 @@ export async function checkRateLimit(options: RateLimitOptions): Promise<RateLim
       limit: options.limit,
       remaining: Math.max(0, options.limit - count),
       retryAfterSeconds: Math.max(1, ttl > 0 ? ttl : windowSeconds),
+      degraded: false,
     };
   } catch (error) {
     logger.warn("rate_limit_provider_unavailable", { error });

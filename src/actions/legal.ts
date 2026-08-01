@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { safeRedirectPath } from "@/lib/security/redirect";
+import { clientIdentityFromHeaders } from "@/server/security/action-rate-limit";
 import { legalAcceptanceInputSchema } from "@/lib/validations/auth";
 import { getPostAuthRedirect, requireAuthenticatedIdentity } from "@/server/auth/session";
 import {
@@ -51,7 +52,7 @@ export async function acceptCurrentLegalDocuments(
     method: priorAcceptanceCount > 0 ? "reacceptance" : "oauth_review",
     confirmedAdult: parsed.data.confirmedAdult,
     evidence: {
-      ip: requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim(),
+      ip: clientIdentityFromHeaders(requestHeaders),
       userAgent: requestHeaders.get("user-agent"),
     },
   });

@@ -16,7 +16,10 @@ import {
 } from "@/lib/validations/auth";
 import { getPostAuthRedirect, syncUserFromAuth } from "@/server/auth/session";
 import { recordCurrentLegalAcceptances } from "@/server/legal/acceptance";
-import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
+import {
+  clientIdentityFromHeaders,
+  enforceActionRateLimit,
+} from "@/server/security/action-rate-limit";
 import { safeRedirectPath } from "@/lib/security/redirect";
 import { fail, ok, type ActionResult } from "@/types/action";
 import { db } from "@/lib/db";
@@ -35,7 +38,7 @@ export async function signUp(
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
   }
-  const limited = await enforceActionRateLimit({ action: "signup", limit: 5, windowMs: 15 * 60_000 });
+  const limited = await enforceActionRateLimit({ action: "signup", limit: 5, windowMs: 15 * 60_000, identifier: parsed.data.email, critical: true });
   if (limited) return limited;
 
   const { name, email, password, role, confirmedAdult } = parsed.data;
@@ -66,7 +69,7 @@ export async function signUp(
     method: "email_signup",
     confirmedAdult,
     evidence: {
-      ip: requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim(),
+      ip: clientIdentityFromHeaders(requestHeaders),
       userAgent: requestHeaders.get("user-agent"),
     },
   });
@@ -100,7 +103,7 @@ export async function signIn(
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
   }
-  const limited = await enforceActionRateLimit({ action: "signin", limit: 10, windowMs: 15 * 60_000 });
+  const limited = await enforceActionRateLimit({ action: "signin", limit: 10, windowMs: 15 * 60_000, identifier: parsed.data.email, critical: true });
   if (limited) return limited;
 
   const supabase = await createClient();
@@ -156,7 +159,7 @@ export async function resetPassword(input: unknown): Promise<ActionResult<{ sent
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
   }
-  const limited = await enforceActionRateLimit({ action: "password-reset", limit: 5, windowMs: 60 * 60_000 });
+  const limited = await enforceActionRateLimit({ action: "password-reset", limit: 5, windowMs: 60 * 60_000, identifier: parsed.data.email, critical: true });
   if (limited) return limited;
 
   const supabase = await createClient();
@@ -179,7 +182,7 @@ export async function changePassword(
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
   }
-  const limited = await enforceActionRateLimit({ action: "password-change", limit: 5, windowMs: 15 * 60_000 });
+  const limited = await enforceActionRateLimit({ action: "password-change", limit: 5, windowMs: 15 * 60_000, critical: true });
   if (limited) return limited;
 
   const supabase = await createClient();
@@ -215,7 +218,7 @@ export async function updateRecoveredPassword(
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid input", "VALIDATION_ERROR");
   }
-  const limited = await enforceActionRateLimit({ action: "password-recovery", limit: 5, windowMs: 15 * 60_000 });
+  const limited = await enforceActionRateLimit({ action: "password-recovery", limit: 5, windowMs: 15 * 60_000, critical: true });
   if (limited) return limited;
 
   const supabase = await createClient();

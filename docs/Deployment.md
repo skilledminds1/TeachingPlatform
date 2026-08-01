@@ -60,7 +60,7 @@ RESEND_API_KEY=
 CRON_SECRET=
 HEALTH_SECRET=
 
-# Optional distributed rate limiting
+# Distributed rate limiting - REQUIRED IN PRODUCTION (see Rate limiting below)
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 
@@ -131,9 +131,22 @@ and reject requests unless this header matches.
 
 ## Rate limiting
 
-Configure Upstash Redis in production so limits are shared across instances. If it is not
-configured, the application uses a process-local in-memory limiter intended for development
-and single-instance testing only.
+Upstash Redis is **required in production**. Limits must be shared across instances:
+each serverless instance holds its own in-memory counter and cold starts reset it, so the
+fallback limiter provides effectively no protection against a distributed — or merely
+parallel — attacker.
+
+Credential-guarding actions (sign-in, sign-up, password reset, password change, password
+recovery) are marked `critical` and **fail closed** when no shared store is configured and
+`NODE_ENV=production`: they return a temporary-unavailable error rather than silently
+accepting unlimited attempts. Non-critical actions still fall back to the in-memory limiter.
+
+Rate-limit buckets key on the client IP taken from the **rightmost** forwarded hop (or a
+platform-set header such as `x-vercel-forwarded-for`), never the client-supplied leftmost
+hop. Auth actions additionally bucket on the submitted email, so a distributed attacker
+cannot spread attempts across many IPs to hammer one account.
+
+The process-local limiter is intended for local development and single-instance testing only.
 
 ## Performance Targets
 
