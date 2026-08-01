@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatCurrency } from "@/lib/format";
 import { languageName } from "@/lib/languages";
+import { IndicativePrice } from "./indicative-price";
 
 import { RatingStars } from "./rating-stars";
 
@@ -18,7 +19,16 @@ type TeacherCardData = {
   rating: { average: number; count: number };
 };
 
-export function TeacherCard({ teacher }: { teacher: TeacherCardData }) {
+export function TeacherCard({
+  teacher,
+  fxRates,
+  fxStale,
+}: {
+  teacher: TeacherCardData;
+  /** INT-11: units per 1 USD, for the indicative viewer-currency price. */
+  fxRates: Record<string, number>;
+  fxStale: boolean;
+}) {
   return (
     <Link
       href={`/find-tutor/${teacher.slug}`}
@@ -46,6 +56,12 @@ export function TeacherCard({ teacher }: { teacher: TeacherCardData }) {
             {formatCurrency(teacher.hourlyRateCents, teacher.currency)}
           </p>
           <p className="text-xs text-muted-foreground">per hour</p>
+          <IndicativePrice
+            amountMinorUnits={teacher.hourlyRateCents}
+            currency={teacher.currency}
+            rates={fxRates}
+            stale={fxStale}
+          />
         </div>
       </div>
 

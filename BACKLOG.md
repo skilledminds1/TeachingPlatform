@@ -566,70 +566,70 @@ Timezone, locale, currency, discovery. The platform currently assumes everyone l
 
 ### 🔴 `INT-01` Detect and store the user's timezone at signup; drop the Africa/Johannesburg default
 
-- [ ] **Effort:** M · 1–2 days · **Area:** timezone
+- [x] **Effort:** M · 1–2 days · **Area:** timezone
 - **Files:** `prisma/schema.prisma`, `src/server/auth/session.ts`, `src/app/register/page.tsx`, `src/actions/auth.ts`, `src/lib/validations/auth.ts`
 - **What:** User.timezone defaults to 'Africa/Johannesburg', syncUserFromAuth creates the row with only id/email/name/avatarUrl so the default always wins, the registration form has no timezone field, and a repo-wide grep for resolvedOptions, navigator.language and Accept-Language returns zero hits — nothing anywhere detects the browser zone. Every international student and teacher who does not discover the buried settings form is silently on South African time, and this is the root cause of the wrong-booking defects below. Capture Intl.DateTimeFormat().resolvedOptions().timeZone client-side at registration and pass it through signUp and syncUserFromAuth, drop the column default (or set a neutral UTC sentinel), and show a persistent confirmation banner to any user still unset or still on the old default until they confirm.
 - **Done when:** A user registering from a New York browser has timezone America/New_York with no manual step; existing users on the default see a one-time confirmation prompt before their next booking.
 
 ### 🔴 `INT-04` Booking emails must render each recipient's own timezone
 
-- [ ] **Effort:** S · <½ day · **Area:** timezone · **Blocked by:** INT-03
+- [x] **Effort:** S · <½ day · **Area:** timezone · **Blocked by:** INT-03
 - **Files:** `src/server/notifications/notify.ts`
 - **What:** notifyBookingCreated computes a single `const when = formatDateTime(booking.startsAt, booking.teacher.timezone)` and reuses that same string in both the teacher's and the student's notification and email. A New York student booking a Tokyo teacher is told 'your lesson is reserved for 10 Aug, 09:00' when it is 20:00 on 9 Aug for them. booking.student.timezone is already selected in the query and simply unused, and the sibling functions (confirmed, cancelled, reminder) already do this correctly — it is a one-line oversight with a direct missed-lesson cost.
 - **Done when:** A unit test asserts the student's and teacher's rendered strings differ when their zones differ, for every notification that quotes a lesson time.
 
 ### 🔴 `INT-05` Regroup the slot picker by the viewer's local date
 
-- [ ] **Effort:** M · 1–2 days · **Area:** booking-ux · **Blocked by:** INT-03
+- [x] **Effort:** M · 1–2 days · **Area:** booking-ux · **Blocked by:** INT-03
 - **Files:** `src/features/bookings/components/slot-picker.tsx`, `src/server/availability/slots.ts`
 - **What:** getAvailableSlots computes each slot's date from the TEACHER's local ISO date; the picker builds day tabs by grouping on that server field but labels each tab by formatting the first slot's startsAt in viewerTimeZone and renders each slot as a bare time in viewerTimeZone with no date. Reproduced: a Tokyo teacher's Monday 09:00-17:00 window viewed from New York produces one tab labelled 'Sun, 09 Aug' whose buttons are 20:00-23:00 — the student clicks Sunday and books Monday. Adjacent tabs can even render identical labels. This is a wrong-booking bug, not a display bug. Derive date keys client-side from startsAt in viewerTimeZone and build tabs from those, keep the server's teacher-anchored date for teacher-facing views only, and render weekday plus date on every slot button or as a sticky group header so the day is never implied solely by a tab.
 - **Done when:** A Tokyo teacher viewed from New York produces tabs whose labels match the day the student is actually booking, with the date visible on each slot; a cross-midnight case is covered by a test.
 
 ### 🟠 `INT-02` Replace the hand-curated timezone list and unify IANA validation across both roles
 
-- [ ] **Effort:** M · 1–2 days · **Area:** timezone · **Blocked by:** INT-01
+- [x] **Effort:** M · 1–2 days · **Area:** timezone · **Blocked by:** INT-01
 - **Files:** `src/lib/timezone.ts`, `src/actions/student-settings.ts`, `src/lib/validations/teacher-onboarding.ts`, `src/actions/teacher-onboarding.ts`, `src/features/teacher-onboarding/components/onboarding-wizard.tsx`
 - **What:** TIMEZONE_OPTIONS is a 46-entry Africa-first array (Africa/Johannesburg first, eight African zones leading) missing Asia/Manila, Asia/Jakarta, Asia/Kuala_Lumpur, Asia/Ho_Chi_Minh, Asia/Taipei, Europe/Warsaw, Europe/Kyiv, Europe/Madrid, America/Bogota, America/Lima, America/Santiago, Asia/Kathmandu (+5:45), Asia/Tehran (+3:30), Asia/Kabul (+4:30), Asia/Yangon (+6:30) and America/St_Johns (-3:30) — and it is enforced server-side for students, so a teacher in Manila literally cannot store their own zone, while users forced into a neighbouring-offset zone inherit that zone's DST rules and are silently wrong for months. Meanwhile the teacher path accepts any 100-character string and writes it straight to user.timezone, so an invalid zone later throws inside localDateTimeToUtc and breaks that teacher's availability page — the two halves of the same column have opposite validation contracts. Replace the array with Intl.supportedValuesOf('timeZone') grouped by region in a searchable, offset-labelled combobox with the detected zone pinned, and share one validator (try/catch constructing an Intl.DateTimeFormat) between both paths.
 - **Done when:** Any IANA zone can be selected and saved by both students and teachers; a bogus zone is rejected identically on both paths; slot generation never throws on a stored zone.
 
 ### 🟠 `INT-03` Make timeZone required on the formatters and always render a zone label
 
-- [ ] **Effort:** M · 1–2 days · **Area:** timezone
+- [x] **Effort:** M · 1–2 days · **Area:** timezone
 - **Files:** `src/lib/format.ts`, `src/lib/timezone.ts`, `src/app/dashboard/page.tsx`, `src/server/notifications/notify.ts`
 - **What:** formatDateTime's timeZone parameter is optional, so omissions silently fall back to the runtime zone (UTC on the host) — src/app/dashboard/page.tsx renders lesson times with no zone argument while /dashboard/bookings/[id] passes user.timezone, so the same lesson shows two different times in one session. Neither formatDateTime nor formatInTimeZone ever passes timeZoneName; a grep for timeZoneName across src/ returns zero results, so every lesson time in every email, notification, dashboard and booking page is an unqualified wall-clock string. That absence is the multiplier that makes every other timezone defect silent rather than self-correcting. Make the parameter required so the compiler enumerates every call site, add timeZoneName 'short', and sweep the omissions the compiler surfaces.
 - **Done when:** The project compiles only after every call site supplies a zone; every displayed and emailed time carries a zone label; the dashboard and the booking detail page show the same time for the same lesson.
 
 ### 🟠 `INT-06` Anonymous visitors must not be shown South African time on the public booking page
 
-- [ ] **Effort:** M · 1–2 days · **Area:** booking-ux · **Blocked by:** INT-05
+- [x] **Effort:** M · 1–2 days · **Area:** booking-ux · **Blocked by:** INT-05
 - **Files:** `src/app/teachers/[slug]/page.tsx`, `src/app/find-tutor/[slug]/page.tsx`, `src/features/bookings/components/slot-picker.tsx`
 - **What:** `viewerTimeZone={user?.timezone ?? 'Africa/Johannesburg'}` on the primary public tutor page (find-tutor/[slug] is a straight re-export of it), so the entire top of the acquisition funnel evaluates a teacher's availability in SAST while the footnote confidently asserts 'Times shown in Africa/Johannesburg' — a prospective student in Los Angeles is shown times ten hours off with no selector to correct it short of creating an account and finding the settings page. Resolve the zone client-side from the browser for anonymous viewers (or fall back to UTC with an explicit label), and add a visible timezone selector above the tabs that any visitor can change, persisting to the user record when signed in. Never fall back to a specific populated region.
 - **Done when:** A logged-out visitor in Los Angeles sees Pacific times labelled as such and can switch zones directly on the page without signing up.
 
 ### 🟠 `INT-07` Remove every hardcoded en-ZA locale and centralise Intl construction
 
-- [ ] **Effort:** M · 1–2 days · **Area:** locale
+- [x] **Effort:** M · 1–2 days · **Area:** locale
 - **Files:** `src/lib/format.ts`, `src/lib/timezone.ts`, `src/features/bookings/components/slot-picker.tsx`, `src/app/teachers/[slug]/page.tsx`, `src/app/admin/analytics/page.tsx`, `src/server/teachers/analytics.ts`, `src/server/admin/platform-analytics.ts`, `eslint.config.mjs`
 - **What:** Roughly 24 en-ZA literals across 11 files — Intl.DateTimeFormat('en-ZA') in format.ts, timezone.ts, the slot picker and the public teacher page, plus about a dozen toLocaleString('en-ZA') calls in the admin and teacher analytics pages. en-ZA is a 24-hour, day-first locale with non-breaking-space number grouping, so a US student never sees an AM/PM time; combined with INT-05 they see '03:00' under a tab labelled with the previous day and have no AM/PM anchor to notice the wrongness. Route everything through a single resolveLocale() helper in src/lib/format.ts (user's stored locale, else Accept-Language on the server, else undefined so Intl resolves the runtime locale), delete every inline literal, and add a lint rule banning locale string literals outside format.ts.
 - **Done when:** Zero en-ZA occurrences outside format.ts; a US-locale browser sees AM/PM times and month-first dates; the lint rule fails a CI run if a locale literal is reintroduced.
 
 ### 🟠 `INT-08` Delete ZAR from lesson currencies and fix the index-based default
 
-- [ ] **Effort:** S · <½ day · **Area:** currency
+- [x] **Effort:** S · <½ day · **Area:** currency
 - **Files:** `src/lib/currencies.ts`, `prisma/schema.prisma`, `scripts/test-payments.ts`, `docs/LessonPayments.md`
 - **What:** ZAR is the FIRST entry in LESSON_CURRENCIES with providers ['paypal'], but PayPal does not support ZAR as a transaction currency at all — a ZAR-priced booking builds an order in an unsupported currency and fails at order creation, and scripts/test-payments.ts asserts the wrong behaviour as correct. getCurrencyMeta falls back to LESSON_CURRENCIES[1] BY INDEX, so reordering the array silently makes ZAR the default. prisma/schema.prisma:571 still defaults a currency column to ZAR (the only remaining ZAR default). For an international customer base ZAR should not be a lesson currency at all — the rand is the founder's settlement constraint, not a customer-facing currency. Remove the entry, replace the index fallback with an explicit lookup of 'USD' by code, migrate existing ZAR rows, and fix the test assertion and the docs line that lists it.
 - **Done when:** No ZAR in LESSON_CURRENCIES or as a schema default; a unit test asserts every listed currency is supported by the active lesson rail; getCurrencyMeta('XXX') returns USD regardless of array order.
 
 ### 🟠 `INT-10` Add a teaching-language model and marketplace language filter
 
-- [ ] **Effort:** M · 1–2 days · **Area:** discovery
+- [x] **Effort:** M · 1–2 days · **Area:** discovery
 - **Files:** `prisma/schema.prisma`, `src/server/marketplace/teachers.ts`, `src/lib/validations/teacher-onboarding.ts`, `src/features/marketplace/components/teacher-filters.tsx`, `src/features/marketplace/components/teacher-card.tsx`
 - **What:** A grep for languages, spokenLanguages or nativeLanguage across src/ and prisma/ returns zero hits — there is no language-of-instruction field anywhere. TeacherProfile carries bio, headline, rate, currency, intro video, subjects and qualifications; teacherOnboardingSchema never asks; and TeacherSearchFilters is {query, subject, maxRateCents, minRating, sort}. On Preply, italki and AmazingTalker language is the FIRST filter a student applies — for language tutoring it is the product, and for subject tutoring it determines whether the lesson is even possible. This is the highest-commercial-value gap on the international list, above any i18n work. Add a TeacherLanguage join (language code, CEFR-style proficiency, isNative), require at least one entry at onboarding, surface it on the teacher card and profile, and add a multi-select filter backed by an indexed query.
 - **Done when:** A student can filter to teachers who teach in Spanish; every listed teacher displays at least one language; the filter runs in SQL rather than in-memory over a truncated slice.
 
 ### 🟠 `INT-12` Normalise hourly rates so the price filter and sort are coherent across currencies
 
-- [ ] **Effort:** M · 1–2 days · **Area:** discovery · **Blocked by:** INT-11
+- [x] **Effort:** M · 1–2 days · **Area:** discovery · **Blocked by:** INT-11
 - **Files:** `src/server/marketplace/teachers.ts`, `prisma/schema.prisma`, `src/features/marketplace/components/teacher-filters.tsx`
 - **What:** searchTeachers applies `hourlyRateCents <= maxRateCents` and sorts price_asc/price_desc on that same raw column, while TeacherProfile.currency varies per teacher across the full currency list and the filter UI labels are dollar-denominated ('Up to $50/hour'). So a teacher charging R450/hour (~$24) is excluded from the $50 bucket while a teacher at £45 (~$57) is included, and price sorting is meaningless. Add an hourlyRateUsdCents shadow column recomputed on profile save and on the scheduled FX refresh; filter and sort on it while continuing to display and charge in the teacher's native currency, which remains the source of truth for checkout.
 - **Done when:** The 'Up to $50/hour' bucket contains exactly the teachers whose rate converts to $50 or less, and price sorting is monotonic in USD across mixed-currency teachers.
@@ -650,7 +650,7 @@ Timezone, locale, currency, discovery. The platform currently assumes everyone l
 
 ### 🟡 `INT-11` Daily FX rate table with staleness alarms, plus indicative price conversion for students
 
-- [ ] **Effort:** M · 1–2 days · **Area:** currency
+- [x] **Effort:** M · 1–2 days · **Area:** currency
 - **Files:** `prisma/schema.prisma`, `src/lib/currencies.ts`, `src/app/api/v1/jobs/expire-pending-payments/route.ts`, `vercel.json`, `src/features/marketplace/components/teacher-card.tsx`, `src/app/courses/[slug]/page.tsx`
 - **What:** No exchange-rate or currency-conversion logic exists anywhere in src/ — the only rate in the codebase is the hand-maintained PAYFAST_USD_ZAR_RATE, which PAY-05 removes. A student in Japan browsing a UK teacher just sees '£25' with no idea what it costs them, and checkout never discloses the provider's FX spread. Add a cached daily rate table from a reference feed (ECB, exchangerate.host) refreshed by a new cron job with a staleness alarm rather than silently serving old numbers. One piece of infrastructure with two payoffs: it powers the rate normalisation in INT-12 and lets the marketplace render an unobtrusive secondary line — '£25/hr (≈ ¥4,700)' — using a viewer currency inferred from locale/timezone and overridable in settings, with the teacher's currency kept as the authoritative figure and the conversion labelled indicative.
 - **Done when:** Rates refresh daily under the cron monitoring from QLT-04, a stale table raises an alert, and a viewer whose locale currency differs sees a labelled approximate conversion on the teacher card, profile and course page plus an FX-spread disclosure at checkout.

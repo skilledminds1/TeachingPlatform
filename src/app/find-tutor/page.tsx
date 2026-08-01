@@ -1,4 +1,5 @@
 import { GraduationCap } from "lucide-react";
+import { getConversionContext } from "@/server/fx/convert";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -37,7 +38,7 @@ export default async function FindTutorPage({
   const maxRate = Number(first("maxRate"));
   const minRating = Number(first("minRating"));
   const sortParam = first("sort");
-  const [user, subjects, teachers] = await Promise.all([
+  const [user, subjects, teachers, fx] = await Promise.all([
     getCurrentUser(),
     getMarketplaceSubjects(),
     searchTeachers({
@@ -49,6 +50,7 @@ export default async function FindTutorPage({
       sort:
         sortParam && validSorts.has(sortParam) ? (sortParam as TeacherSort) : "recommended",
     }),
+    getConversionContext(),
   ]);
 
   const showStudentNav =
@@ -97,7 +99,7 @@ export default async function FindTutorPage({
         {teachers.length > 0 ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {teachers.map((teacher) => (
-              <TeacherCard key={teacher.id} teacher={teacher} />
+              <TeacherCard fxRates={fx.rates} fxStale={fx.stale} key={teacher.id} teacher={teacher} />
             ))}
           </div>
         ) : (

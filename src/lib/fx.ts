@@ -23,8 +23,15 @@ import { DEFAULT_LESSON_CURRENCY, isLessonCurrency } from "@/lib/currencies";
  * point only `usdRate` needs to change.
  */
 
-/** Units of the given currency per 1 USD. Reference values — see the note above. */
-const USD_RATES: Record<string, number> = {
+/**
+ * Compiled-in reference rates, used ONLY when the database has no rates yet — a fresh
+ * deploy before the first cron run, or a database read failure. INT-11 makes the live table
+ * authoritative; these exist so ranking never breaks outright.
+ *
+ * They drift: checked against the ECB feed the day after they were written, GBP was already
+ * 6% out. Treat them as a floor on correctness, not a source of truth.
+ */
+export const STATIC_USD_RATES: Record<string, number> = {
   USD: 1,
   EUR: 0.92,
   GBP: 0.79,
@@ -36,7 +43,7 @@ const USD_RATES: Record<string, number> = {
 export const FX_RATES_REVIEWED_ON = "2026-07-31";
 
 export function usdRate(currency: string): number | null {
-  return USD_RATES[currency.toUpperCase()] ?? null;
+  return STATIC_USD_RATES[currency.toUpperCase()] ?? null;
 }
 
 /**
@@ -67,7 +74,7 @@ export function toUsdCentsForRanking(amountCents: number, currency: string): num
 
 /** Every currency the ranking conversion knows about, for tests and diagnostics. */
 export function convertibleCurrencies(): string[] {
-  return Object.keys(USD_RATES);
+  return Object.keys(STATIC_USD_RATES);
 }
 
 /** True when a teacher's stored currency can be ranked without a fallback. */

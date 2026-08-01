@@ -13,6 +13,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/v1/jobs/refresh-fx-rates",
+      "schedule": "30 5 * * *"
+    },
+    {
       "path": "/api/v1/jobs/subscription-lifecycle",
       "schedule": "15 2 * * *"
     },
