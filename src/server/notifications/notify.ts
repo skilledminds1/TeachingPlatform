@@ -64,21 +64,26 @@ export async function notifyBookingCreated(bookingId: string) {
   });
   if (!booking) return;
 
-  const when = formatDateTime(booking.startsAt, booking.teacher.timezone);
+  // INT-04: each recipient must see the lesson in THEIR OWN zone. A single `when` built
+  // from one party's timezone was sent to both, so the other was told a time that was
+  // simply wrong for them — a direct missed-lesson risk, and the sibling notifications
+  // below already did this correctly.
+  const whenForTeacher = formatDateTime(booking.startsAt, booking.teacher.timezone);
+  const whenForStudent = formatDateTime(booking.startsAt, booking.student.timezone);
   const href = `/dashboard/bookings/${booking.id}`;
   await Promise.all([
     createNotification({
       userId: booking.teacher.id,
       type: "booking.created",
       title: "New lesson request",
-      body: `${booking.student.name} wants to take a lesson with you on ${when}.`,
+      body: `${booking.student.name} wants to take a lesson with you on ${whenForTeacher}.`,
       href,
       email: {
         to: booking.teacher.email,
         subject: `New booking from ${booking.student.name}`,
         template: {
           heading: "New lesson request",
-          paragraphs: [`${booking.student.name} reserved a lesson for ${when}.`],
+          paragraphs: [`${booking.student.name} reserved a lesson for ${whenForTeacher}.`],
           action: { label: "Review booking", href: `${env.NEXT_PUBLIC_APP_URL}${href}` },
         },
       },
@@ -87,14 +92,14 @@ export async function notifyBookingCreated(bookingId: string) {
       userId: booking.student.id,
       type: "booking.created",
       title: "Booking reserved",
-      body: `Your lesson with ${booking.teacher.name} is reserved for ${when}.`,
+      body: `Your lesson with ${booking.teacher.name} is reserved for ${whenForStudent}.`,
       href,
       email: {
         to: booking.student.email,
         subject: `Lesson reserved with ${booking.teacher.name}`,
         template: {
           heading: "Booking reserved",
-          paragraphs: [`Your lesson with ${booking.teacher.name} is reserved for ${when}.`],
+          paragraphs: [`Your lesson with ${booking.teacher.name} is reserved for ${whenForStudent}.`],
           action: { label: "View booking", href: `${env.NEXT_PUBLIC_APP_URL}${href}` },
         },
       },

@@ -10,9 +10,14 @@ import { Button } from "@/components/ui/button";
 export function BookingCheckoutButtons({
   bookingId,
   providers,
+  currency,
+  currencySupported,
 }: {
   bookingId: string;
   providers: Array<"paypal">;
+  /** The booking's settlement currency, for the unsupported-currency message. */
+  currency: string;
+  currencySupported: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -31,9 +36,15 @@ export function BookingCheckoutButtons({
   }
 
   if (providers.length === 0) {
+    // INT-08: distinguish "teacher hasn't linked an account" from "this currency has no
+    // rail at all". Bookings priced in ZAR predate its removal — PayPal never supported it,
+    // so those checkouts always failed — and telling the student to wait for the teacher to
+    // finish linking would send them somewhere that can never resolve.
     return (
       <p className="text-sm text-muted-foreground">
-        This teacher has not finished linking a PayPal account for your lesson currency yet.
+        {currencySupported
+          ? "This teacher has not finished linking a payment account for your lesson currency yet."
+          : `Lessons priced in ${currency} cannot be paid for online. Please contact your teacher to agree a supported currency.`}
       </p>
     );
   }

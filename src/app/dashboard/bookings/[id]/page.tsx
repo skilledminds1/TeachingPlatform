@@ -11,6 +11,7 @@ import { BookingCheckoutButtons } from "@/features/payments/components/booking-c
 import { RefundRequestPanel } from "@/features/payments/components/refund-request-panel";
 import { ReviewForm } from "@/features/reviews/components/review-form";
 import { formatCurrency, formatDateTime, formatStatus } from "@/lib/format";
+import { isLessonCurrency } from "@/lib/currencies";
 import { routeLessonProviders } from "@/lib/payments/routing";
 import { requireAuth } from "@/server/auth/session";
 import { getBookingForUser } from "@/server/bookings/calendar";
@@ -114,7 +115,12 @@ export default async function BookingDetailsPage({
             ) : null}
             {!isTeacher ? (
               <div className="space-y-3">
-                <BookingCheckoutButtons bookingId={booking.id} providers={providers} />
+                <BookingCheckoutButtons
+                  bookingId={booking.id}
+                  providers={providers}
+                  currency={booking.currency}
+                  currencySupported={isLessonCurrency(booking.currency)}
+                />
                 <p className="text-xs text-muted-foreground">
                   Payment goes directly to the teacher. The teacher is responsible for refunds
                   under our{" "}
