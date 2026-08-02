@@ -55,20 +55,132 @@ export function timeValue(date: Date): string {
   return DateTime.fromJSDate(date, { zone: "utc" }).toFormat("HH:mm");
 }
 
+const LOCAL_FORMAT = "yyyy-MM-dd HH:mm";
+
+/**
+ * INT-14: what a daylight-saving transition did to a local time we were asked to store.
+ *
+ * Twice a year a wall-clock time is either impossible or means two different instants, and
+ * Luxon resolves both cases silently — so a teacher who blocks 01:30 on a transition day
+ * gets a different hour than the one they typed, with nothing to tell them.
+ */
+export type DstWarning = {
+  kind: "nonexistent" | "ambiguous";
+  zone: string;
+  /** The local date and time as requested, "yyyy-MM-dd HH:mm". */
+  requested: string;
+  /** Plain-language explanation, safe to show a teacher. */
+  message: string;
+};
+
+/**
+ * Convert a local date and time to UTC, reporting any daylight-saving ambiguity.
+ *
+ * Neither case is an error — a value still has to be stored — so this returns the warning
+ * alongside the instant rather than throwing. Callers that can surface it to a human should;
+ * callers generating slots in bulk can ignore it.
+ */
+export function resolveLocalDateTime(input: {
+  date: string;
+  time: string;
+  timeZone: string;
+}): { utc: Date; warning: DstWarning | null } {
+  const requested = `${input.date} ${input.time}`;
+  const value = DateTime.fromFormat(requested, LOCAL_FORMAT, { zone: input.timeZone });
+  if (!value.isValid) {
+    throw new Error("Invalid date, time, or timezone.");
+  }
+
+  const utc = value.toUTC().toJSDate();
+
+  // Spring forward deletes local times. Luxon does not reject them, it slides the result
+  // forward — so the only evidence is that what came back is not what went in.
+  const resolved = value.toFormat(LOCAL_FORMAT);
+  if (resolved !== requested) {
+    return {
+      utc,
+      warning: {
+        kind: "nonexistent",
+        zone: input.timeZone,
+        requested,
+        message:
+          `${input.time} does not exist on ${input.date} in ${input.timeZone} — the clocks ` +
+          `go forward. Saved as ${resolved.slice(11)} instead.`,
+      },
+    };
+  }
+
+  // Autumn back repeats them, and Luxon always takes the first. Measure the offset change
+  // across the day rather than assuming a one-hour shift; some zones move by thirty minutes.
+  const backwardShiftMinutes = value.minus({ days: 1 }).offset - value.plus({ days: 1 }).offset;
+  if (backwardShiftMinutes > 0) {
+    const alternative = value.plus({ minutes: backwardShiftMinutes });
+    if (alternative.toFormat(LOCAL_FORMAT) === requested) {
+      return {
+        utc,
+        warning: {
+          kind: "ambiguous",
+          zone: input.timeZone,
+          requested,
+          message:
+            `${input.time} happens twice on ${input.date} in ${input.timeZone} — the clocks ` +
+            `go back. Saved as the earlier one (UTC${value.toFormat("ZZ")}).`,
+        },
+      };
+    }
+  }
+
+  return { utc, warning: null };
+}
+
 export function localDateTimeToUtc(input: {
   date: string;
   time: string;
   timeZone: string;
 }): Date {
-  const value = DateTime.fromFormat(
-    `${input.date} ${input.time}`,
-    "yyyy-MM-dd HH:mm",
-    { zone: input.timeZone },
-  );
+  return resolveLocalDateTime(input).utc;
+}
+
+/** The calendar date it is *right now* in a zone, as yyyy-MM-dd. */
+export function todayInZone(timeZone: string, now = new Date()): string {
+  const value = DateTime.fromJSDate(now, { zone: timeZone });
   if (!value.isValid) {
-    throw new Error("Invalid date, time, or timezone.");
+    // An unusable zone must not make every date guard reject; fall back to UTC.
+    return DateTime.fromJSDate(now, { zone: "utc" }).toISODate() ?? "";
   }
-  return value.toUTC().toJSDate();
+  return value.toISODate() ?? "";
+}
+
+/**
+ * A date-only value anchored at UTC midnight.
+ *
+ * `specificDate` columns hold a calendar date with no time, written as `<date>T00:00:00Z`.
+ * Comparing them against an instant (`new Date()`) mixes the two kinds and drops the current
+ * day for anyone whose local date differs from UTC's — see INT-14.
+ */
+export function dateOnlyUtc(isoDate: string): Date {
+  return new Date(`${isoDate}T00:00:00.000Z`);
+}
+
+/**
+ * ICU has no distinct abbreviation for many zones and returns a bare offset such as "GMT+1".
+ * Printing that beside the numeric offset says the same thing twice, so it is dropped.
+ */
+function zoneAbbreviation(value: DateTime): string | null {
+  const abbreviation = value.offsetNameShort;
+  if (!abbreviation || /^(GMT|UTC)/.test(abbreviation)) return null;
+  return abbreviation;
+}
+
+/** Zone with its current abbreviation and offset, for telling a user which clock they are on. */
+export function zoneLabel(timeZone: string, now = new Date()): string {
+  const value = DateTime.fromJSDate(now, { zone: timeZone });
+  if (!value.isValid) return timeZone;
+
+  const name = timeZone.replace(/_/g, " ");
+  const offset = `UTC${value.toFormat("ZZ")}`;
+  const abbreviation = zoneAbbreviation(value);
+  return abbreviation ? `${name} (${abbreviation}, ${offset})` : `${name} (${offset})`;
 }
 
 export function formatInTimeZone(

@@ -3,7 +3,13 @@ import {
   type AnalyticsRange,
 } from "@/features/teacher-dashboard/lib/analytics-range";
 import { db } from "@/lib/db";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
+import {
+  analyticsWindowInZone,
+  bucketKeyInZone,
+  bucketKeysInZone,
+  bucketLabelInZone,
+} from "@/server/analytics/buckets";
 import { requireTeacher } from "@/server/auth/session";
 
 export type { AnalyticsRange } from "@/features/teacher-dashboard/lib/analytics-range";
@@ -31,27 +37,9 @@ type TrendPoint = {
   netCentsByCurrency: Record<string, number>;
 };
 
-function startOfUtcDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
-
-function addUtcDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
-}
-
-function rangeWindow(range: AnalyticsRange, now = new Date()) {
-  if (range === "all") {
-    return { start: null as Date | null, end: now, previousStart: null as Date | null, previousEnd: null as Date | null, days: null as number | null };
-  }
-  const days = range === "30d" ? 30 : range === "90d" ? 90 : 365;
-  const end = now;
-  const start = addUtcDays(startOfUtcDay(now), -(days - 1));
-  const previousEnd = addUtcDays(start, -1);
-  const previousStart = addUtcDays(startOfUtcDay(previousEnd), -(days - 1));
-  return { start, end, previousStart, previousEnd, days };
-}
+// INT-14: the window, the bucket keys and the labels all used to be computed in UTC here,
+// and again in src/server/admin/platform-analytics.ts. They now come from one zone-aware
+// module so a teacher's day boundary is their own — see src/server/analytics/buckets.ts.
 
 function emptyMoney(currency: string): MoneyBucket {
   return { currency, grossCents: 0, refundedCents: 0, netCents: 0, count: 0 };
@@ -92,72 +80,19 @@ function deltaPercent(current: number, previous: number): number | null {
   return Math.round(((current - previous) / previous) * 1000) / 10;
 }
 
-function bucketKey(date: Date, range: AnalyticsRange): string {
-  if (range === "365d" || range === "all") {
-    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-  }
-  return date.toISOString().slice(0, 10);
-}
-
-function bucketLabel(key: string, range: AnalyticsRange): string {
-  if (range === "365d" || range === "all") {
-    const [year, month] = key.split("-").map(Number);
-    return new Intl.DateTimeFormat("en-ZA", { month: "short", year: "numeric", timeZone: "UTC" }).format(
-      new Date(Date.UTC(year, month - 1, 1)),
-    );
-  }
-  return formatDate(new Date(`${key}T00:00:00.000Z`));
-}
-
-function buildTrendScaffold(range: AnalyticsRange, start: Date | null, end: Date): TrendPoint[] {
-  const points: TrendPoint[] = [];
-  if (!start) {
-    // All-time: last 12 months scaffold
-    const cursor = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - 11, 1));
-    while (cursor <= end) {
-      const key = bucketKey(cursor, "365d");
-      points.push({
-        key,
-        label: bucketLabel(key, "365d"),
-        enrollments: 0,
-        completedLessons: 0,
-        netCentsByCurrency: {},
-      });
-      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-    }
-    return points;
-  }
-
-  if (range === "365d") {
-    const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
-    while (cursor <= end) {
-      const key = bucketKey(cursor, range);
-      points.push({
-        key,
-        label: bucketLabel(key, range),
-        enrollments: 0,
-        completedLessons: 0,
-        netCentsByCurrency: {},
-      });
-      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-    }
-    return points;
-  }
-
-  const cursor = startOfUtcDay(start);
-  const last = startOfUtcDay(end);
-  while (cursor <= last) {
-    const key = bucketKey(cursor, range);
-    points.push({
-      key,
-      label: bucketLabel(key, range),
-      enrollments: 0,
-      completedLessons: 0,
-      netCentsByCurrency: {},
-    });
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-  return points;
+function buildTrendScaffold(
+  range: AnalyticsRange,
+  start: Date | null,
+  end: Date,
+  timeZone: string,
+): TrendPoint[] {
+  return bucketKeysInZone(range, start, end, timeZone).map((key) => ({
+    key,
+    label: bucketLabelInZone(key),
+    enrollments: 0,
+    completedLessons: 0,
+    netCentsByCurrency: {},
+  }));
 }
 
 function inWindow(date: Date | null | undefined, start: Date | null, end: Date | null): boolean {
@@ -169,7 +104,12 @@ function inWindow(date: Date | null | undefined, start: Date | null, end: Date |
 
 export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
   const user = await requireTeacher();
-  const { start, end, previousStart, previousEnd, days } = rangeWindow(range);
+  // INT-14: the teacher's own calendar decides where a day starts and ends.
+  const timeZone = user.timezone;
+  const { start, end, previousStart, previousEnd, days } = analyticsWindowInZone(
+    range,
+    timeZone,
+  );
   const teacherId = user.id;
 
   const [
@@ -380,26 +320,26 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
 
   const certificatesInPeriod = certificates.filter((item) => inWindow(item.issuedAt, start, end));
 
-  const trend = buildTrendScaffold(range, start, end);
+  const trend = buildTrendScaffold(range, start, end, timeZone);
   const trendIndex = new Map(trend.map((point, index) => [point.key, index]));
   const trendRange = range === "all" ? "365d" : range;
 
   for (const enrollment of periodEnrollments) {
-    const key = bucketKey(enrollment.enrolledAt, trendRange);
+    const key = bucketKeyInZone(enrollment.enrolledAt, trendRange, timeZone);
     const index = trendIndex.get(key);
     if (index !== undefined) trend[index].enrollments += 1;
   }
 
   for (const booking of currentBookings) {
     if (booking.status !== "completed") continue;
-    const key = bucketKey(booking.startsAt, trendRange);
+    const key = bucketKeyInZone(booking.startsAt, trendRange, timeZone);
     const index = trendIndex.get(key);
     if (index !== undefined) trend[index].completedLessons += 1;
   }
 
   for (const attempt of currentPayments) {
     const when = attempt.succeededAt ?? attempt.createdAt;
-    const key = bucketKey(when, trendRange);
+    const key = bucketKeyInZone(when, trendRange, timeZone);
     const index = trendIndex.get(key);
     if (index === undefined) continue;
     const net = attempt.amountCents - attempt.refundedCents;

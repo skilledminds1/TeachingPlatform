@@ -25,6 +25,8 @@ export default async function TeacherAvailabilityPage() {
           initialSlots={schedule.weekly}
           initialExceptions={schedule.exceptions.map((item) => ({ ...item, dayOfWeek: 0 }))}
           timeZone={schedule.timeZone}
+          timeZoneLabel={schedule.timeZoneLabel}
+          timeZoneIsLegacyDefault={schedule.timeZoneIsLegacyDefault}
         />
       </main>
     </div>

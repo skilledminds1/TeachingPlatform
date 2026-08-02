@@ -3,7 +3,13 @@ import {
   type AnalyticsRange,
 } from "@/features/teacher-dashboard/lib/analytics-range";
 import { db } from "@/lib/db";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
+import {
+  analyticsWindowInZone,
+  bucketKeyInZone,
+  bucketKeysInZone,
+  bucketLabelInZone,
+} from "@/server/analytics/buckets";
 import { requirePlatformAdmin } from "@/server/auth/session";
 
 export type { AnalyticsRange } from "@/features/teacher-dashboard/lib/analytics-range";
@@ -106,31 +112,20 @@ type TrendPoint = {
   courseCheckoutSucceeded: number;
 };
 
-function startOfUtcDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
-
-function addUtcDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
-}
-
-export function platformAnalyticsWindow(range: AnalyticsRange, now = new Date()) {
-  if (range === "all") {
-    return {
-      start: null as Date | null,
-      end: now,
-      previousStart: null as Date | null,
-      previousEnd: null as Date | null,
-      days: null as number | null,
-    };
-  }
-  const days = range === "30d" ? 30 : range === "90d" ? 90 : 365;
-  const start = addUtcDays(startOfUtcDay(now), -(days - 1));
-  const previousEnd = new Date(start.getTime() - 1);
-  const previousStart = addUtcDays(startOfUtcDay(previousEnd), -(days - 1));
-  return { start, end: now, previousStart, previousEnd, days };
+/**
+ * INT-14: the window and the bucket keys were computed in UTC here and, separately, in
+ * src/server/teachers/analytics.ts. Both are now the shared zone-aware helpers, so an
+ * admin's "today" is their own calendar day rather than Greenwich's.
+ *
+ * `timeZone` defaults to UTC so a caller that genuinely wants UTC reporting — and the
+ * fixture tests, which are written in UTC — keep their existing behaviour.
+ */
+export function platformAnalyticsWindow(
+  range: AnalyticsRange,
+  now = new Date(),
+  timeZone = "UTC",
+) {
+  return analyticsWindowInZone(range, timeZone, now);
 }
 
 function inWindow(date: Date, start: Date | null, end: Date): boolean {
@@ -188,30 +183,15 @@ function amountRows(buckets: Map<string, number>) {
     }));
 }
 
-function bucketKey(date: Date, range: AnalyticsRange): string {
-  if (range === "365d" || range === "all") {
-    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-  }
-  return date.toISOString().slice(0, 10);
-}
-
-function bucketLabel(key: string, range: AnalyticsRange): string {
-  if (range === "365d" || range === "all") {
-    const [year, month] = key.split("-").map(Number);
-    return new Intl.DateTimeFormat("en-ZA", {
-      month: "short",
-      year: "numeric",
-      timeZone: "UTC",
-    }).format(new Date(Date.UTC(year, month - 1, 1)));
-  }
-  return formatDate(new Date(`${key}T00:00:00.000Z`));
-}
-
-function trendScaffold(range: AnalyticsRange, start: Date | null, end: Date): TrendPoint[] {
-  const points: TrendPoint[] = [];
-  const makePoint = (key: string): TrendPoint => ({
+function trendScaffold(
+  range: AnalyticsRange,
+  start: Date | null,
+  end: Date,
+  timeZone: string,
+): TrendPoint[] {
+  return bucketKeysInZone(range, start, end, timeZone).map((key) => ({
     key,
-    label: bucketLabel(key, range === "all" ? "365d" : range),
+    label: bucketLabelInZone(key),
     teacherGrossCentsByCurrency: {},
     teacherNetCentsByCurrency: {},
     platformRevenueCentsByCurrency: {},
@@ -219,37 +199,23 @@ function trendScaffold(range: AnalyticsRange, start: Date | null, end: Date): Tr
     lessonCheckoutSucceeded: 0,
     courseCheckoutStarts: 0,
     courseCheckoutSucceeded: 0,
-  });
-
-  if (!start) {
-    const cursor = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - 11, 1));
-    while (cursor <= end) {
-      points.push(makePoint(bucketKey(cursor, "365d")));
-      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-    }
-  } else if (range === "365d") {
-    const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
-    while (cursor <= end) {
-      points.push(makePoint(bucketKey(cursor, range)));
-      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-    }
-  } else {
-    const cursor = startOfUtcDay(start);
-    while (cursor <= startOfUtcDay(end)) {
-      points.push(makePoint(bucketKey(cursor, range)));
-      cursor.setUTCDate(cursor.getUTCDate() + 1);
-    }
-  }
-  return points;
+  }));
 }
 
 export function summarizePlatformAnalytics(
   fixture: PlatformAnalyticsFixture,
   range: AnalyticsRange = "30d",
   now = new Date(),
+  // INT-14: the admin's own calendar. Defaults to UTC so existing callers and the fixture
+  // tests, which are written in UTC, keep the behaviour they were built against.
+  timeZone = "UTC",
 ) {
-  const { start, end, previousStart, previousEnd, days } = platformAnalyticsWindow(range, now);
-  const trend = trendScaffold(range, start, end);
+  const { start, end, previousStart, previousEnd, days } = platformAnalyticsWindow(
+    range,
+    now,
+    timeZone,
+  );
+  const trend = trendScaffold(range, start, end, timeZone);
   const trendByKey = new Map(trend.map((point) => [point.key, point]));
   const trendRange = range === "all" ? "365d" : range;
 
@@ -272,7 +238,7 @@ export function summarizePlatformAnalytics(
   }
 
   for (const payment of payments) {
-    const point = trendByKey.get(bucketKey(payment.createdAt, trendRange));
+    const point = trendByKey.get(bucketKeyInZone(payment.createdAt, trendRange, timeZone));
     if (!point) continue;
     if (payment.kind === "lesson") {
       point.lessonCheckoutStarts += 1;
@@ -378,7 +344,7 @@ export function summarizePlatformAnalytics(
       invoice.amountCents,
       invoice.status === "refunded" ? invoice.amountCents : 0,
     );
-    const point = trendByKey.get(bucketKey(invoice.issuedAt, trendRange));
+    const point = trendByKey.get(bucketKeyInZone(invoice.issuedAt, trendRange, timeZone));
     if (point) {
       point.platformRevenueCentsByCurrency[invoice.currency] =
         (point.platformRevenueCentsByCurrency[invoice.currency] ?? 0) +
@@ -527,8 +493,11 @@ export async function getPlatformAnalytics(
   range: AnalyticsRange = "30d",
   now = new Date(),
 ) {
-  await requirePlatformAdmin();
-  const { start, previousStart } = platformAnalyticsWindow(range, now);
+  // INT-14: report on the admin's own calendar, not Greenwich's. Their day boundary decides
+  // which bucket a payment made late in the evening lands in.
+  const admin = await requirePlatformAdmin();
+  const timeZone = admin.timezone;
+  const { start, previousStart } = platformAnalyticsWindow(range, now, timeZone);
   const earliest = previousStart ?? start;
 
   const [
@@ -834,7 +803,7 @@ export async function getPlatformAnalytics(
     })),
   };
 
-  return summarizePlatformAnalytics(fixture, range, now);
+  return summarizePlatformAnalytics(fixture, range, now, timeZone);
 }
 
 function csvCell(value: string | number) {

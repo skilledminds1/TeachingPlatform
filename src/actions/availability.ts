@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { DateTime } from "luxon";
 
 import { db } from "@/lib/db";
-import { localDateTimeToUtc } from "@/lib/timezone";
+import { dateOnlyUtc, resolveLocalDateTime, todayInZone } from "@/lib/timezone";
 import {
   availabilityExceptionRangeSchema,
   availabilityExceptionSchema,
@@ -67,7 +67,7 @@ export async function saveWeeklyAvailability(
 
 export async function addAvailabilityException(
   input: unknown,
-): Promise<ActionResult<{ id: string }>> {
+): Promise<ActionResult<{ id: string; warnings: string[] }>> {
   const parsed = availabilityExceptionSchema.safeParse(input);
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid exception.", "VALIDATION_ERROR");
@@ -84,22 +84,31 @@ export async function addAvailabilityException(
     );
   }
 
-  const specificDate = new Date(`${parsed.data.specificDate}T00:00:00.000Z`);
-  if (specificDate < new Date(new Date().toISOString().slice(0, 10))) {
+  const specificDate = dateOnlyUtc(parsed.data.specificDate);
+  // INT-14: compared against UTC midnight, so a teacher in Los Angeles at 17:00 could not
+  // block off their own remaining evening — the emergency this feature exists for. Their
+  // local date is what "today" means to them.
+  if (parsed.data.specificDate < todayInZone(user.timezone)) {
     return fail("Exceptions must be today or later.", "VALIDATION_ERROR");
   }
 
+  const warnings: string[] = [];
   if (parsed.data.isBlocked) {
-    const start = localDateTimeToUtc({
+    const startResolved = resolveLocalDateTime({
       date: parsed.data.specificDate,
       time: parsed.data.startTime,
       timeZone: user.timezone,
     });
-    const end = localDateTimeToUtc({
+    const endResolved = resolveLocalDateTime({
       date: parsed.data.specificDate,
       time: parsed.data.endTime,
       timeZone: user.timezone,
     });
+    for (const warning of [startResolved.warning, endResolved.warning]) {
+      if (warning) warnings.push(warning.message);
+    }
+    const start = startResolved.utc;
+    const end = endResolved.utc;
     const conflicts = await findLessonConflictsForRange({
       teacherId: user.id,
       start,
@@ -125,12 +134,12 @@ export async function addAvailabilityException(
     },
   });
   revalidateCalendarPaths();
-  return ok({ id: exception.id });
+  return ok({ id: exception.id, warnings });
 }
 
 export async function addAvailabilityExceptionRange(
   input: unknown,
-): Promise<ActionResult<{ ids: string[] }>> {
+): Promise<ActionResult<{ ids: string[]; warnings: string[] }>> {
   const parsed = availabilityExceptionRangeSchema.safeParse(input);
   if (!parsed.success) {
     return fail(parsed.error.issues[0]?.message ?? "Invalid exception.", "VALIDATION_ERROR");
@@ -152,24 +161,32 @@ export async function addAvailabilityExceptionRange(
   if (!start.isValid || !end.isValid) {
     return fail("Invalid date range.", "VALIDATION_ERROR");
   }
-  if (start < DateTime.utc().startOf("day")) {
+  // INT-14: this compared against UTC midnight, so the teacher's own current day counted as
+  // the past for anyone west of Greenwich after their local afternoon.
+  if (parsed.data.startDate < todayInZone(user.timezone)) {
     return fail("You can't create a time slot in the past.", "VALIDATION_ERROR");
   }
 
   const allDay = parsed.data.allDay === true;
   const title = parsed.data.title?.trim() || (parsed.data.isBlocked ? "Busy" : null);
 
+  const warnings: string[] = [];
   if (parsed.data.isBlocked) {
-    const rangeStart = localDateTimeToUtc({
+    const startResolved = resolveLocalDateTime({
       date: parsed.data.startDate,
       time: allDay ? "00:00" : parsed.data.startTime,
       timeZone: user.timezone,
     });
-    const rangeEnd = localDateTimeToUtc({
+    const endResolved = resolveLocalDateTime({
       date: parsed.data.endDate,
       time: allDay ? "23:59" : parsed.data.endTime,
       timeZone: user.timezone,
     });
+    for (const warning of [startResolved.warning, endResolved.warning]) {
+      if (warning) warnings.push(warning.message);
+    }
+    const rangeStart = startResolved.utc;
+    const rangeEnd = endResolved.utc;
     const conflicts = await findLessonConflictsForRange({
       teacherId: user.id,
       start: rangeStart,
@@ -209,7 +226,7 @@ export async function addAvailabilityExceptionRange(
   }
 
   revalidateCalendarPaths();
-  return ok({ ids });
+  return ok({ ids, warnings });
 }
 
 export async function deleteAvailabilityException(
