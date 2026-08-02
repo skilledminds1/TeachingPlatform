@@ -1,6 +1,7 @@
+import { cache } from "react";
 import type { User as AuthUser } from "@supabase/supabase-js";
 import { isValidIanaTimeZone } from "@/lib/timezone-validation";
-import type { OrgRole, User } from "@prisma/client";
+import type { OrgRole, Prisma, User } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { toCountryCode } from "@/lib/countries";
@@ -158,33 +159,107 @@ async function ensureSoloTeacherOrganization(
   });
 }
 
-export async function getAuthUser(): Promise<AuthUser | null> {
+/**
+ * QLT-06: memoised per request.
+ *
+ * Every call was a fresh network round trip to Supabase, and a single page render reaches
+ * the session from the layout, the page and often an action too. React's cache() scopes the
+ * result to one request, so those become one call.
+ */
+export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
-}
+});
 
-export async function getCurrentUser(): Promise<SessionUser | null> {
+const sessionUserInclude = {
+  memberships: {
+    include: {
+      organization: {
+        select: { id: true, name: true, slug: true },
+      },
+    },
+  },
+} as const;
+
+/**
+ * Resolve the signed-in user (QLT-06).
+ *
+ * WHAT THIS USED TO COST, per call: a Supabase round trip, a findUnique, an UNCONDITIONAL
+ * db.user.update writing email/name/avatarUrl (which also bumped updatedAt), an
+ * organizationMember.count for teachers, and then a third query re-fetching the user with
+ * memberships. Nothing was memoised, and call sites stack — the teacher dashboard layout
+ * calls requireTeacher() and then getCurrentUser() again, so one render paid all of it
+ * twice, before the page's own data began loading, across ~80 call sites.
+ *
+ * Three changes, in order of how much they save:
+ *
+ *  1. cache() — the layout, the page and any action in the same request share one
+ *     resolution instead of repeating the whole sequence.
+ *  2. Compare before writing. The update only fires when a field actually differs, so a
+ *     normal request performs no writes at all. A write per page view is not just slow: it
+ *     makes updatedAt meaningless as a signal and puts every read behind the primary.
+ *  3. One query instead of three. The user is fetched once, WITH memberships, and the
+ *     teacher-organisation backfill is decided from those rows rather than a separate count.
+ */
+export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const authUser = await getAuthUser();
   if (!authUser) return null;
 
-  await syncUserFromAuth(authUser);
-
-  return db.user.findUnique({
+  const existing = await db.user.findUnique({
     where: { id: authUser.id },
-    include: {
-      memberships: {
-        include: {
-          organization: {
-            select: { id: true, name: true, slug: true },
-          },
-        },
-      },
-    },
+    include: sessionUserInclude,
   });
-}
+
+  // First sight of this account — the create path, which is genuinely a write.
+  if (!existing) {
+    await syncUserFromAuth(authUser);
+    return db.user.findUnique({
+      where: { id: authUser.id },
+      include: sessionUserInclude,
+    });
+  }
+
+  const email = authUser.email;
+  if (!email) {
+    throw new UnauthorizedError("Authenticated user is missing an email address.");
+  }
+
+  // Only the fields the provider owns, and only when they have actually changed. The name
+  // is preserved once set, matching what syncUserFromAuth has always done — a user who
+  // edited their name should not have it overwritten from the identity provider.
+  const nextName = existing.name || resolveDisplayName(authUser);
+  const nextAvatarUrl = resolveAvatarUrl(authUser) ?? existing.avatarUrl;
+
+  const changes: Prisma.UserUpdateInput = {};
+  if (existing.email !== email) changes.email = email;
+  if (existing.name !== nextName) changes.name = nextName;
+  if (existing.avatarUrl !== nextAvatarUrl) changes.avatarUrl = nextAvatarUrl;
+
+  if (Object.keys(changes).length > 0) {
+    const updated = await db.user.update({ where: { id: existing.id }, data: changes });
+    Object.assign(existing, updated);
+  }
+
+  // The solo-teacher organisation backfill. Decided from the memberships already loaded, so
+  // the common case — a teacher who has one — costs nothing rather than a count query on
+  // every request.
+  const role = resolveRegisterRole(authUser, undefined);
+  const hasTeacherOrg = existing.memberships.some(
+    (membership) => membership.role === "admin" || membership.role === "instructor",
+  );
+  if (role === "teacher" && !hasTeacherOrg) {
+    await ensureSoloTeacherOrganization(existing);
+    return db.user.findUnique({
+      where: { id: authUser.id },
+      include: sessionUserInclude,
+    });
+  }
+
+  return existing;
+});
 
 export async function requireAuth(): Promise<SessionUser> {
   const user = await requireAuthenticatedIdentity();

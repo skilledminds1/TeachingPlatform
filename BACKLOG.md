@@ -754,7 +754,8 @@ The money path has zero test coverage today. That is how the P1 bugs got in.
 
 ### 🟠 `QLT-06` Memoize the session and eliminate the per-request user write
 
-- [ ] **Effort:** M · 1–2 days · **Area:** performance
+- [x] **Effort:** M · 1–2 days · **Area:** performance
+- **Outcome:** MEASURED on /admin/teachers by counting Prisma operations through the client extension — **before: 6 x User.findUnique + 3 x User.update; after: 1 x User.findUnique + 0 x User.update.** getAuthUser and getCurrentUser are both wrapped in React `cache()`; the update is now conditional on a field actually differing; and the user is fetched once WITH memberships, so the teacher-org backfill is decided from rows already loaded rather than a per-request `organizationMember.count`.
 - **Files:** `src/server/auth/session.ts`, `src/app/dashboard/teacher/layout.tsx`, `src/app/admin/layout.tsx`
 - **What:** getCurrentUser calls syncUserFromAuth on every invocation, which performs a findUnique plus an unconditional db.user.update writing email/name/avatarUrl — a write on every authenticated request that also bumps updatedAt — then a third query re-fetching the user with memberships; requireTeacher adds a legal-acceptance query. None of it is wrapped in React cache(), and call sites stack: the teacher dashboard layout calls requireTeacher() and then getCurrentUser() again, so a single page render performs the whole sequence twice (two writes, roughly eight queries) before the page's own data loads, across roughly 80 call sites. Wrap getCurrentUser in cache() so layout, page and actions in one request share the result, and make syncUserFromAuth compare-before-write or move the sync to the auth callback only.
 - **Done when:** A teacher dashboard render performs one session resolution and zero user writes when nothing changed; query counts measured before and after are recorded in the PR.
