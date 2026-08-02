@@ -1,20 +1,24 @@
 /**
  * The scheduled jobs, and how long each may go quiet before that is a fault (QLT-04).
  *
- * Kept beside vercel.json rather than derived from it: vercel.json is JSON and cannot carry
- * a comment, and the interesting number here is not the cron expression but how long an
- * absence is tolerable. A test asserts the two stay in step, because a schedule changed in
- * one place and not the other is how monitoring quietly starts watching the wrong thing.
+ * Kept beside the workflow rather than derived from it: YAML carries the trigger, this
+ * carries the reasoning, and the interesting number here is not the cron expression but how
+ * long an absence is tolerable. A test asserts the two stay in step, because a schedule
+ * changed in one place and not the other is how monitoring quietly starts watching for the
+ * wrong interval and still reports green.
  *
  * ┌──────────────────────────────────────────────────────────────────────────────────────┐
- * │ SCHEDULE FREQUENCY REQUIRES A PAID VERCEL PLAN.                                       │
+ * │ THESE ARE DRIVEN BY GITHUB ACTIONS, NOT BY VERCEL.                                    │
  * │                                                                                      │
- * │ Vercel's Hobby tier permits ONE cron job, invoked at most once per day. Everything    │
- * │ below running every 5, 10 or 15 minutes needs Pro or above. On Hobby they do not      │
- * │ fire at all — and because a job that never fires produces no error, the platform      │
- * │ would look healthy while silently sending no reminders and expiring no payments.      │
- * │ That is the failure this file exists to make visible; it is not a substitute for      │
- * │ being on a plan that actually runs them.                                              │
+ * │ .github/workflows/scheduled-jobs.yml. They lived in vercel.json until Vercel's Hobby  │
+ * │ tier refused them: it allows no cron more frequent than daily, and it rejects the     │
+ * │ whole DEPLOYMENT rather than just the cron — so for two weeks nothing could ship at   │
+ * │ all. Actions runs a 5-minute schedule free, and these routes were already built to be │
+ * │ driven externally: bearer CRON_SECRET in, check-in recorded on the way out.           │
+ * │                                                                                      │
+ * │ Moving the scheduler does not make it reliable. Actions disables scheduled workflows  │
+ * │ in a repository idle for 60 days, and delays runs under load. Both look exactly like  │
+ * │ a job that stopped, which is what the check-in exists to catch.                       │
  * └──────────────────────────────────────────────────────────────────────────────────────┘
  */
 export type CronJobName =
@@ -26,7 +30,7 @@ export type CronJobName =
   | "process-email-outbox";
 
 export type CronJobDefinition = {
-  /** Must match vercel.json exactly. */
+  /** Must match .github/workflows/scheduled-jobs.yml exactly. */
   schedule: string;
   /** How often it is expected to run. */
   intervalMinutes: number;
@@ -71,15 +75,26 @@ export const CRON_JOBS: Record<CronJobName, CronJobDefinition> = {
 export const CRON_JOB_NAMES = Object.keys(CRON_JOBS) as CronJobName[];
 
 /**
+ * How late an external scheduler is allowed to be before lateness means something.
+ *
+ * GitHub Actions delivers scheduled runs on a best-effort basis and delays them under load,
+ * most visibly on the hour. Without this allowance the 5-minute job would be called stale
+ * after 11 minutes and flap on ordinary queueing — and an alert that cries wolf is worse than
+ * no alert, because it teaches whoever is on call to ignore the one that matters.
+ */
+const SCHEDULER_JITTER_MINUTES = 15;
+
+/**
  * Grace before a late job counts as stale.
  *
  * One whole interval, so a single missed tick — a deploy, a cold start, a slow run — does
  * not page anyone, while a job that has genuinely stopped is caught within one further
  * interval. The backlog asks for detection "within one expected interval"; this is that,
- * plus a minute of slack so a job running at exactly its period does not flap.
+ * plus a minute of slack so a job running at exactly its period does not flap, plus the
+ * scheduler's own jitter now that delivery is somebody else's best effort.
  */
 export function stalenessThresholdMinutes(job: CronJobName): number {
-  return CRON_JOBS[job].intervalMinutes * 2 + 1;
+  return CRON_JOBS[job].intervalMinutes * 2 + 1 + SCHEDULER_JITTER_MINUTES;
 }
 
 export type JobLiveness = {

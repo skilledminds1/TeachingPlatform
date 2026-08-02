@@ -123,12 +123,33 @@ migration jobs.
 
 ## Scheduled jobs
 
-`vercel.json` invokes session reminders every 15 minutes, pending-payment expiry every
-10 minutes, and the idempotent subscription lifecycle job daily at 02:15 UTC. The lifecycle
-job applies trial expiry, scheduled plan/cancellation changes, complimentary expiry, and
-day 0/3/6 dunning notices. Vercel sends `Authorization: Bearer $CRON_SECRET`; set the same long random
-secret in every deployed environment. Job routes intentionally bypass session middleware
-and reject requests unless this header matches.
+`.github/workflows/scheduled-jobs.yml` invokes the email outbox every 5 minutes,
+pending-payment expiry every 10, session reminders and lesson finalization every 15, and the
+FX refresh and the idempotent subscription lifecycle job daily at 05:30 and 02:15 UTC. The
+lifecycle job applies scheduled plan/cancellation changes, complimentary expiry, grace expiry
+and day 0/3/6 dunning notices. The workflow sends `Authorization: Bearer $CRON_SECRET`; job
+routes intentionally bypass session middleware and reject requests unless this header matches.
+
+**Not Vercel cron.** These lived in `vercel.json` until Vercel's Hobby tier refused them —
+it permits nothing more frequent than daily and rejects the entire *deployment*, not just the
+cron, so for two weeks nothing could ship at all. Moving to Actions unblocks deploys and keeps
+every schedule. If the project later moves to Vercel Pro, the schedules can move back; the
+routes do not care what invokes them.
+
+Required in the GitHub repository (Settings → Secrets and variables → Actions):
+
+| Kind | Name | Value |
+|------|------|-------|
+| Secret | `CRON_SECRET` | identical to the deployment's `CRON_SECRET` |
+| Variable | `PRODUCTION_APP_URL` | e.g. `https://amazing-skills.vercel.app`, no trailing slash |
+
+Either one missing fails the workflow loudly on its first step rather than quietly invoking
+nothing.
+
+Two ways this stops silently, both caught by the `JobRun` check-in and surfaced as a 503 from
+`/api/v1/health/ready`: GitHub disables scheduled workflows in a repository idle for 60 days,
+and it delays scheduled runs under load. The staleness thresholds in
+`src/server/jobs/registry.ts` carry an explicit jitter allowance for the second.
 
 ## Rate limiting
 

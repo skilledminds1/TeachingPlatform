@@ -1,0 +1,116 @@
+# Scheduled jobs (QLT-04).
+#
+# These used to live in vercel.json. Vercel's Hobby tier refuses any cron that runs more than
+# once per day and rejects the DEPLOYMENT outright, not just the cron — so from the day the
+# crons block was added, nothing could be deployed at all. GitHub Actions runs a 5-minute
+# schedule on the free tier, and the job routes were already built to be driven from outside:
+# they authenticate with a bearer CRON_SECRET and record their own check-ins.
+#
+# TWO WAYS THIS SILENTLY STOPS, both of which the JobRun check-in catches:
+#
+#   GitHub disables scheduled workflows in a repository with no activity for 60 days. Nothing
+#   is deleted and nothing warns; the runs simply stop.
+#
+#   Scheduled runs are best-effort and are delayed under load, especially on the hour. That is
+#   why the staleness thresholds in src/server/jobs/registry.ts carry an explicit jitter
+#   allowance rather than assuming punctual delivery.
+#
+# In both cases /api/v1/health/ready turns 503 and names the job and its consequence.
+#
+# REQUIRED CONFIGURATION (repository Settings):
+#   Secrets  → CRON_SECRET          the same value as the deployment's CRON_SECRET
+#   Variables → PRODUCTION_APP_URL   e.g. https://amazing-skills.vercel.app (no trailing slash)
+name: Scheduled jobs
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+    - cron: "*/10 * * * *"
+    - cron: "*/15 * * * *"
+    - cron: "30 5 * * *"
+    - cron: "15 2 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job name to run, or "all"'
+        required: false
+        default: all
+        type: string
+
+permissions:
+  contents: read
+
+# One queued run at most. The routes claim their own work, so an overlap is safe rather than
+# harmful, but stacking runs behind a slow one only delays the recovery.
+concurrency:
+  group: scheduled-jobs-${{ github.event.schedule || inputs.job }}
+  cancel-in-progress: false
+
+env:
+  # Which endpoint runs on which schedule. Kept in step with src/server/jobs/registry.ts and
+  # with the `on.schedule` list above by a test — a job added here without its trigger, or a
+  # schedule changed in one place only, would otherwise never fire while still looking wired up.
+  JOB_SCHEDULES: '{"session-reminders":"*/15 * * * *","expire-pending-payments":"*/10 * * * *","finalize-sessions":"*/15 * * * *","refresh-fx-rates":"30 5 * * *","subscription-lifecycle":"15 2 * * *","process-email-outbox":"*/5 * * * *"}'
+
+jobs:
+  invoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check configuration
+        env:
+          APP_URL: ${{ vars.PRODUCTION_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          missing=""
+          [ -n "$APP_URL" ] || missing="$missing PRODUCTION_APP_URL(variable)"
+          [ -n "$CRON_SECRET" ] || missing="$missing CRON_SECRET(secret)"
+          if [ -n "$missing" ]; then
+            echo "::error::Not configured, so every scheduled job would silently do nothing. Missing:$missing"
+            exit 1
+          fi
+
+      - name: Invoke
+        env:
+          APP_URL: ${{ vars.PRODUCTION_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SCHEDULE: ${{ github.event.schedule }}
+          REQUESTED: ${{ inputs.job }}
+        run: |
+          # Deliberately no `set -e`: every job is attempted even after one fails, and the
+          # step fails at the end. Stopping at the first error would let one broken endpoint
+          # hide the health of every job sharing its schedule.
+          set -uo pipefail
+
+          if [ -n "${REQUESTED:-}" ] && [ "$REQUESTED" != "all" ]; then
+            jobs="$REQUESTED"
+          elif [ -n "${SCHEDULE:-}" ]; then
+            jobs=$(printf '%s' "$JOB_SCHEDULES" | jq -r --arg s "$SCHEDULE" \
+              'to_entries[] | select(.value == $s) | .key')
+          else
+            jobs=$(printf '%s' "$JOB_SCHEDULES" | jq -r 'keys[]')
+          fi
+
+          if [ -z "$jobs" ]; then
+            echo "::error::Schedule '${SCHEDULE:-}' matches no job in JOB_SCHEDULES"
+            exit 1
+          fi
+
+          failed=0
+          for job in $jobs; do
+            body=$(mktemp)
+            code=$(curl -sS -o "$body" -w '%{http_code}' --max-time 120 \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$APP_URL/api/v1/jobs/$job") || code="000"
+            summary=$(head -c 400 "$body")
+            if [ "$code" = "200" ]; then
+              echo "ok    $job  $summary"
+            else
+              # 401 means CRON_SECRET does not match, and the route records no check-in for
+              # it — by design, so the monitoring cannot confirm the outage it exists to catch.
+              echo "::error::$job returned HTTP $code — $summary"
+              failed=1
+            fi
+            rm -f "$body"
+          done
+          exit $failed
