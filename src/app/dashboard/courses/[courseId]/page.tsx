@@ -24,7 +24,7 @@ export default async function StudentCourseDetailPage({
     <div className="min-h-screen bg-muted/20">
       <StudentNavWithNotifications />
 
-      <main className="mx-auto max-w-6xl space-y-6 px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-6xl space-y-6 px-6 py-10">
         <EnrolledCourseViewer course={course} viewerId={user.id} />
       </main>
     </div>

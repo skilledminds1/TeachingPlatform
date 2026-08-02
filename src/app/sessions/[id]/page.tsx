@@ -47,7 +47,7 @@ export default async function VideoSessionPage({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
+      <main id="main-content" className="mx-auto max-w-6xl space-y-6 px-6 py-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm text-muted-foreground">One-on-one video lesson</p>

@@ -36,7 +36,7 @@ export default async function CasesPage() {
           <Button render={<Link href="/account-restricted" />} variant="outline">Back to account status</Button>
         </header>
       ) : hasTeacherMembership(user) ? <TeacherNavWithNotifications /> : <StudentNavWithNotifications />}
-      <main className="mx-auto max-w-4xl space-y-6 px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-4xl space-y-6 px-6 py-10">
         <header>
           <h1 className="text-3xl font-semibold tracking-tight">Cases</h1>
           <p className="mt-1 text-muted-foreground">Shared mediation and trust reviews involving your account.</p>

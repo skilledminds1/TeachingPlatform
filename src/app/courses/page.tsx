@@ -15,6 +15,7 @@ import {
   type CourseSort,
 } from "@/server/courses/queries";
 import { getMarketplaceSubjects } from "@/server/marketplace/teachers";
+import { SiteFooter } from "@/features/marketing/components/site-footer";
 
 export const metadata: Metadata = {
   title: "Courses",
@@ -80,7 +81,8 @@ export default async function CoursesPage({
             <Link href="/" className="font-semibold tracking-tight">
               Amazing Skills
             </Link>
-            <div className="flex items-center gap-2">
+            {/* GLO-03: a navigation landmark, so it can be jumped to rather than tabbed past. */}
+            <nav aria-label="Account" className="flex items-center gap-2">
               <Button variant="ghost" render={<Link href="/find-tutor" />}>
                 Tutors
               </Button>
@@ -96,12 +98,12 @@ export default async function CoursesPage({
                   <Button render={<Link href="/register" />}>Get started</Button>
                 </>
               )}
-            </div>
+            </nav>
           </div>
         </header>
       )}
 
-      <main className="mx-auto max-w-6xl space-y-6 px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-6xl space-y-6 px-6 py-10">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-tight">Browse courses</h1>
           <p className="text-muted-foreground">
@@ -109,10 +111,19 @@ export default async function CoursesPage({
           </p>
         </div>
 
-        <Suspense>
-          <CourseFilters subjects={subjects} />
-        </Suspense>
+        {/* GLO-03: see /find-tutor — heading navigation could not reach either region. */}
+        <section aria-labelledby="filters-heading">
+          <h2 id="filters-heading" className="sr-only">
+            Filter courses
+          </h2>
+          <Suspense>
+            <CourseFilters subjects={subjects} />
+          </Suspense>
+        </section>
 
+        <h2 id="results-heading" className="sr-only">
+          Courses
+        </h2>
         <p className="text-sm text-muted-foreground">
           {result.total} course{result.total === 1 ? "" : "s"} available
         </p>
@@ -133,6 +144,7 @@ export default async function CoursesPage({
           </div>
         )}
       </main>
+      <SiteFooter />
     </div>
   );
 }

@@ -22,6 +22,8 @@ const publicExact = new Set([
   "/privacy",
   "/refund-policy",
   "/teacher-agreement",
+  // GLO-03: an accessibility statement behind a login is not a statement.
+  "/accessibility",
   // GLO-02: crawl directives and the URL inventory. These are generated routes, so without
   // an entry here they fall through to the auth check and answer 307 → /login — which is
   // what production did. A crawler asking what it may read was sent to a sign-in page.

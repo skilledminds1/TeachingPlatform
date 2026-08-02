@@ -109,6 +109,23 @@
     @apply border-border outline-ring/50;
   }
 
+  /*
+   * GLO-03: a visible focus indicator on everything focusable (WCAG 2.4.7).
+   *
+   * The rule above sets an outline COLOUR but leaves outline-style at `none`, so a plain
+   * link — the header wordmark, footer links, pagination — showed no indicator at all when
+   * focused. Buttons looked fine because the UI kit adds its own ring, which is what made
+   * this easy to miss: the components people look at were covered and the bare anchors
+   * between them were not.
+   *
+   * Applied to :focus-visible rather than :focus so a mouse click does not leave a ring
+   * behind, which is the behaviour that gets focus styling removed in the first place.
+   */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
   body {
     @apply antialiased bg-background text-foreground;
   }

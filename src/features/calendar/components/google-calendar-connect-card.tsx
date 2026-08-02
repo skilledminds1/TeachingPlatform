@@ -83,6 +83,9 @@ export function GoogleCalendarConnectCard({
           className="mt-4"
           variant="outline"
           render={
+            // GLO-03: Button clones this anchor with its own children, so the rendered
+            // element has text. The rule reads the JSX node, which is legitimately empty.
+            // eslint-disable-next-line jsx-a11y/anchor-has-content
             <a
               href={`/api/integrations/google-calendar/connect?returnTo=${encodeURIComponent(returnTo)}`}
             />

@@ -24,7 +24,7 @@ export default async function InvitationPage({
           </Link>
         </div>
       </header>
-      <main className="flex flex-1 items-center justify-center px-6 py-12">
+      <main id="main-content" className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 shadow-sm">
           <AcceptInviteCard token={token} />
         </div>

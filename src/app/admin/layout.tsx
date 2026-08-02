@@ -69,7 +69,7 @@ export default async function AdminLayout({
         <aside className="border-b border-border bg-background lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:border-r lg:border-b-0">
           <AdminNav />
         </aside>
-        <main className="min-w-0 p-4 md:p-6 lg:p-8">{children}</main>
+        <main id="main-content" className="min-w-0 p-4 md:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

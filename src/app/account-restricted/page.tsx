@@ -19,7 +19,7 @@ export default async function AccountRestrictedPage() {
     include: { appeals: { where: { appellantId: user.id }, take: 1 } },
   });
   return (
-    <main className="min-h-screen bg-muted/30 px-6 py-12">
+    <main id="main-content" className="min-h-screen bg-muted/30 px-6 py-12">
       <div className="mx-auto max-w-2xl space-y-6 rounded-2xl border bg-card p-6 shadow-sm md:p-8">
         <header className="flex items-start gap-3">
           <span className="flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive">

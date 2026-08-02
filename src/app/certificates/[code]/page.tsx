@@ -42,7 +42,7 @@ export default async function CertificatePage({
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-4xl px-6 py-10">
         {/*
           MON-35: this page is the credential's public proof, so a revoked certificate must
           say so plainly and before anything else. It previously rendered whatever it found

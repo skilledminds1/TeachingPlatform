@@ -42,7 +42,7 @@ export default async function StudentDashboardPage() {
     <div className="min-h-screen bg-muted/30">
       <StudentNavWithNotifications />
 
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-8 md:py-12">
+      <main id="main-content" className="mx-auto max-w-6xl space-y-8 px-6 py-8 md:py-12">
         <CountryBackfillPrompt country={user.country} />
         <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
           <div

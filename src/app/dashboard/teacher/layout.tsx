@@ -29,7 +29,7 @@ export default async function TeacherDashboardLayout({
   return (
     <div className="min-h-screen bg-muted/30">
       <TeacherNavWithNotifications />
-      <main>{children}</main>
+      <main id="main-content">{children}</main>
     </div>
   );
 }

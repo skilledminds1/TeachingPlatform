@@ -19,7 +19,7 @@ export function AuthShell({
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center px-6 py-12">
+      <main id="main-content" className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-md space-y-8">
           <div className="space-y-2 text-center">
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>

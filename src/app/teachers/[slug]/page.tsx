@@ -20,6 +20,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { getAvailableSlots } from "@/server/availability/slots";
 import { getCurrentUser } from "@/server/auth/session";
 import { getTeacherBySlug } from "@/server/marketplace/teachers";
+import { SiteFooter } from "@/features/marketing/components/site-footer";
 
 const dayNames = [
   "Sunday",
@@ -93,7 +94,7 @@ export async function TeacherProfileContent({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-6xl px-6 py-10">
         <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
           <div className="space-y-6">
             <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -288,6 +289,7 @@ export async function TeacherProfileContent({
           </div>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

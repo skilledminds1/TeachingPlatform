@@ -23,7 +23,7 @@ export default async function NotificationsPage() {
     <div className="min-h-screen bg-muted/30">
       {isTeacher ? <TeacherNavWithNotifications /> : <StudentNavWithNotifications />}
 
-      <main className="mx-auto max-w-3xl space-y-6 px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-3xl space-y-6 px-6 py-10">
         <div className="flex items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">Notifications</h1>

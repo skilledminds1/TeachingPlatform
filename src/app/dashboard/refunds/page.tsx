@@ -31,7 +31,7 @@ export default async function StudentRefundsPage() {
   return (
     <div className="min-h-screen bg-muted/30">
       <StudentNavWithNotifications />
-      <main className="mx-auto max-w-5xl space-y-8 px-6 py-8 md:py-12">
+      <main id="main-content" className="mx-auto max-w-5xl space-y-8 px-6 py-8 md:py-12">
         <div className="flex items-start gap-3">
           <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <HandCoins className="size-5" aria-hidden />

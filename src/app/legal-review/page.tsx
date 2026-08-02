@@ -36,7 +36,7 @@ export default async function LegalReviewPage({
   const documents = currentLegalDocumentsForRole(role);
 
   return (
-    <main className="min-h-screen bg-muted/30 px-6 py-12">
+    <main id="main-content" className="min-h-screen bg-muted/30 px-6 py-12">
       <div className="mx-auto max-w-2xl space-y-6 rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8">
         <div className="flex items-start gap-3">
           <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">

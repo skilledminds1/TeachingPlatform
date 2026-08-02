@@ -13,6 +13,7 @@ import { formatCourseLevel } from "@/features/courses/lib/labels";
 import { StudentNavWithNotifications } from "@/features/student-dashboard/components/student-nav-with-notifications";
 import { formatCurrency } from "@/lib/format";
 import { getCurrentUser, hasTeacherMembership } from "@/server/auth/session";
+import { SiteFooter } from "@/features/marketing/components/site-footer";
 import {
   getEnrolledCourseDetail,
   getPublishedCourseBySlug,
@@ -81,7 +82,7 @@ export default async function CourseSalesPage({
         </header>
       )}
 
-      <main className="mx-auto max-w-6xl px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-6xl px-6 py-10">
         <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
           <div className="space-y-6">
             <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -252,6 +253,7 @@ export default async function CourseSalesPage({
           </aside>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

@@ -28,7 +28,7 @@ export default async function SafetyPage() {
   return (
     <div className="min-h-screen bg-muted/30">
       {hasTeacherMembership(user) ? <TeacherNavWithNotifications /> : <StudentNavWithNotifications />}
-      <main className="mx-auto max-w-5xl space-y-8 px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-5xl space-y-8 px-6 py-10">
         <header className="flex items-start gap-3">
           <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <ShieldAlert className="size-5" aria-hidden />

@@ -78,6 +78,9 @@ export function AdminMessageDialog({
               value={body}
               rows={6}
               maxLength={2_000}
+              // GLO-03: moving focus into a modal when it opens is correct focus management
+              // (WCAG 2.4.3), not the unsolicited page-load autofocus the rule targets.
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
               placeholder="Write an official platform message…"
               onChange={(event) => setBody(event.target.value)}

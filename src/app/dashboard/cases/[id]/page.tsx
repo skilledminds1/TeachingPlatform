@@ -29,7 +29,7 @@ export default async function ParticipantCasePage({ params }: { params: Promise<
           <Button render={<Link href="/account-restricted" />} variant="outline">Back to account status</Button>
         </header>
       ) : hasTeacherMembership(user) ? <TeacherNavWithNotifications /> : <StudentNavWithNotifications />}
-      <main className="mx-auto max-w-4xl space-y-6 px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-4xl space-y-6 px-6 py-10">
         <header>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-3xl font-semibold tracking-tight">{item.title}</h1>

@@ -44,7 +44,11 @@ export function CredentialUploader({
             type="button"
             size="sm"
             variant="outline"
-            render={<a href={credentialUrl} target="_blank" rel="noreferrer" />}
+            render={
+              // GLO-03: content comes from Button's children — see the connect card.
+              // eslint-disable-next-line jsx-a11y/anchor-has-content
+              <a href={credentialUrl} target="_blank" rel="noreferrer" />
+            }
           >
             <ExternalLink className="size-3.5" aria-hidden />
             View file

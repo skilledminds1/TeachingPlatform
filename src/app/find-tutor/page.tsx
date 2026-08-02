@@ -10,6 +10,7 @@ import { TeacherCard } from "@/features/marketplace/components/teacher-card";
 import { TeacherFilters } from "@/features/marketplace/components/teacher-filters";
 import { StudentNavWithNotifications } from "@/features/student-dashboard/components/student-nav-with-notifications";
 import { getCurrentUser, hasTeacherMembership } from "@/server/auth/session";
+import { SiteFooter } from "@/features/marketing/components/site-footer";
 import {
   getMarketplaceSubjects,
   searchTeachers,
@@ -88,7 +89,8 @@ export default async function FindTutorPage({
             <Link href="/" className="font-semibold tracking-tight">
               Amazing Skills
             </Link>
-            <div className="flex items-center gap-2">
+            {/* GLO-03: a navigation landmark, so it can be jumped to rather than tabbed past. */}
+            <nav aria-label="Account" className="flex items-center gap-2">
               {user ? (
                 <Button variant="ghost" render={<Link href="/dashboard" />}>
                   Dashboard
@@ -101,20 +103,34 @@ export default async function FindTutorPage({
                   <Button render={<Link href="/register" />}>Get started</Button>
                 </>
               )}
-            </div>
+            </nav>
           </div>
         </header>
       )}
-      <main className="mx-auto max-w-6xl space-y-6 px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-6xl space-y-6 px-6 py-10">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-tight">Find a tutor</h1>
           <p className="text-muted-foreground">
             Every tutor is verified before appearing here. Lessons are live video, one on one.
           </p>
         </div>
-        <Suspense>
-          <TeacherFilters subjects={subjects} />
-        </Suspense>
+        {/*
+          GLO-03: the page was a single H1 with nothing below it, so heading navigation —
+          how a screen-reader user skims a page — could not reach the filters or the results.
+          The headings are visually hidden because the design already makes both obvious to
+          anyone who can see them; the outline is what was missing, not the labels.
+        */}
+        <section aria-labelledby="filters-heading">
+          <h2 id="filters-heading" className="sr-only">
+            Filter tutors
+          </h2>
+          <Suspense>
+            <TeacherFilters subjects={subjects} />
+          </Suspense>
+        </section>
+        <h2 id="results-heading" className="sr-only">
+          Tutors
+        </h2>
         <p className="text-sm text-muted-foreground">
           {/*
             QLT-08: the TOTAL, not the length of this page. It used to read "60 tutors
@@ -177,6 +193,7 @@ export default async function FindTutorPage({
           </nav>
         ) : null}
       </main>
+      <SiteFooter />
     </div>
   );
 }

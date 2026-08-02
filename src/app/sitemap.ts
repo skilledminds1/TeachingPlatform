@@ -37,6 +37,7 @@ const STATIC_ROUTES: Array<{ path: string; priority: number; changeFrequency: "d
   { path: "/privacy", priority: 0.3, changeFrequency: "yearly" },
   { path: "/refund-policy", priority: 0.3, changeFrequency: "yearly" },
   { path: "/teacher-agreement", priority: 0.3, changeFrequency: "yearly" },
+  { path: "/accessibility", priority: 0.3, changeFrequency: "yearly" },
 ];
 
 /**

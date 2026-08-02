@@ -26,6 +26,9 @@ const footerColumns = [
       { href: "/privacy", label: "Privacy Policy" },
       { href: "/refund-policy", label: "Refund policy" },
       { href: "/teacher-agreement", label: "Teacher Agreement" },
+      // GLO-03: discoverable from every page, which is where someone blocked by a barrier
+      // will look for it.
+      { href: "/accessibility", label: "Accessibility" },
     ],
   },
 ] as const;

@@ -12,7 +12,7 @@ export default async function TeacherTeamPage() {
 
   return (
     <div className="min-h-screen bg-muted/20">
-      <main className="mx-auto max-w-5xl space-y-8 px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-5xl space-y-8 px-6 py-10">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-tight">Team</h1>
           <p className="text-muted-foreground">

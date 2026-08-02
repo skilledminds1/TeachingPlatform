@@ -30,7 +30,7 @@ export default async function StudentSettingsPage() {
     <div className="min-h-screen bg-muted/30">
       <StudentNavWithNotifications />
 
-      <main className="mx-auto max-w-3xl space-y-8 px-6 py-8 md:py-12">
+      <main id="main-content" className="mx-auto max-w-3xl space-y-8 px-6 py-8 md:py-12">
         <div>
           <h1 className="font-heading text-3xl font-semibold tracking-tight">
             Account settings

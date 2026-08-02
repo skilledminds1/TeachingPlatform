@@ -297,6 +297,8 @@ export function TeacherCalendar({
               size="sm"
               className="mt-2 w-full"
               render={
+                // GLO-03: content comes from Button's children — see the connect card.
+                // eslint-disable-next-line jsx-a11y/anchor-has-content
                 <a href="/api/integrations/google-calendar/connect?returnTo=/dashboard/teacher/bookings" />
               }
             >

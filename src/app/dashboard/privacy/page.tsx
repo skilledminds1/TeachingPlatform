@@ -29,7 +29,7 @@ export default async function PrivacyPage() {
           <Button render={<Link href="/account-restricted" />} variant="outline">Back to account status</Button>
         </header>
       ) : hasTeacherMembership(user) ? <TeacherNavWithNotifications /> : <StudentNavWithNotifications />}
-      <main className="mx-auto max-w-4xl space-y-8 px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-4xl space-y-8 px-6 py-10">
         <header>
           <h1 className="text-3xl font-semibold tracking-tight">Privacy rights</h1>
           <p className="mt-1 text-muted-foreground">

@@ -60,7 +60,7 @@ export default async function CoursePurchasePage({
           </Button>
         </div>
       </header>
-      <main className="mx-auto max-w-2xl space-y-6 px-6 py-10">
+      <main id="main-content" className="mx-auto max-w-2xl space-y-6 px-6 py-10">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">Course purchase</p>

@@ -27,7 +27,7 @@ export function LegalDocumentPage({
     env.LEGAL_BUSINESS_ADDRESS.includes("REPLACE BEFORE LAUNCH");
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-12 md:py-16">
+    <main id="main-content" className="mx-auto max-w-4xl px-6 py-12 md:py-16">
       <article className="space-y-10">
         <header className="space-y-4 border-b border-border pb-8">
           <Link href="/" className="text-sm font-medium text-primary hover:underline">

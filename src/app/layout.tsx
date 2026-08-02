@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Bricolage_Grotesque, Inter } from "next/font/google";
 
+import { SkipLink } from "@/components/a11y/skip-link";
 import { Providers } from "@/components/providers";
 import { CSP_NONCE_HEADER } from "@/lib/security/csp";
 import { Toaster } from "@/components/ui/sonner";
@@ -41,6 +42,8 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased">
+        {/* GLO-03: first focusable element on every page, before any navigation. */}
+        <SkipLink />
         <Providers nonce={nonce}>{children}</Providers>
         <Toaster richColors closeButton position="top-right" />
       </body>

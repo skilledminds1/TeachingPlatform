@@ -40,7 +40,7 @@ export default async function TeacherOnboardingPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-6 py-10 md:py-14">
+      <main id="main-content" className="mx-auto max-w-3xl px-6 py-10 md:py-14">
         <div className="mb-8 space-y-2">
           <p className="text-sm font-medium text-primary">Teacher onboarding</p>
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
