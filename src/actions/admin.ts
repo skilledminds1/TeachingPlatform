@@ -1,5 +1,6 @@
 "use server";
 
+import { recomputeCourseAggregatesSafely } from "@/server/courses/aggregates";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -398,6 +399,10 @@ export async function moderateCourseReview(
       },
     }),
   ]);
+
+  // QLT-07: approving or rejecting is what actually moves the average the catalog
+  // filters and sorts on, so this is the decisive recompute of the four.
+  await recomputeCourseAggregatesSafely(review.courseId);
   revalidatePath("/admin/reviews");
   revalidatePath("/courses");
   revalidatePath(`/courses/${review.course.slug}`);

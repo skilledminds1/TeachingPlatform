@@ -1,3 +1,4 @@
+import { recomputeCourseAggregates } from "@/server/courses/aggregates";
 import { randomUUID } from "node:crypto";
 
 import type { PaymentAttempt, PaymentProvider, Prisma } from "@prisma/client";
@@ -327,6 +328,8 @@ export async function confirmCoursePayment(input: {
         enrolledAt: new Date(),
       },
     });
+    // QLT-07: enrollmentCount drives the catalog's popular sort.
+    await recomputeCourseAggregates(purchase.courseId, tx);
 
     return { confirmed: true, coursePurchaseId: purchase.id };
   }).then(async (result) => {
@@ -455,7 +458,6 @@ export async function applyRefundEffects(
     where: { purchaseId: input.coursePurchaseId, revokedAt: null },
     data: { revokedAt: now },
   });
-
   // MON-35: a certificate outlived the enrollment it was earned through, so the public
   // verification page kept vouching for a student whose purchase had been refunded.
   const enrollments = await tx.courseEnrollment.findMany({
@@ -471,6 +473,13 @@ export async function applyRefundEffects(
       },
       data: { revokedAt: now, revocationReason: "Purchase refunded" },
     });
+  }
+
+  // QLT-07 + QLT-12: a refunded enrollment must stop counting immediately, or the catalog
+  // keeps advertising a sale the buyer reversed. Driven off the enrollments actually
+  // revoked above rather than an assumed single course.
+  for (const courseId of new Set(enrollments.map((item) => item.courseId))) {
+    await recomputeCourseAggregates(courseId, tx);
   }
 }
 

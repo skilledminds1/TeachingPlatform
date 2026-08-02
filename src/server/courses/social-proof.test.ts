@@ -33,11 +33,23 @@ describe("public enrollment counts exclude revoked enrollments", () => {
     ).toBe(false);
   });
 
-  it("filters every enrollment count it does take", () => {
+  it("filters every enrollment count it still takes from the relation", () => {
     const text = source();
     const counts = text.match(/enrollments:\s*\{\s*where:\s*\{\s*revokedAt:\s*null\s*\}\s*\}/g);
-    // Catalog cards, sales page, teacher list, moderation queue, admin review.
-    expect(counts?.length ?? 0).toBeGreaterThanOrEqual(5);
+    // Sales page, teacher list, moderation queue, admin review. The catalog card count
+    // moved to Course.enrollmentCount in QLT-07 — see below.
+    expect(counts?.length ?? 0).toBeGreaterThanOrEqual(4);
+  });
+
+  /**
+   * QLT-07 replaced the catalog's relation count with a denormalised column, so the
+   * "revoked must not count" rule moved with it. If recomputeCourseAggregates ever stops
+   * filtering, every catalog card silently starts advertising refunded sales again — and
+   * nothing else would notice.
+   */
+  it("keeps the rule when the count is denormalised", () => {
+    const aggregates = readFileSync("src/server/courses/aggregates.ts", "utf8");
+    expect(aggregates).toMatch(/courseEnrollment\.count\(\{[\s\S]*?revokedAt:\s*null/);
   });
 });
 
@@ -51,10 +63,13 @@ describe("the popular sort does not rank by revoked enrollments", () => {
     expect(source()).not.toContain('enrollments: { _count: "desc" }');
   });
 
-  it("sorts popularity in application code, where the count is already filtered", () => {
+  /**
+   * QLT-12 sorted popularity in application code because Prisma cannot order by a FILTERED
+   * relation count. QLT-07 removed that constraint: enrollmentCount is a column that already
+   * excludes revoked enrollments, so the planner can order by it directly.
+   */
+  it("orders by the denormalised active-enrollment count in SQL", () => {
     const text = source();
-    expect(text).toContain('filters.sort === "popular"');
-    // It must sort by the count that came back, not re-derive one.
-    expect(text).toMatch(/b\._count\.enrollments\s*-\s*a\._count\.enrollments/);
+    expect(text).toMatch(/enrollmentCount:\s*"desc"/);
   });
 });

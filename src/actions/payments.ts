@@ -1,5 +1,6 @@
 "use server";
 
+import { recomputeCourseAggregates } from "@/server/courses/aggregates";
 import { randomUUID } from "node:crypto";
 
 import { revalidatePath } from "next/cache";
@@ -269,6 +270,8 @@ export async function startCourseCheckout(
             purchaseId: purchase.id,
           },
         });
+        // QLT-07: enrollmentCount is the catalog's "popular" sort key.
+        await recomputeCourseAggregates(course.id, tx);
         if (price.couponId) {
           await tx.courseCouponRedemption.create({
             data: { couponId: price.couponId, purchaseId: purchase.id, studentId: user.id },

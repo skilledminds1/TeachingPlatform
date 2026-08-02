@@ -38,7 +38,18 @@ const tx = {
       return state.coursePurchase.updateManyResult;
     }),
   },
-  courseEnrollment: { upsert: vi.fn(async () => ({})), updateMany: vi.fn(async () => ({})) },
+  courseEnrollment: {
+    upsert: vi.fn(async () => ({})),
+    updateMany: vi.fn(async () => ({})),
+    // QLT-07: recomputeCourseAggregates runs inside this transaction whenever an enrollment
+    // is granted or revoked, so the mock has to answer the reads it makes.
+    findMany: vi.fn(async () => []),
+    count: vi.fn(async () => 0),
+  },
+  courseReview: {
+    aggregate: vi.fn(async () => ({ _avg: { rating: null }, _count: { _all: 0 } })),
+  },
+  course: { update: vi.fn(async () => ({})) },
   courseCouponRedemption: {
     createMany: vi.fn(async () => ({})),
     deleteMany: vi.fn(async () => ({})),

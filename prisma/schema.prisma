@@ -1124,6 +1124,17 @@ model Course {
   reviewedAt         DateTime?    @map("reviewed_at")
   rejectionReason    String?      @map("rejection_reason")
   publishedAt        DateTime?    @map("published_at")
+  /// QLT-07: denormalised catalog aggregates, recomputed by recomputeCourseAggregates
+  /// whenever a review is written or moderated, or an enrollment is granted or revoked.
+  ///
+  /// They exist because minRating and sort=rating need an aggregate BEFORE the page is
+  /// chosen — you cannot paginate first and aggregate the page when the aggregate decides
+  /// which rows are on it. Computing them from the relation meant loading every approved
+  /// review for every published course on each hit of the crawler-visited /courses page.
+  ratingAverage      Decimal?     @map("rating_average") @db.Decimal(3, 2)
+  ratingCount        Int          @default(0) @map("rating_count")
+  /// Active enrollments only — revoked ones must never count as social proof (QLT-12).
+  enrollmentCount    Int          @default(0) @map("enrollment_count")
   createdAt          DateTime     @default(now()) @map("created_at")
   updatedAt          DateTime     @updatedAt @map("updated_at")
   deletedAt          DateTime?    @map("deleted_at")
@@ -1145,6 +1156,16 @@ model Course {
   @@index([subjectId])
   @@index([status])
   @@index([slug])
+  /// QLT-07: the catalog's sort keys. Ordering now happens in SQL over the whole catalog
+  /// rather than in JavaScript over a full in-memory copy of it.
+  @@index([status, publishedAt])
+  @@index([status, ratingAverage])
+  @@index([status, enrollmentCount])
+  @@index([status, priceCents])
+  /// QLT-07: trigram indexes for the catalog text search. Prisma renders `contains` with
+  /// `mode: "insensitive"` as ILIKE '%term%', and a leading wildcard rules out a btree.
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "courses_title_trgm_idx")
+  @@index([description(ops: raw("gin_trgm_ops"))], type: Gin, map: "courses_description_trgm_idx")
   @@map("courses")
 }
 

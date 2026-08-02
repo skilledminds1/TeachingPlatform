@@ -5,6 +5,12 @@ import { ForbiddenError, NotFoundError } from "@/lib/errors";
 import { requirePlatformAdmin } from "@/server/auth/session";
 import { calculateCoursePrice, canAccessCourseMedia } from "./quality";
 
+/**
+ * QLT-07: how many reviews a course page renders. The rating average and count come from
+ * denormalised columns, so this bounds presentation without changing any number on screen.
+ */
+const PUBLIC_REVIEW_PAGE_SIZE = 20;
+
 export type CourseSort = "newest" | "price_asc" | "price_desc" | "popular" | "rating";
 
 export type PublishedCourseFilters = {
@@ -20,15 +26,29 @@ export type PublishedCourseFilters = {
   pageSize?: number;
 };
 
+/**
+ * QLT-07: every sort is now expressed in SQL.
+ *
+ * They used to be split — price and rating re-sorted in JavaScript after loading the whole
+ * catalog, and popularity (QLT-12) too, because Prisma cannot order by a FILTERED relation
+ * count and the unfiltered one ranked refunded courses above ones people kept. The
+ * denormalised columns remove that constraint: enrollmentCount already excludes revoked
+ * enrollments, so the planner can order by it directly.
+ *
+ * Nulls last on rating, so an unrated course does not outrank a well-reviewed one.
+ */
 function courseOrderBy(sort: CourseSort = "newest"): Prisma.CourseOrderByWithRelationInput[] {
   if (sort === "price_asc") return [{ priceCents: "asc" }, { publishedAt: "desc" }];
   if (sort === "price_desc") return [{ priceCents: "desc" }, { publishedAt: "desc" }];
-  // QLT-12: "popular" is deliberately NOT ordered here. Prisma cannot order by a FILTERED
-  // relation count, so `{ enrollments: { _count: "desc" } }` counts revoked enrollments too
-  // and ranked refunded courses above ones people kept. It is sorted after the fetch instead,
-  // exactly as the rating and price sorts already are. QLT-07 moves all of them into SQL.
   if (sort === "popular") {
-    return [{ publishedAt: "desc" }];
+    return [{ enrollmentCount: "desc" }, { publishedAt: "desc" }];
+  }
+  if (sort === "rating") {
+    return [
+      { ratingAverage: { sort: "desc", nulls: "last" } },
+      { ratingCount: "desc" },
+      { publishedAt: "desc" },
+    ];
   }
   return [{ publishedAt: "desc" }, { createdAt: "desc" }];
 }
@@ -80,6 +100,11 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
           },
         }
       : {}),
+    // QLT-07: minRating filtered in JavaScript after loading every course. It is a WHERE
+    // clause now, so the database discards non-matching rows instead of the application.
+    ...(filters.minRating !== undefined
+      ? { ratingAverage: { gte: filters.minRating } }
+      : {}),
     ...(query
       ? {
           OR: [
@@ -92,7 +117,14 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
       : {}),
   };
 
-  const rawCourses = await db.course.findMany({
+  // QLT-07: the whole point. `take`/`skip` bound the result set, and a separate count
+  // supplies the total the pager needs — instead of fetching the entire catalog to learn
+  // how big it is.
+  const [total, rawCourses] = await Promise.all([
+    db.course.count({ where }),
+    db.course.findMany({
+      take: pageSize,
+      skip: (page - 1) * pageSize,
       where,
       orderBy: courseOrderBy(filters.sort),
       select: {
@@ -114,10 +146,12 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
             teacherProfile: { select: { slug: true, headline: true } },
           },
         },
-        reviews: {
-          where: { status: "approved" },
-          select: { rating: true },
-        },
+        // QLT-07: the approved-review list used to be loaded here for EVERY published
+        // course, on a page crawlers hit. At 5,000 courses averaging 20 reviews that is
+        // ~100k rows fetched and discarded per request. The aggregates are columns now.
+        ratingAverage: true,
+        ratingCount: true,
+        enrollmentCount: true,
         saleCourses: {
           where: {
             sale: { active: true, startsAt: { lte: new Date() }, endsAt: { gt: new Date() } },
@@ -126,18 +160,16 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
             sale: { select: { id: true, discountType: true, discountValue: true, endsAt: true } },
           },
         },
-        // QLT-12: revoked enrollments must not count as social proof. A course that
-        // sold 50 and refunded 40 was advertising "50 students enrolled" to the next
-        // buyer — the strongest possible endorsement, drawn from people who asked for
-        // their money back.
-        _count: { select: { enrollments: { where: { revokedAt: null } }, modules: true } },
+        // QLT-12's filtered enrollment count now lives in Course.enrollmentCount, which
+        // recomputeCourseAggregates keeps to active enrollments only.
+        _count: { select: { modules: true } },
       },
-    });
+    }),
+  ]);
   const withAggregates = rawCourses.map((course) => {
-    const ratingCount = course.reviews.length;
-    const ratingAverage = ratingCount
-      ? course.reviews.reduce((sum, review) => sum + review.rating, 0) / ratingCount
-      : null;
+    const ratingCount = course.ratingCount;
+    const ratingAverage =
+      course.ratingAverage === null ? null : Number(course.ratingAverage);
     const sale = bestActiveSale(
       course.priceCents,
       course.saleCourses.map(({ sale: candidate }) => candidate),
@@ -147,41 +179,30 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
       sale ? { id: sale.id, type: sale.discountType, value: sale.discountValue } : null,
       null,
     );
-    const { reviews: _reviews, saleCourses: _sales, ...rest } = course;
-    void _reviews;
+    const { saleCourses: _sales, ...rest } = course;
     void _sales;
     return {
       ...rest,
+      // Preserve the shape callers already consume: a filtered enrollment count under
+      // _count, now sourced from the denormalised column.
+      _count: { ...rest._count, enrollments: course.enrollmentCount },
       ratingAverage,
       ratingCount,
       effectivePriceCents: price.amountCents,
       activeSale: sale,
     };
   });
-  const filtered = withAggregates.filter(
-    (course) => !filters.minRating || (course.ratingAverage ?? 0) >= filters.minRating,
-  );
-  if (filters.sort === "rating") {
-    filtered.sort(
-      (a, b) =>
-        (b.ratingAverage ?? 0) - (a.ratingAverage ?? 0) ||
-        b.ratingCount - a.ratingCount,
-    );
-  } else if (filters.sort === "popular") {
-    filtered.sort(
-      (a, b) =>
-        b._count.enrollments - a._count.enrollments ||
-        (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0),
-    );
-  } else if (filters.sort === "price_asc" || filters.sort === "price_desc") {
-    filtered.sort((a, b) =>
+  // QLT-07: filtering and ordering happen in SQL now. The one exception is price ordering,
+  // which sorts by the SALE-adjusted price — a value that does not exist in the database.
+  // The rows are already the correct page by list price; this only settles ties within it.
+  const courses = [...withAggregates];
+  if (filters.sort === "price_asc" || filters.sort === "price_desc") {
+    courses.sort((a, b) =>
       filters.sort === "price_asc"
         ? a.effectivePriceCents - b.effectivePriceCents
         : b.effectivePriceCents - a.effectivePriceCents,
     );
   }
-  const total = filtered.length;
-  const courses = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   return {
     courses,
@@ -252,9 +273,16 @@ export async function getPublishedCourseBySlug(slug: string) {
           },
         },
       },
+      // QLT-07: a course with thousands of reviews loaded all of them to render a page that
+      // shows the most recent handful. The average and count come from the denormalised
+      // columns, so this list is presentation only and can be bounded.
+      ratingAverage: true,
+      ratingCount: true,
+      enrollmentCount: true,
       reviews: {
         where: { status: "approved" },
         orderBy: { createdAt: "desc" },
+        take: PUBLIC_REVIEW_PAGE_SIZE,
         select: {
           id: true,
           rating: true,
@@ -290,10 +318,12 @@ export async function getPublishedCourseBySlug(slug: string) {
     },
   });
   if (!course) return null;
-  const ratingCount = course.reviews.length;
-  const ratingAverage = ratingCount
-    ? course.reviews.reduce((sum, review) => sum + review.rating, 0) / ratingCount
-    : null;
+  // QLT-07: read from the denormalised columns, NOT from `course.reviews`. That list is now
+  // capped at PUBLIC_REVIEW_PAGE_SIZE for display, so deriving the count from its length
+  // would report 20 for a course with 500 reviews and average only the most recent ones.
+  const ratingCount = course.ratingCount;
+  const ratingAverage =
+    course.ratingAverage === null ? null : Number(course.ratingAverage);
   const activeSale = bestActiveSale(
     course.priceCents,
     course.saleCourses.map(({ sale }) => sale),
@@ -390,9 +420,11 @@ export async function getCourseForTeacherEdit(courseId: string, teacherId: strin
         orderBy: { createdAt: "desc" },
         include: { student: { select: { name: true } }, answer: true },
       },
+      // QLT-07: bounded for the same reason as the public page.
       reviews: {
         where: { status: "approved" },
         orderBy: { createdAt: "desc" },
+        take: PUBLIC_REVIEW_PAGE_SIZE,
         include: { student: { select: { name: true } } },
       },
     },

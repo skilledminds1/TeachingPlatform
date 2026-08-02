@@ -1,5 +1,6 @@
 "use server";
 
+import { recomputeCourseAggregatesSafely } from "@/server/courses/aggregates";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -86,6 +87,8 @@ export async function submitCourseReview(
       comment: parsed.data.comment,
     },
   });
+  // QLT-07: keep the denormalised catalog aggregates in step with the reviews they mirror.
+  await recomputeCourseAggregatesSafely(parsed.data.courseId);
   refreshCourse(parsed.data.courseId, enrollment.course.slug);
   return ok({ submitted: true });
 }
