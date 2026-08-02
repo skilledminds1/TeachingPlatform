@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { ErrorScreen } from "@/features/errors/components/error-screen";
 
-import { Button } from "@/components/ui/button";
-
+/**
+ * QLT-05: was a bespoke copy that only console.error'd, so nothing an admin hit ever reached
+ * the tracker. Now shares the screen and the capture with every other boundary.
+ */
 export default function AdminError({
   error,
   reset,
@@ -11,18 +13,15 @@ export default function AdminError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
-
   return (
-    <div className="mx-auto flex max-w-lg flex-col items-center justify-center gap-4 py-20 text-center">
-      <h1 className="text-2xl font-semibold tracking-tight">Admin page failed to load</h1>
-      <p className="text-sm text-muted-foreground">
-        Something went wrong while loading this admin view. Try again, or sign out and return
-        later if the problem persists.
-      </p>
-      <Button onClick={reset}>Try again</Button>
-    </div>
+    <ErrorScreen
+      error={error}
+      reset={reset}
+      area="admin"
+      title="Admin page failed to load"
+      description="Something went wrong loading this admin view. Try again, or return later if the problem persists."
+      fallbackHref="/admin"
+      fallbackLabel="Back to admin"
+    />
   );
 }
