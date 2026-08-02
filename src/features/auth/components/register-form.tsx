@@ -4,12 +4,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { signUp } from "@/actions/auth";
+import { countryOptions } from "@/lib/countries";
+import { countryForTimeZone } from "@/lib/timezone-country";
+import { detectBrowserTimeZone } from "@/hooks/use-browser-timezone";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -40,6 +43,14 @@ export function RegisterForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
+  // INT-13: pre-select from the browser zone so the common case is one fewer field to
+  // fill. A guess, not evidence — the user owns the value and can change it, and an
+  // unmapped zone simply leaves the field empty rather than inventing a country.
+  const [detectedCountry] = useState(
+    () => countryForTimeZone(detectBrowserTimeZone()) ?? undefined,
+  );
+  const countries = useMemo(() => countryOptions(), []);
+
   const form = useForm<SignUpInput>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
@@ -47,6 +58,7 @@ export function RegisterForm({
       email: "",
       password: "",
       role: defaultRole,
+      country: detectedCountry,
       confirmedAdult: false,
       acceptedTerms: false,
       acceptedPrivacy: false,
@@ -171,6 +183,27 @@ export function RegisterForm({
             />
             <FieldDescription>At least 8 characters</FieldDescription>
             <FieldError errors={[form.formState.errors.password]} />
+          </Field>
+
+          <Field data-invalid={!!form.formState.errors.country || undefined}>
+            <FieldLabel htmlFor="country">Country</FieldLabel>
+            <select
+              id="country"
+              className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              aria-invalid={!!form.formState.errors.country}
+              {...form.register("country")}
+            >
+              <option value="">Select your country</option>
+              {countries.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+            <FieldDescription>
+              Where you live. This determines how you can be paid and which taxes apply.
+            </FieldDescription>
+            <FieldError errors={[form.formState.errors.country]} />
           </Field>
         </FieldGroup>
 

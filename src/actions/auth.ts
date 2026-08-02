@@ -3,8 +3,13 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
+import {
+  isRestrictedJurisdiction,
+  restrictedJurisdictionMessage,
+} from "@/lib/compliance/restricted-jurisdictions";
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
+import { recordComplianceEvent } from "@/server/compliance/events";
 import {
   changePasswordSchema,
   registerRoleSchema,
@@ -41,7 +46,21 @@ export async function signUp(
   const limited = await enforceActionRateLimit({ action: "signup", limit: 5, windowMs: 15 * 60_000, identifier: parsed.data.email, critical: true });
   if (limited) return limited;
 
-  const { name, email, password, role, confirmedAdult } = parsed.data;
+  const { name, email, password, role, confirmedAdult, country } = parsed.data;
+
+  // INT-13: refuse before an account exists, and record why. This runs in the action rather
+  // than the schema because it is a trust decision that must leave an audit trail, and a
+  // client-side copy of the blocklist is advisory at best.
+  if (isRestrictedJurisdiction(country)) {
+    await recordComplianceEvent({
+      kind: "jurisdiction_blocked",
+      email,
+      countryCode: country,
+      detail: { stage: "registration", role },
+    });
+    return fail(restrictedJurisdictionMessage(country), "FORBIDDEN");
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signUp({
@@ -61,7 +80,7 @@ export async function signUp(
     return fail("Could not create account. Please try again.");
   }
 
-  await syncUserFromAuth(data.user, { role });
+  await syncUserFromAuth(data.user, { role, country });
   const requestHeaders = await headers();
   await recordCurrentLegalAcceptances({
     userId: data.user.id,

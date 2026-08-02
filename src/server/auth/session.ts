@@ -3,6 +3,7 @@ import { isValidIanaTimeZone } from "@/lib/timezone-validation";
 import type { OrgRole, Prisma, User } from "@prisma/client";
 import { redirect } from "next/navigation";
 
+import { toCountryCode } from "@/lib/countries";
 import { db } from "@/lib/db";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
@@ -59,7 +60,7 @@ export function hasTeacherMembership(user: {
 
 export async function syncUserFromAuth(
   authUser: AuthUser,
-  options?: { role?: RegisterRole; timeZone?: string | null },
+  options?: { role?: RegisterRole; timeZone?: string | null; country?: string | null },
 ): Promise<User> {
   const email = authUser.email;
   if (!email) {
@@ -101,6 +102,10 @@ export async function syncUserFromAuth(
   // students were never asked at all, so a New York student saw every lesson 6-7 hours off
   // until they found a buried settings form.
   const timezone = isValidIanaTimeZone(options?.timeZone) ? options?.timeZone : undefined;
+  // INT-13: the country the user picked at registration, normalised. Nullable in the
+  // column because every pre-existing account predates the field and is backfilled by a
+  // prompt rather than by a guess.
+  const country = toCountryCode(options?.country) ?? undefined;
 
   return db.$transaction(async (transaction) => {
     const user = await transaction.user.create({
@@ -110,6 +115,7 @@ export async function syncUserFromAuth(
         name,
         avatarUrl,
         ...(timezone ? { timezone } : {}),
+        ...(country ? { country } : {}),
       },
     });
 

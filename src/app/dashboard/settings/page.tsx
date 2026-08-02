@@ -58,6 +58,7 @@ export default async function StudentSettingsPage() {
             initialName={user.name}
             email={user.email}
             initialTimezone={user.timezone}
+            initialCountry={user.country}
             initialAvatarUrl={user.avatarUrl ?? ""}
           />
         </section>

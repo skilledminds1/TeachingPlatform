@@ -8,27 +8,38 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StudentAvatarUploader } from "@/features/student-dashboard/components/student-avatar-uploader";
+import { countryOptions } from "@/lib/countries";
 import { TIMEZONE_OPTIONS } from "@/lib/timezone";
+import { countryForTimeZone } from "@/lib/timezone-country";
 
 export function StudentSettingsForm({
   initialName,
   email,
   initialTimezone,
+  initialCountry,
   initialAvatarUrl,
 }: {
   initialName: string;
   email: string;
   initialTimezone: string;
+  initialCountry: string | null;
   initialAvatarUrl: string;
 }) {
   const [name, setName] = useState(initialName);
   const [timezone, setTimezone] = useState(initialTimezone);
+  // INT-13: accounts created before the country field exists land here with null. The
+  // zone-derived guess is offered as a starting point, never saved without the user
+  // pressing save on it.
+  const [country, setCountry] = useState(
+    () => initialCountry ?? countryForTimeZone(initialTimezone) ?? "",
+  );
+  const countries = countryOptions();
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const [isPending, startTransition] = useTransition();
 
   function save(): void {
     startTransition(async () => {
-      const result = await updateStudentSettings({ name, timezone });
+      const result = await updateStudentSettings({ name, timezone, country });
       if (!result.success) {
         toast.error(result.error);
         return;
@@ -84,6 +95,26 @@ export function StudentSettingsForm({
         </select>
         <p className="text-xs text-muted-foreground">
           Lesson times, reminders, and classroom schedules use this timezone.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="student-country">Country</Label>
+        <select
+          id="student-country"
+          value={country}
+          onChange={(event) => setCountry(event.target.value)}
+          className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:max-w-md [&>option]:bg-background"
+        >
+          <option value="">Select your country</option>
+          {countries.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground">
+          Where you live. This determines how you can be paid and which taxes apply.
         </p>
       </div>
 

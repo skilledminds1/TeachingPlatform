@@ -5,7 +5,12 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 
 import { env } from "@/lib/env";
+import {
+  isRestrictedJurisdiction,
+  restrictedJurisdictionMessage,
+} from "@/lib/compliance/restricted-jurisdictions";
 import { db } from "@/lib/db";
+import { recordComplianceEvent } from "@/server/compliance/events";
 import { isLessonProviderEnabled } from "@/lib/payments/provider-flags";
 import { requireTeacher } from "@/server/auth/session";
 import { createPayPalSellerReferral } from "@/services/paypal/checkout";
@@ -41,6 +46,24 @@ export async function startPayPalConnect(): Promise<ActionResult<{ url: string }
 
   if (!env.PAYPAL_CLIENT_ID || !env.PAYPAL_CLIENT_SECRET) {
     return fail("PayPal linking is not configured yet.", "VALIDATION_ERROR");
+  }
+
+  // INT-13: the third gate, and the one that actually touches money. A country can change
+  // after registration, so the check is repeated wherever a payout relationship is created
+  // rather than trusted from signup.
+  const account = await db.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: { country: true, email: true },
+  });
+  if (isRestrictedJurisdiction(account.country)) {
+    await recordComplianceEvent({
+      kind: "jurisdiction_blocked",
+      userId: user.id,
+      email: account.email,
+      countryCode: account.country,
+      detail: { stage: "payment_link", provider: "paypal" },
+    });
+    return fail(restrictedJurisdictionMessage(account.country), "FORBIDDEN");
   }
 
   const trackingId = `teacher_${user.id.slice(0, 8)}_${randomBytes(4).toString("hex")}`;

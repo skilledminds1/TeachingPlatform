@@ -359,6 +359,10 @@ model User {
   name                   String
   avatarUrl              String?       @map("avatar_url")
   timezone               String        @default("Africa/Johannesburg")
+  /// INT-13: ISO 3166-1 alpha-2. Nullable because existing accounts predate the field and
+  /// are backfilled through a prompt; registration requires it. Country gates payout
+  /// eligibility (PAY-14), tax evidence (PAY-06) and restricted-jurisdiction screening.
+  country                String?       @db.VarChar(2)
   isPlatformAdmin        Boolean       @default(false) @map("is_platform_admin")
   accountStatus          AccountStatus @default(active) @map("account_status")
   accountStatusReason    String?       @map("account_status_reason")
@@ -377,6 +381,7 @@ model User {
   reviewsWritten           Review[]                    @relation("ReviewsWritten")
   reviewsReceived          Review[]                    @relation("ReviewsReceived")
   adminAuditLogs           AdminAuditLog[]
+  complianceEvents         ComplianceEvent[]
   invitationsSent          OrganizationInvitation[]    @relation("InvitationSender")
   teacherRelationships     StudentRelationship[]       @relation("RelationshipTeacher")
   studentRelationships     StudentRelationship[]       @relation("RelationshipStudent")
@@ -718,26 +723,31 @@ model Subject {
 }
 
 model TeacherProfile {
-  id                 String               @id @default(uuid()) @db.Uuid
-  userId             String               @unique @map("user_id") @db.Uuid
-  organizationId     String               @map("organization_id") @db.Uuid
-  bio                String               @default("")
+  id                 String                   @id @default(uuid()) @db.Uuid
+  userId             String                   @unique @map("user_id") @db.Uuid
+  organizationId     String                   @map("organization_id") @db.Uuid
+  bio                String                   @default("")
   headline           String?
-  hourlyRateCents    Int                  @default(0) @map("hourly_rate_cents")
-  currency           String               @default("USD")
+  hourlyRateCents    Int                      @default(0) @map("hourly_rate_cents")
+  currency           String                   @default("USD")
   /// INT-12: hourlyRateCents normalised to USD, for the marketplace price filter and sort
   /// ONLY. Never used to charge anyone — students always pay the teacher's own listed
   /// amount in their own currency. Recomputed whenever the rate or currency changes.
-  hourlyRateUsdCents Int                  @default(0) @map("hourly_rate_usd_cents")
-  introVideoUrl      String?              @map("intro_video_url")
-  introVideoPath     String?              @map("intro_video_path")
-  status             TeacherProfileStatus @default(draft)
-  rejectionReason    String?              @map("rejection_reason")
-  slug               String               @unique
-  submittedAt        DateTime?            @map("submitted_at")
-  createdAt          DateTime             @default(now()) @map("created_at")
-  updatedAt          DateTime             @updatedAt @map("updated_at")
-  deletedAt          DateTime?            @map("deleted_at")
+  hourlyRateUsdCents Int                      @default(0) @map("hourly_rate_usd_cents")
+  introVideoUrl      String?                  @map("intro_video_url")
+  introVideoPath     String?                  @map("intro_video_path")
+  status             TeacherProfileStatus     @default(draft)
+  rejectionReason    String?                  @map("rejection_reason")
+  slug               String                   @unique
+  submittedAt        DateTime?                @map("submitted_at")
+  /// INT-13: outcome of the sanctions-list screen run at approval, kept for audit.
+  screeningStatus    SanctionsScreeningStatus @default(not_screened) @map("screening_status")
+  screenedAt         DateTime?                @map("screened_at")
+  screeningSource    String?                  @map("screening_source")
+  screeningMatches   Json?                    @map("screening_matches")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+  deletedAt          DateTime?                @map("deleted_at")
 
   user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1721,6 +1731,46 @@ model CaseEvidence {
   @@index([caseId, createdAt])
   @@index([storagePath])
   @@map("case_evidence")
+}
+
+/// INT-13: sanctions-list screening outcome. Distinct from the Sanction model below, which
+/// is a moderation penalty issued by an admin and has nothing to do with trade sanctions.
+enum SanctionsScreeningStatus {
+  not_screened
+  clear
+  review_required
+
+  @@map("sanctions_screening_status")
+}
+
+enum ComplianceEventKind {
+  jurisdiction_blocked
+  screening_clear
+  screening_review_required
+  screening_unavailable
+
+  @@map("compliance_event_kind")
+}
+
+/// INT-13: an audit trail for compliance decisions that have no admin actor.
+///
+/// AdminAuditLog requires an adminUserId, so it cannot record a registration refused by an
+/// automated jurisdiction check — there is no admin in that flow, and the user may not exist
+/// yet, which is why email is stored alongside the optional user reference.
+model ComplianceEvent {
+  id          String              @id @default(uuid()) @db.Uuid
+  userId      String?             @map("user_id") @db.Uuid
+  email       String?
+  kind        ComplianceEventKind
+  countryCode String?             @map("country_code") @db.VarChar(2)
+  detail      Json?
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([kind, createdAt])
+  @@map("compliance_events")
 }
 
 model Sanction {

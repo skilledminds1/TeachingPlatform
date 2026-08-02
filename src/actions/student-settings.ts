@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isValidIanaTimeZone } from "@/lib/timezone-validation";
 import { avatarFileSchema } from "@/lib/validations/teacher-onboarding";
+import { toCountryCode } from "@/lib/countries";
 import { requireAuth } from "@/server/auth/session";
 import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
 import { fail, ok, type ActionResult } from "@/types/action";
@@ -17,6 +18,9 @@ const studentSettingsSchema = z.object({
   timezone: z.string().refine(isValidIanaTimeZone, {
     message: "Choose a valid timezone.",
   }),
+  // INT-13: the backfill route for accounts created before country existed. Optional here
+  // because this form is also used by people who already have one set.
+  country: z.string().trim().optional(),
 });
 
 export async function updateStudentSettings(
@@ -44,6 +48,11 @@ export async function updateStudentSettings(
     data: {
       name: parsed.data.name,
       timezone: parsed.data.timezone,
+      // Only ever set to a recognised code; a blank or bad value leaves the column alone
+      // rather than wiping a country the user already has.
+      ...(toCountryCode(parsed.data.country)
+        ? { country: toCountryCode(parsed.data.country)! }
+        : {}),
     },
   });
 

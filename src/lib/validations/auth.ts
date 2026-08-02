@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+import { COUNTRY_CODES, type CountryCode } from "@/lib/countries";
+
+// INT-13: a plain enum, deliberately. Whether a country is ALLOWED is a trust decision that
+// belongs in the server action, where refusal can be audited — not in a schema the client
+// also holds. Keeping the field free of .refine() additionally avoids the ZodEffects that
+// breaks resolver typing, as documented in src/lib/validations/teacher-onboarding.ts.
+const countryCodes = COUNTRY_CODES as unknown as [CountryCode, ...CountryCode[]];
+
 export const signInSchema = z.object({
   email: z.email("Enter a valid email address"),
   password: z.string().min(1, "Password is required"),
@@ -30,6 +38,9 @@ export const signUpSchema = z
       .min(8, "Password must be at least 8 characters")
       .max(72, "Password must be at most 72 characters"),
     role: registerRoleSchema,
+    // INT-13: required for every new account. Country gates payout eligibility (PAY-14),
+    // tax evidence (PAY-06) and the restricted-jurisdiction check.
+    country: z.enum(countryCodes, { message: "Select your country" }),
   })
   .and(legalAcceptanceInputSchema)
   .refine(

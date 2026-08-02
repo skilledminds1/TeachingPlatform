@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { isRestrictedJurisdiction } from "@/lib/compliance/restricted-jurisdictions";
 import { db } from "@/lib/db";
+import { recordComplianceEvent } from "@/server/compliance/events";
+import { screenName } from "@/server/compliance/screening";
 import { courseIdSchema, rejectCourseSchema } from "@/lib/validations/courses";
 import { requirePlatformAdmin } from "@/server/auth/session";
 import {
@@ -31,7 +34,12 @@ export async function approveTeacherProfile(
   const admin = await requirePlatformAdmin();
   const profile = await db.teacherProfile.findUnique({
     where: { id: parsedId.data },
-    select: { id: true, status: true },
+    select: {
+      id: true,
+      status: true,
+      userId: true,
+      user: { select: { name: true, email: true, country: true } },
+    },
   });
 
   if (!profile) return fail("Teacher profile not found.", "NOT_FOUND");
@@ -39,10 +47,75 @@ export async function approveTeacherProfile(
     return fail("Teacher profile is already approved.", "CONFLICT");
   }
 
+  // INT-13: approval is the last gate before someone can be paid, so both compliance checks
+  // run here — not at registration only, because a teacher's country can change and because
+  // the sanctions list changes daily.
+  if (isRestrictedJurisdiction(profile.user.country)) {
+    await recordComplianceEvent({
+      kind: "jurisdiction_blocked",
+      userId: profile.userId,
+      email: profile.user.email,
+      countryCode: profile.user.country,
+      detail: { stage: "teacher_approval", profileId: profile.id, adminUserId: admin.id },
+    });
+    return fail(
+      `This teacher's country (${profile.user.country ?? "unknown"}) is a restricted jurisdiction and cannot be approved.`,
+      "FORBIDDEN",
+    );
+  }
+
+  const screening = await screenName(profile.user.name);
+
+  // An unreadable list is NOT a clear result. Holding is the only safe reading: approving on
+  // "we could not check" is precisely the failure this feature exists to prevent.
+  if (screening.status !== "clear") {
+    await db.teacherProfile.update({
+      where: { id: profile.id },
+      data: {
+        screeningStatus: "review_required",
+        screenedAt: screening.screenedAt,
+        screeningSource: screening.source,
+        screeningMatches: screening.matches,
+      },
+    });
+    await recordComplianceEvent({
+      kind:
+        screening.status === "unavailable"
+          ? "screening_unavailable"
+          : "screening_review_required",
+      userId: profile.userId,
+      email: profile.user.email,
+      countryCode: profile.user.country,
+      detail: {
+        stage: "teacher_approval",
+        profileId: profile.id,
+        adminUserId: admin.id,
+        source: screening.source,
+        matches: screening.matches,
+      },
+    });
+
+    return fail(
+      screening.status === "unavailable"
+        ? "The sanctions list could not be reached, so this approval is on hold. Try again shortly."
+        : `This name matches ${screening.matches.length} sanctions-list entr${screening.matches.length === 1 ? "y" : "ies"} and needs manual review before approval.`,
+      "CONFLICT",
+    );
+  }
+
   await db.$transaction([
     db.teacherProfile.update({
       where: { id: profile.id },
-      data: { status: "approved", rejectionReason: null },
+      data: {
+        status: "approved",
+        rejectionReason: null,
+        // INT-13: the screening outcome is stored on the row so the decision can be audited
+        // later against a list that has since changed.
+        screeningStatus: "clear",
+        screenedAt: screening.screenedAt,
+        screeningSource: screening.source,
+        screeningMatches: [],
+      },
     }),
     db.teacherQualification.updateMany({
       where: { teacherProfileId: profile.id, status: "pending" },
