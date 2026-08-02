@@ -1,3 +1,4 @@
+import { withJobCheckIn } from "@/server/jobs/check-in";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
@@ -73,5 +74,8 @@ async function run(request: Request) {
   }
 }
 
-export const POST = run;
-export const GET = run;
+// QLT-04: each invocation checks in, so a job that stops firing is visible.
+const handler = withJobCheckIn("refresh-fx-rates", run);
+
+export const POST = handler;
+export const GET = handler;

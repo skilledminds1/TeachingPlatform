@@ -848,6 +848,31 @@ enum LanguageProficiency {
 /// differ, and the distinction matters: a feed that keeps returning last Friday's numbers
 /// looks fresh by fetchedAt while being stale by asOf, which is exactly the failure the
 /// staleness alarm has to catch.
+/// QLT-04: the last run of each scheduled job, so a job that silently stops can be noticed.
+///
+/// isCronAuthorized fails closed when CRON_SECRET is absent — correct — but the variable is
+/// optional, so a missing or mistyped value makes every job 401 forever. Nothing anywhere
+/// watched for that: reminders stop sending, abandoned payments never expire, dunning never
+/// runs, and the only evidence is an absence, which no amount of log-reading surfaces.
+///
+/// One row per job, updated in place. A full history would help debugging but grows without
+/// bound and needs pruning; staleness only ever needs the most recent run.
+model JobRun {
+  id         String    @id @default(uuid()) @db.Uuid
+  /// Matches the key in CRON_JOBS — see src/server/jobs/registry.ts.
+  job        String    @unique
+  lastRunAt  DateTime  @map("last_run_at")
+  /// Last run that actually succeeded. A job failing every time is as dead as one not firing.
+  lastOkAt   DateTime? @map("last_ok_at")
+  lastStatus String    @map("last_status")
+  lastDetail String?   @map("last_detail")
+  runCount   Int       @default(0) @map("run_count")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@map("job_runs")
+}
+
 model FxRate {
   baseCurrency  String   @map("base_currency")
   quoteCurrency String   @map("quote_currency")

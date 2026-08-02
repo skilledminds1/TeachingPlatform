@@ -1,3 +1,4 @@
+import { withJobCheckIn } from "@/server/jobs/check-in";
 import { NextResponse } from "next/server";
 
 import { logger } from "@/lib/observability/logger";
@@ -6,7 +7,7 @@ import { processEmailOutbox } from "@/server/notifications/process-outbox";
 
 export const maxDuration = 60;
 
-export async function GET(request: Request) {
+async function handleRequest(request: Request) {
   if (!isCronAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -17,3 +18,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "Email processing failed." }, { status: 500 });
   }
 }
+
+// QLT-04: each invocation checks in, so a job that stops firing is visible.
+export const GET = withJobCheckIn("process-email-outbox", handleRequest);

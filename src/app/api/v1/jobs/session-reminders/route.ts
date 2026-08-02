@@ -1,3 +1,4 @@
+import { withJobCheckIn } from "@/server/jobs/check-in";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
@@ -11,7 +12,7 @@ import { notifySessionReminder } from "@/server/notifications/notify";
  *
  * Sends in-app + email reminders for confirmed lessons starting in 45–75 minutes.
  */
-export async function GET(request: Request) {
+async function handleRequest(request: Request) {
   if (!isCronAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -54,3 +55,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ ok: true, candidates: bookings.length, sent });
 }
+
+// QLT-04: each invocation checks in, so a job that stops firing is visible.
+export const GET = withJobCheckIn("session-reminders", handleRequest);
