@@ -535,6 +535,7 @@ export async function saveTeacherOnboarding(
       data: {
         name: parsed.data.name,
         timezone: parsed.data.timezone,
+        country: parsed.data.country,
       },
     });
 

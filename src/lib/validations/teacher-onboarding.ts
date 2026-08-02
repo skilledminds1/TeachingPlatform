@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { isValidIanaTimeZone } from "@/lib/timezone-validation";
 
+import { COUNTRY_CODES, type CountryCode } from "@/lib/countries";
 import { LESSON_CURRENCIES } from "@/lib/currencies";
 import { isHttpsUrl } from "@/lib/security/urls";
 
@@ -9,6 +10,7 @@ function wordCount(value: string): number {
 }
 
 const currentYear = new Date().getFullYear();
+const countryCodes = COUNTRY_CODES as unknown as [CountryCode, ...CountryCode[]];
 const lessonCurrencyCodes = LESSON_CURRENCIES.map((item) => item.code) as [
   (typeof LESSON_CURRENCIES)[number]["code"],
   ...(typeof LESSON_CURRENCIES)[number]["code"][],
@@ -22,6 +24,11 @@ export const teacherOnboardingSchema = z.object({
     .string()
     .trim()
     .refine(isValidIanaTimeZone, "Select a valid timezone"),
+  // INT-13: a teacher's country gates payout eligibility (PAY-14) and the restricted
+  // jurisdiction check, and this is the surface where an existing teacher can supply one —
+  // the student settings form is a different page they never see. A plain enum, for the
+  // ZodEffects reason documented on the language field below.
+  country: z.enum(countryCodes, { message: "Select your country" }),
   avatarUrl: z.url("Upload a profile photo"),
   headline: z.string().trim().min(10, "Headline must be at least 10 characters").max(120),
   bio: z

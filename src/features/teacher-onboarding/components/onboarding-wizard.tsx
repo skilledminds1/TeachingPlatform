@@ -31,6 +31,7 @@ import {
   teacherOnboardingSchema,
   type TeacherOnboardingInput,
 } from "@/lib/validations/teacher-onboarding";
+import { countryOptions } from "@/lib/countries";
 import { TIMEZONE_OPTIONS } from "@/lib/timezone";
 import { LanguageEditor } from "./language-editor";
 import { LESSON_CURRENCIES, currencySymbol } from "@/lib/currencies";
@@ -57,7 +58,7 @@ const steps = [
 ] as const;
 
 const stepFields: Array<Array<keyof TeacherOnboardingInput>> = [
-  ["name", "timezone", "languages", "avatarUrl"],
+  ["name", "timezone", "country", "languages", "avatarUrl"],
   ["headline", "bio", "qualifications"],
   ["hourlyRate", "currency", "subjectIds"],
   ["introVideoUrl", "introVideoPath"],
@@ -223,6 +224,27 @@ export function OnboardingWizard({
                     Lesson times are shown to students in their own timezone.
                   </FieldDescription>
                   <FieldError errors={[form.formState.errors.timezone]} />
+                </Field>
+
+                <Field data-invalid={!!form.formState.errors.country || undefined}>
+                  <FieldLabel htmlFor="country">Country</FieldLabel>
+                  <select
+                    id="country"
+                    className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    aria-invalid={!!form.formState.errors.country}
+                    {...form.register("country")}
+                  >
+                    <option value="">Select your country</option>
+                    {countryOptions().map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                  <FieldDescription>
+                    Where you live. This determines how you can be paid and which taxes apply.
+                  </FieldDescription>
+                  <FieldError errors={[form.formState.errors.country]} />
                 </Field>
 
                 <Field>

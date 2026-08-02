@@ -1,3 +1,4 @@
+import { CountryBackfillPrompt } from "@/features/compliance/components/country-backfill-prompt";
 import {
   ArrowUpRight,
   BookOpen,
@@ -54,6 +55,7 @@ export default async function TeacherDashboardPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-6 py-8 md:py-12">
+      <CountryBackfillPrompt country={user.country} />
         <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
           <div
             className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent"

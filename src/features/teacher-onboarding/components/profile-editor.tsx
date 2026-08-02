@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { LESSON_CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { formatStatus } from "@/lib/format";
+import { countryOptions } from "@/lib/countries";
 import { TIMEZONE_OPTIONS } from "@/lib/timezone";
 import { LanguageEditor } from "./language-editor";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,7 @@ const sections = [
 type SectionId = (typeof sections)[number]["id"];
 
 const sectionFields: Record<SectionId, Array<keyof TeacherOnboardingInput>> = {
-  about: ["name", "timezone", "languages"],
+  about: ["name", "timezone", "country", "languages"],
   photo: ["avatarUrl"],
   description: ["headline", "bio"],
   video: ["introVideoUrl", "introVideoPath"],
@@ -245,6 +246,27 @@ export function ProfileEditor({
                   Lesson times are shown to students in their own timezone.
                 </FieldDescription>
                 <FieldError errors={[form.formState.errors.timezone]} />
+              </Field>
+
+              <Field data-invalid={!!form.formState.errors.country || undefined}>
+                <FieldLabel htmlFor="country">Country</FieldLabel>
+                <select
+                  id="country"
+                  className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  aria-invalid={!!form.formState.errors.country}
+                  {...form.register("country")}
+                >
+                  <option value="">Select your country</option>
+                  {countryOptions().map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+                <FieldDescription>
+                  Where you live. This determines how you can be paid and which taxes apply.
+                </FieldDescription>
+                <FieldError errors={[form.formState.errors.country]} />
               </Field>
 
               <Field>

@@ -1,3 +1,5 @@
+import { toCountryCode, type CountryCode } from "@/lib/countries";
+import { countryForTimeZone } from "@/lib/timezone-country";
 import type { Metadata } from "next";
 import { toEditableLanguages } from "@/lib/languages";
 import { redirect } from "next/navigation";
@@ -26,6 +28,12 @@ export default async function TeacherProfileSettingsPage() {
           defaultValues={{
           name: user.name,
           timezone: user.timezone,
+          // INT-13: an empty default is deliberate when neither the stored country nor the
+          // zone guess yields one — the field then prompts rather than asserting a
+          // country nobody chose. Same shape as avatarUrl above.
+          country: (toCountryCode(user.country) ??
+            countryForTimeZone(user.timezone) ??
+            "") as CountryCode,
           avatarUrl: user.avatarUrl ?? "",
           headline: profile.headline ?? "",
           bio: profile.bio,
