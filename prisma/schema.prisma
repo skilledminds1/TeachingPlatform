@@ -1383,7 +1383,12 @@ model CourseQuestion {
   courseId  String   @map("course_id") @db.Uuid
   studentId String   @map("student_id") @db.Uuid
   body      String
+  /// Moderation: a teacher or admin suppressed this. Nothing to do with consent.
   hidden    Boolean  @default(false)
+  /// QLT-10: the STUDENT's consent to publish, deliberately separate from `hidden`.
+  /// Publication requires isPublic AND NOT hidden. Conflating the two would mean a teacher
+  /// restoring a moderated question also published one the student never agreed to share.
+  isPublic  Boolean  @default(false) @map("is_public")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -1391,7 +1396,7 @@ model CourseQuestion {
   student User          @relation("CourseQuestionsAsked", fields: [studentId], references: [id], onDelete: Cascade)
   answer  CourseAnswer?
 
-  @@index([courseId, hidden, createdAt])
+  @@index([courseId, isPublic, hidden, createdAt])
   @@index([studentId])
   @@map("course_questions")
 }

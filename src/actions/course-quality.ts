@@ -116,7 +116,13 @@ export async function askCourseQuestion(
   input: unknown,
 ): Promise<ActionResult<{ questionId: string }>> {
   const parsed = z
-    .object({ courseId: z.uuid(), body: z.string().trim().min(5).max(2_000) })
+    .object({
+      courseId: z.uuid(),
+      body: z.string().trim().min(5).max(2_000),
+      // QLT-10: consent to publish, defaulting to NO. It is a separate decision from asking,
+      // and the person who bears the consequence has to be the one who makes it.
+      isPublic: z.boolean().default(false),
+    })
     .safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid question.");
   const user = await requireAuth();
@@ -130,7 +136,12 @@ export async function askCourseQuestion(
     return fail("An active enrollment is required to ask questions.", "FORBIDDEN");
   }
   const question = await db.courseQuestion.create({
-    data: { courseId: parsed.data.courseId, studentId: user.id, body: parsed.data.body },
+    data: {
+      courseId: parsed.data.courseId,
+      studentId: user.id,
+      body: parsed.data.body,
+      isPublic: parsed.data.isPublic,
+    },
     select: { id: true },
   });
   refreshCourse(parsed.data.courseId);
@@ -320,4 +331,54 @@ export async function setCoursePromotionActive(
   revalidatePath("/courses");
   revalidatePath("/dashboard/teacher/courses");
   return ok({ active: parsed.data.active });
+}
+
+/**
+ * QLT-10: let a student publish or unpublish their OWN question.
+ *
+ * Distinct from setCourseQuestionHidden, which is the teacher and admin moderation control.
+ * Scoped by studentId in the where clause rather than checked separately, so a mismatched id
+ * updates nothing instead of relying on a guard someone can later reorder.
+ */
+export async function setCourseQuestionPublic(
+  input: unknown,
+): Promise<ActionResult<{ isPublic: boolean }>> {
+  const parsed = z
+    .object({ questionId: z.uuid(), isPublic: z.boolean() })
+    .safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid question.");
+  const user = await requireAuth();
+
+  const question = await db.courseQuestion.findFirst({
+    where: { id: parsed.data.questionId, studentId: user.id },
+    select: { id: true, courseId: true },
+  });
+  if (!question) return fail("Question not found.", "NOT_FOUND");
+
+  await db.courseQuestion.update({
+    where: { id: question.id },
+    data: { isPublic: parsed.data.isPublic },
+  });
+  refreshCourse(question.courseId);
+  return ok({ isPublic: parsed.data.isPublic });
+}
+
+/** QLT-10: a student can withdraw their own question entirely. */
+export async function deleteCourseQuestion(
+  input: unknown,
+): Promise<ActionResult<{ deleted: true }>> {
+  const parsed = z.object({ questionId: z.uuid() }).safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid question.");
+  const user = await requireAuth();
+
+  const question = await db.courseQuestion.findFirst({
+    where: { id: parsed.data.questionId, studentId: user.id },
+    select: { id: true, courseId: true },
+  });
+  if (!question) return fail("Question not found.", "NOT_FOUND");
+
+  // The answer is cascade-deleted with the question.
+  await db.courseQuestion.delete({ where: { id: question.id } });
+  refreshCourse(question.courseId);
+  return ok({ deleted: true });
 }

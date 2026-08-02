@@ -265,7 +265,10 @@ export async function getPublishedCourseBySlug(slug: string) {
         },
       },
       questions: {
-        where: { hidden: false, answer: { isNot: null } },
+        // QLT-10: isPublic is the STUDENT's consent, hidden is moderation. Both must
+        // allow it. Before this, an answered question was public by default and the
+        // student was never told.
+        where: { isPublic: true, hidden: false, answer: { isNot: null } },
         orderBy: { createdAt: "desc" },
         take: 20,
         select: {
@@ -465,6 +468,8 @@ export async function getEnrolledCourseDetail(courseId: string, studentId: strin
           id: true,
           body: true,
           studentId: true,
+          // QLT-10: so a student can see, and change, whether their own question is public.
+          isPublic: true,
           createdAt: true,
           answer: { select: { body: true, createdAt: true } },
         },

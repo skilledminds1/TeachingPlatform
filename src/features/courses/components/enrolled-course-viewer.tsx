@@ -55,7 +55,9 @@ type Module = {
 
 export function EnrolledCourseViewer({
   course,
+  viewerId,
 }: {
+  viewerId: string;
   course: {
     id: string;
     title: string;
@@ -75,6 +77,7 @@ export function EnrolledCourseViewer({
       id: string;
       body: string;
       studentId: string;
+      isPublic: boolean;
       createdAt: Date | string;
       answer: { body: string; createdAt: Date | string } | null;
     }>;
@@ -355,6 +358,7 @@ export function EnrolledCourseViewer({
         completedLessonCount={completedCount}
         review={course.reviews[0] ?? null}
         questions={course.questions}
+        viewerId={viewerId}
       />
     </div>
   );

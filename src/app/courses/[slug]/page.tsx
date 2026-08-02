@@ -148,7 +148,14 @@ export default async function CourseSalesPage({
             {course.questions.length > 0 ? (
               <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
                 <h2 className="text-lg font-semibold">Course Q&amp;A</h2>
-                <p className="text-xs text-muted-foreground">Public answers omit student identity.</p>
+                {/*
+                  QLT-10: this used to say only that identity was omitted, which was true of
+                  the NAME and not of the question text — the part that actually carries
+                  anything personal. Questions now appear here only when the student opted in.
+                */}
+                <p className="text-xs text-muted-foreground">
+                  Shared by students who chose to publish their question. Names are never shown.
+                </p>
                 <div className="mt-4 space-y-3">
                   {course.questions.map((question) => (
                     <article key={question.id} className="rounded-lg bg-muted/50 p-4 text-sm">
