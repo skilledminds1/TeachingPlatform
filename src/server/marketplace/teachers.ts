@@ -28,9 +28,8 @@ export async function searchTeachers(filters: TeacherSearchFilters) {
   const where: Prisma.TeacherProfileWhereInput = {
     status: "approved",
     deletedAt: null,
-    user: {
-      email: { not: { endsWith: "teachingplatform.local" } },
-    },
+    // QLT-11: an explicit flag rather than a seed-email suffix. See User.isDemo.
+    user: { isDemo: false },
     organization: { plan: { marketplaceListing: true }, deletedAt: null },
   };
 
@@ -127,9 +126,8 @@ export async function getTeacherBySlug(slug: string) {
       slug,
       status: "approved",
       deletedAt: null,
-      user: {
-        email: { not: { endsWith: "teachingplatform.local" } },
-      },
+      // QLT-11: an explicit flag rather than a seed-email suffix. See User.isDemo.
+      user: { isDemo: false },
       organization: { plan: { marketplaceListing: true }, deletedAt: null },
     },
     select: {

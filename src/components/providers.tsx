@@ -1,8 +1,7 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -26,19 +25,15 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   };
 }
 
+/**
+ * QLT-11: QueryClientProvider used to be mounted here, putting @tanstack/react-query in the
+ * client bundle of every page — while a repo-wide search found zero useQuery, useMutation
+ * or useInfiniteQuery call sites. The app is server components plus server actions plus
+ * router.refresh throughout, which is a coherent choice; it simply never used the library it
+ * was shipping. Removed rather than kept "in case", because a provider nothing consumes is
+ * indistinguishable from one whose consumers were deleted by mistake.
+ */
 export function Providers({ children, nonce }: ProvidersProps): ReactNode {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 60 * 1000,
-            refetchOnWindowFocus: false,
-          },
-        },
-      }),
-  );
-
   return (
     <ThemeProvider
       attribute="class"
@@ -47,7 +42,7 @@ export function Providers({ children, nonce }: ProvidersProps): ReactNode {
       disableTransitionOnChange
       nonce={nonce}
     >
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      {children}
     </ThemeProvider>
   );
 }

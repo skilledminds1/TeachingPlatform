@@ -5,12 +5,11 @@ import { requirePlatformAdmin } from "@/server/auth/session";
 
 const recentLimit = 6;
 
-/** Seeded local/demo accounts use *@teachingplatform.local or *@demo.teachingplatform.local */
-const isDemoEmail = { endsWith: "teachingplatform.local" } as const;
+// QLT-11: demo accounts are flagged on the row now, not inferred from the email domain.
 
 const nonDemoUserWhere = {
   deletedAt: null,
-  email: { not: isDemoEmail },
+  isDemo: false,
 } satisfies Prisma.UserWhereInput;
 
 const nonDemoOrganizationWhere = {
@@ -20,19 +19,19 @@ const nonDemoOrganizationWhere = {
 
 const nonDemoTeacherWhere = {
   deletedAt: null,
-  user: { email: { not: isDemoEmail } },
+  user: { isDemo: false },
   organization: { slug: { not: { startsWith: "demo-" } } },
 } satisfies Prisma.TeacherProfileWhereInput;
 
 const nonDemoBookingWhere = {
-  teacher: { email: { not: isDemoEmail } },
-  student: { email: { not: isDemoEmail } },
+  teacher: { isDemo: false },
+  student: { isDemo: false },
   organization: { slug: { not: { startsWith: "demo-" } } },
 } satisfies Prisma.BookingWhereInput;
 
 const nonDemoReviewWhere = {
-  teacher: { email: { not: isDemoEmail } },
-  student: { email: { not: isDemoEmail } },
+  teacher: { isDemo: false },
+  student: { isDemo: false },
 } satisfies Prisma.ReviewWhereInput;
 
 export async function getAdminDashboardData() {
@@ -88,7 +87,7 @@ export async function getAdminDashboardData() {
     }),
     db.adminAuditLog.findMany({
       where: {
-        admin: { email: { not: isDemoEmail } },
+        admin: { isDemo: false },
       },
       orderBy: { createdAt: "desc" },
       take: recentLimit,
@@ -226,7 +225,7 @@ export async function getAdminAuditLogs() {
   await requirePlatformAdmin();
   return db.adminAuditLog.findMany({
     where: {
-      admin: { email: { not: isDemoEmail } },
+      admin: { isDemo: false },
     },
     orderBy: { createdAt: "desc" },
     take: 100,

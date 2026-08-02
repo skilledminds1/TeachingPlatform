@@ -284,7 +284,7 @@ Flow: Booking confirmed → server creates LiveKit room → authorized participa
 | Language | TypeScript (strict) |
 | Styling | Tailwind CSS + shadcn/ui (dark mode first) |
 | Forms | React Hook Form + Zod |
-| Data fetching | TanStack Query |
+| Data fetching | Server components + server actions (no client data-fetching library) |
 | Database | PostgreSQL via Prisma |
 | Auth | Supabase Auth |
 | Realtime | Supabase Realtime (chat, notifications) |

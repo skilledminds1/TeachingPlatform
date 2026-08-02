@@ -39,6 +39,11 @@ enum TeacherProfileStatus {
   @@map("teacher_profile_status")
 }
 
+/// QLT-11 asked whether `stripe` should be removed as dead scaffolding, since
+/// src/services/stripe/ was an empty directory. KEPT, deliberately: P2 (PAY-03, PAY-04,
+/// PAY-07, PAY-08) is the migration TO Stripe, so dropping the member now means a migration
+/// to remove it and another to add it back within weeks, plus a window where stored rows
+/// cannot name the rail they belong to. The empty directories are gone; this stays.
 enum PaymentProvider {
   paypal
   stripe
@@ -363,6 +368,12 @@ model User {
   /// are backfilled through a prompt; registration requires it. Country gates payout
   /// eligibility (PAY-14), tax evidence (PAY-06) and restricted-jurisdiction screening.
   country                String?       @db.VarChar(2)
+  /// QLT-11: excludes seeded demo accounts from the marketplace and from analytics.
+  /// Replaces `email: { not: { endsWith: "teachingplatform.local" } }`, which coupled the
+  /// hottest public queries to a seed-data naming convention — it hid any real user whose
+  /// email happened to match, did nothing for demo data seeded under another domain, and
+  /// cost a join condition and a string scan on every marketplace request.
+  isDemo                 Boolean       @default(false) @map("is_demo")
   isPlatformAdmin        Boolean       @default(false) @map("is_platform_admin")
   accountStatus          AccountStatus @default(active) @map("account_status")
   accountStatusReason    String?       @map("account_status_reason")
@@ -432,6 +443,8 @@ model User {
 
   @@index([email])
   @@index([accountStatus])
+  /// QLT-11: the marketplace filters on this for every listing query.
+  @@index([isDemo])
   @@map("users")
 }
 
