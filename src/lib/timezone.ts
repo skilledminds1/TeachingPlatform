@@ -2,6 +2,28 @@ import { DateTime } from "luxon";
 
 export const LESSON_DURATION_MINUTES = 60;
 
+/**
+ * How far ahead of now a student must book (QLT-12).
+ *
+ * THIS IS A POLICY, NOT A TIMEZONE CONVERSION. It was written inline in slots.ts as
+ * `DateTime.now().toUTC().plus({ hours: 2 })`, with no constant, no comment and nothing in
+ * the UI — which reads exactly like a mistaken "convert to SAST (UTC+2)" offset. The code
+ * around it was full of genuine UTC+2 bugs, so the next person to tidy those up would very
+ * reasonably have deleted this and silently removed the teacher's notice period with it.
+ *
+ * It gives a teacher time to see a booking before it starts. Competitors expose this as a
+ * per-teacher "advance notice" setting; making it one is a later change, and this constant
+ * is where that would start.
+ */
+export const MIN_BOOKING_NOTICE_HOURS: number = 2;
+
+/** The same policy as prose, so the UI and the rule cannot drift apart. */
+export function bookingNoticeLabel(): string {
+  return MIN_BOOKING_NOTICE_HOURS === 1
+    ? "at least an hour ahead"
+    : `at least ${MIN_BOOKING_NOTICE_HOURS} hours ahead`;
+}
+
 export const TIMEZONE_OPTIONS = [
   { value: "Africa/Johannesburg", label: "South Africa (SAST)" },
   { value: "Africa/Windhoek", label: "Namibia (CAT)" },

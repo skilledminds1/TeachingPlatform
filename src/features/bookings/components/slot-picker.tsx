@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { createBooking } from "@/actions/bookings";
 import { Button } from "@/components/ui/button";
 import { dateKeyInZone, formatDayLabel, formatTime } from "@/lib/format";
+import { bookingNoticeLabel, LESSON_DURATION_MINUTES } from "@/lib/timezone";
 import { useBrowserTimeZone } from "@/hooks/use-browser-timezone";
 
 type Slot = { startsAt: string; endsAt: string; date: string };
@@ -77,13 +78,22 @@ export function SlotPicker({
   if (slots.length === 0) {
     return (
       <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
-        No open slots in the next two weeks. Check back soon.
+        {/*
+          QLT-12: the notice period is why today's remaining hours can look empty even when
+          the teacher is free. Saying so beats leaving a student to conclude the teacher has
+          no availability at all.
+        */}
+        No open slots in the next two weeks. Lessons must be booked{" "}
+        {bookingNoticeLabel()}, so today may look emptier than the teacher&apos;s calendar.
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        {LESSON_DURATION_MINUTES}-minute lessons, bookable {bookingNoticeLabel()}.
+      </p>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {dates.map((date) => {
           const firstSlot = slots.find(

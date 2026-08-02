@@ -3,6 +3,7 @@ import { DateTime } from "luxon";
 import { db } from "@/lib/db";
 import {
   LESSON_DURATION_MINUTES,
+  MIN_BOOKING_NOTICE_HOURS,
   localDateTimeToUtc,
   timeValue,
 } from "@/lib/timezone";
@@ -69,7 +70,9 @@ export async function getAvailableSlots(
     }),
   ]);
 
-  const now = DateTime.now().toUTC().plus({ hours: 2 });
+  // QLT-12: the booking notice period, named rather than an inline "+2 hours" that
+  // looked like a UTC offset conversion. See MIN_BOOKING_NOTICE_HOURS.
+  const now = DateTime.now().toUTC().plus({ hours: MIN_BOOKING_NOTICE_HOURS });
   const results: Array<{ startsAt: string; endsAt: string; date: string }> = [];
 
   for (let dayOffset = 0; dayOffset < days; dayOffset += 1) {

@@ -23,8 +23,12 @@ export type PublishedCourseFilters = {
 function courseOrderBy(sort: CourseSort = "newest"): Prisma.CourseOrderByWithRelationInput[] {
   if (sort === "price_asc") return [{ priceCents: "asc" }, { publishedAt: "desc" }];
   if (sort === "price_desc") return [{ priceCents: "desc" }, { publishedAt: "desc" }];
+  // QLT-12: "popular" is deliberately NOT ordered here. Prisma cannot order by a FILTERED
+  // relation count, so `{ enrollments: { _count: "desc" } }` counts revoked enrollments too
+  // and ranked refunded courses above ones people kept. It is sorted after the fetch instead,
+  // exactly as the rating and price sorts already are. QLT-07 moves all of them into SQL.
   if (sort === "popular") {
-    return [{ enrollments: { _count: "desc" } }, { publishedAt: "desc" }];
+    return [{ publishedAt: "desc" }];
   }
   return [{ publishedAt: "desc" }, { createdAt: "desc" }];
 }
@@ -122,7 +126,11 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
             sale: { select: { id: true, discountType: true, discountValue: true, endsAt: true } },
           },
         },
-        _count: { select: { enrollments: true, modules: true } },
+        // QLT-12: revoked enrollments must not count as social proof. A course that
+        // sold 50 and refunded 40 was advertising "50 students enrolled" to the next
+        // buyer — the strongest possible endorsement, drawn from people who asked for
+        // their money back.
+        _count: { select: { enrollments: { where: { revokedAt: null } }, modules: true } },
       },
     });
   const withAggregates = rawCourses.map((course) => {
@@ -158,6 +166,12 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
       (a, b) =>
         (b.ratingAverage ?? 0) - (a.ratingAverage ?? 0) ||
         b.ratingCount - a.ratingCount,
+    );
+  } else if (filters.sort === "popular") {
+    filtered.sort(
+      (a, b) =>
+        b._count.enrollments - a._count.enrollments ||
+        (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0),
     );
   } else if (filters.sort === "price_asc" || filters.sort === "price_desc") {
     filtered.sort((a, b) =>
@@ -268,7 +282,8 @@ export async function getPublishedCourseBySlug(slug: string) {
           sale: { select: { id: true, discountType: true, discountValue: true, endsAt: true } },
         },
       },
-      _count: { select: { enrollments: true } },
+      // QLT-12: active enrollments only — see searchPublishedCourses.
+      _count: { select: { enrollments: { where: { revokedAt: null } } } },
     },
   });
   if (!course) return null;
@@ -334,7 +349,15 @@ export async function getTeacherCourses(teacherId: string) {
       createdAt: true,
       updatedAt: true,
       subject: { select: { id: true, name: true, slug: true } },
-      _count: { select: { modules: true, enrollments: true, purchases: true } },
+      // QLT-12: matches getTeacherAnalytics, which already counts active enrollments
+      // only. The two views sat side by side reporting different numbers.
+      _count: {
+        select: {
+          modules: true,
+          enrollments: { where: { revokedAt: null } },
+          purchases: true,
+        },
+      },
     },
   });
 }
@@ -517,7 +540,10 @@ export async function getCourseModerationQueue() {
           teacherProfile: { select: { slug: true, headline: true } },
         },
       },
-      _count: { select: { modules: true, enrollments: true } },
+      // QLT-12: active enrollments only, consistently with every other count. A
+      // moderator reading "50 enrolled" for a course with 40 revocations is misled
+      // in exactly the way a buyer is.
+      _count: { select: { modules: true, enrollments: { where: { revokedAt: null } } } },
     },
   });
 }
@@ -552,7 +578,14 @@ export async function getCourseForAdminReview(courseId: string) {
         orderBy: { createdAt: "desc" },
         include: { answer: true },
       },
-      _count: { select: { enrollments: true, purchases: true, certificates: true } },
+      // QLT-12: active enrollments only — see getCourseModerationQueue.
+      _count: {
+        select: {
+          enrollments: { where: { revokedAt: null } },
+          purchases: true,
+          certificates: true,
+        },
+      },
     },
   });
 }
