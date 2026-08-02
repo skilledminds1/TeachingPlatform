@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { db } from "@/lib/db";
+import { scheduleOutboxDrain } from "@/server/notifications/outbox-trigger";
 
 export const EMAIL_CATEGORIES = [
   "transactional",
@@ -75,6 +76,12 @@ export async function enqueueEmail(input: {
     },
     select: { id: true, createdAt: true, updatedAt: true },
   });
+
+  // QLT-04: send it as soon as this response is out rather than waiting up to a cron tick.
+  // Scheduled unconditionally, including on an idempotency hit: the existing row may still be
+  // pending, and a drain that finds nothing is one cheap query.
+  scheduleOutboxDrain();
+
   return { enqueued: item.createdAt.getTime() === item.updatedAt.getTime(), id: item.id };
 }
 
