@@ -22,10 +22,19 @@ const publicExact = new Set([
   "/privacy",
   "/refund-policy",
   "/teacher-agreement",
+  // GLO-02: crawl directives and the URL inventory. These are generated routes, so without
+  // an entry here they fall through to the auth check and answer 307 → /login — which is
+  // what production did. A crawler asking what it may read was sent to a sign-in page.
+  "/robots.txt",
+  "/sitemap.xml",
+  "/manifest.webmanifest",
 ]);
 
 function isPublicRoute(pathname: string): boolean {
   if (publicExact.has(pathname)) return true;
+  // Reserved by RFC 8615 for exactly this: things fetched by machines, before any session
+  // exists. Redirecting them to a login page is never the right answer.
+  if (pathname.startsWith("/.well-known/")) return true;
   if (pathname.startsWith("/teachers/")) return true;
   if (pathname.startsWith("/find-tutor/")) return true;
   if (pathname.startsWith("/courses/")) return true;

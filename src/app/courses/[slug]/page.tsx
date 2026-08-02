@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { env } from "@/lib/env";
+import { courseJsonLd } from "@/lib/seo/structured-data";
 import { CoursePurchaseButton } from "@/features/courses/components/course-purchase-button";
 import { CurriculumPreview } from "@/features/courses/components/curriculum-preview";
 import { formatCourseLevel } from "@/features/courses/lib/labels";
@@ -26,6 +29,7 @@ export async function generateMetadata({
   return {
     title: course.title,
     description: course.description.slice(0, 160) || `Learn ${course.title} on Amazing Skills.`,
+    alternates: { canonical: `/courses/${slug}` },
   };
 }
 
@@ -59,6 +63,9 @@ export default async function CourseSalesPage({
 
   return (
     <div className="min-h-screen bg-muted/20">
+      <JsonLd
+        data={courseJsonLd(course, slug, env.NEXT_PUBLIC_APP_URL.replace(/\/$/, ""))}
+      />
       {showStudentNav ? (
         <StudentNavWithNotifications />
       ) : (

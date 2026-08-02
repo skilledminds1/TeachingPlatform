@@ -2,6 +2,23 @@ import type { Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
 
+/**
+ * What makes a teacher profile publicly visible.
+ *
+ * One definition, spread into every query that needs it, because there are now three: the
+ * marketplace list, the profile page, and the sitemap (GLO-02). A sitemap built from a
+ * fourth hand-written copy would eventually advertise profiles the marketplace hides — and
+ * the drift would surface as a crawler 404, long after the change that caused it.
+ *
+ * QLT-11: `isDemo` is an explicit flag rather than a seed-email suffix. See User.isDemo.
+ */
+export const PUBLIC_TEACHER_WHERE = {
+  status: "approved",
+  deletedAt: null,
+  user: { isDemo: false },
+  organization: { plan: { marketplaceListing: true }, deletedAt: null },
+} as const satisfies Prisma.TeacherProfileWhereInput;
+
 export type TeacherSort = "recommended" | "price_asc" | "price_desc" | "rating" | "newest";
 
 export type TeacherSearchFilters = {
@@ -41,13 +58,7 @@ const DEFAULT_PAGE_SIZE = 24;
 const MAX_PAGE_SIZE = 60;
 
 export async function searchTeachers(filters: TeacherSearchFilters) {
-  const where: Prisma.TeacherProfileWhereInput = {
-    status: "approved",
-    deletedAt: null,
-    // QLT-11: an explicit flag rather than a seed-email suffix. See User.isDemo.
-    user: { isDemo: false },
-    organization: { plan: { marketplaceListing: true }, deletedAt: null },
-  };
+  const where: Prisma.TeacherProfileWhereInput = { ...PUBLIC_TEACHER_WHERE };
 
   if (filters.query) {
     where.OR = [
@@ -142,14 +153,7 @@ export async function getMarketplaceSubjects() {
 
 export async function getTeacherBySlug(slug: string) {
   const profile = await db.teacherProfile.findFirst({
-    where: {
-      slug,
-      status: "approved",
-      deletedAt: null,
-      // QLT-11: an explicit flag rather than a seed-email suffix. See User.isDemo.
-      user: { isDemo: false },
-      organization: { plan: { marketplaceListing: true }, deletedAt: null },
-    },
+    where: { slug, ...PUBLIC_TEACHER_WHERE },
     select: {
       id: true,
       slug: true,

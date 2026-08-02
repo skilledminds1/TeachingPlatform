@@ -35,11 +35,25 @@ describe("the marketplace no longer keys on a seed email domain", () => {
     expect(read(ADMIN_DASHBOARD)).not.toContain("teachingplatform.local");
   });
 
-  it("applies to both public queries, not just the list", () => {
-    // searchTeachers and getTeacherBySlug — a profile hidden from the list but reachable by
-    // slug would be a strange half-exclusion.
-    const matches = read(MARKETPLACE).match(/user: \{ isDemo: false \}/g);
-    expect(matches?.length ?? 0).toBe(2);
+  /**
+   * searchTeachers and getTeacherBySlug — a profile hidden from the list but reachable by
+   * slug would be a strange half-exclusion.
+   *
+   * This used to count two literal copies of the filter. GLO-02 added a third consumer, the
+   * sitemap, at which point counting copies was the wrong test: it enforced duplication as
+   * the mechanism. The filter is now one exported constant spread into every query, so the
+   * property to assert is that nobody hand-rolls their own.
+   */
+  it("applies to every public query, from one definition", () => {
+    const text = read(MARKETPLACE);
+
+    expect(text).toContain("export const PUBLIC_TEACHER_WHERE");
+    const spreads = text.match(/\.\.\.PUBLIC_TEACHER_WHERE/g);
+    expect(spreads?.length ?? 0).toBeGreaterThanOrEqual(2);
+
+    // Exactly one literal — the constant itself. A second would be a query that drifted.
+    const literals = text.match(/user: \{ isDemo: false \}/g);
+    expect(literals?.length ?? 0).toBe(1);
   });
 });
 

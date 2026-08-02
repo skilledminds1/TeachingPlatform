@@ -8,8 +8,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import { JsonLd } from "@/components/seo/json-ld";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { env } from "@/lib/env";
+import { teacherJsonLd } from "@/lib/seo/structured-data";
 import { SlotPicker } from "@/features/bookings/components/slot-picker";
 import { MessageTeacherButton } from "@/features/messaging/components/message-teacher-button";
 import { RatingStars } from "@/features/marketplace/components/rating-stars";
@@ -47,6 +50,10 @@ export async function generateMetadata({
   return {
     title: `${teacher.user.name} — ${teacher.headline ?? "Teacher"}`,
     description: teacher.bio.slice(0, 160),
+    // GLO-02: this component is rendered by BOTH /teachers/[slug] and /find-tutor/[slug],
+    // and the former permanently redirects to the latter. Without an explicit canonical the
+    // two paths compete as duplicates for the same profile.
+    alternates: { canonical: `/find-tutor/${slug}` },
   };
 }
 
@@ -72,6 +79,9 @@ export async function TeacherProfileContent({
 
   return (
     <div className="min-h-screen bg-muted/20">
+      <JsonLd
+        data={teacherJsonLd(teacher, slug, env.NEXT_PUBLIC_APP_URL.replace(/\/$/, ""))}
+      />
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" className="font-semibold tracking-tight">

@@ -6,6 +6,21 @@ import { requirePlatformAdmin } from "@/server/auth/session";
 import { calculateCoursePrice, canAccessCourseMedia } from "./quality";
 
 /**
+ * What makes a course publicly visible.
+ *
+ * MON-32: the catalog once filtered only on soft-deletion, so a suspended or removed
+ * teacher's courses stayed listed and purchasable — enforcement has to reach discovery, not
+ * just the account. Defined once and spread into every query that needs it (catalog, sales
+ * page, and the sitemap in GLO-02) so a fourth copy cannot quietly disagree with the first
+ * three and publish a URL the catalog refuses to serve.
+ */
+export const PUBLIC_COURSE_WHERE = {
+  status: "published",
+  deletedAt: null,
+  teacher: { deletedAt: null, accountStatus: "active" },
+} as const satisfies Prisma.CourseWhereInput;
+
+/**
  * QLT-07: how many reviews a course page renders. The rating average and count come from
  * denormalised columns, so this bounds presentation without changing any number on screen.
  */
@@ -79,12 +94,7 @@ export async function searchPublishedCourses(filters: PublishedCourseFilters = {
   const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 24)));
   const query = filters.query?.trim();
   const where: Prisma.CourseWhereInput = {
-    status: "published",
-    deletedAt: null,
-    // MON-32: the catalog filtered only on soft-deletion, so a suspended or removed
-    // teacher's courses stayed listed and purchasable. Enforcement has to reach discovery,
-    // not just the account.
-    teacher: { deletedAt: null, accountStatus: "active" },
+    ...PUBLIC_COURSE_WHERE,
     ...(filters.level ? { level: filters.level } : {}),
     ...(filters.subjectId ? { subjectId: filters.subjectId } : {}),
     ...(filters.subjectSlug ? { subject: { slug: filters.subjectSlug } } : {}),
@@ -217,12 +227,7 @@ export async function getPublishedCourseBySlug(slug: string) {
   const course = await db.course.findFirst({
     // MON-32: mirrors the catalog filter. Without it a suspended teacher's course was
     // delisted from search but still reachable — and purchasable — by direct URL.
-    where: {
-      slug,
-      status: "published",
-      deletedAt: null,
-      teacher: { deletedAt: null, accountStatus: "active" },
-    },
+    where: { slug, ...PUBLIC_COURSE_WHERE },
     select: {
       id: true,
       slug: true,

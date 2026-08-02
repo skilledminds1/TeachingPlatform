@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   title: "Courses",
   description:
     "Browse self-paced courses from verified teachers on Amazing Skills.",
+  // GLO-02: as with /find-tutor, the filtered variants consolidate onto the bare path.
+  alternates: { canonical: "/courses" },
 };
 
 const validLevels = new Set<CourseLevel>([

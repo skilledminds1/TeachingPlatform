@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   title: "Find a tutor",
   description:
     "Find verified tutors on Amazing Skills. Filter by subject, rate, and rating, then book a live lesson.",
+  // GLO-02: every filter combination is a distinct URL serving near-identical content.
+  // Without this they compete with each other and split the ranking signal.
+  alternates: { canonical: "/find-tutor" },
 };
 
 const validSorts = new Set(["recommended", "price_asc", "price_desc", "rating", "newest"]);
