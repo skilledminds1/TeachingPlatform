@@ -31,7 +31,7 @@ export function statusTone(
   status: string,
 ): keyof typeof toneClasses {
   if (["approved", "active", "completed", "ended"].includes(status)) return "success";
-  if (["pending", "pending_approval", "trialing", "scheduled"].includes(status)) return "warning";
+  if (["pending", "pending_approval", "scheduled"].includes(status)) return "warning";
   if (["rejected", "cancelled", "past_due"].includes(status)) return "danger";
   if (["confirmed", "live"].includes(status)) return "info";
   return "neutral";

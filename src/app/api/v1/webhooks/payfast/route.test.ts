@@ -367,7 +367,6 @@ describe("renewal of an existing subscription", () => {
       graceEndsAt: null,
       dunningStage: 0,
       dunningLastNoticeAt: null,
-      trialEndsAt: null,
       pendingPlanId: null,
       pendingBillingInterval: null,
       pendingChangeAt: null,

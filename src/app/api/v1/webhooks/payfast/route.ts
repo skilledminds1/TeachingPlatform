@@ -205,7 +205,6 @@ async function handleSubscriptionItn(params: URLSearchParams) {
             payfastToken: params.get("token"),
             currentPeriodEnd: periodEnd,
             cancelAtPeriodEnd: false,
-            trialEndsAt: null,
             graceStartedAt: null,
             graceEndsAt: null,
             dunningStage: 0,

@@ -47,7 +47,7 @@ User ────────────── OrganizationMember ────�
 | slug | String | Unique |
 | planId | UUID | FK → Plan |
 | payfastToken | String? | PayFast subscription token |
-| subscriptionStatus | Enum | active, past_due, cancelled, trialing |
+| subscriptionStatus | Enum | active, past_due, cancelled (+ `trialing`, retained for legacy rows only — nothing writes it) |
 | createdAt / updatedAt / deletedAt | DateTime | |
 
 ### OrganizationMember

@@ -318,8 +318,7 @@ export function summarizePlatformAnalytics(
     (organization) =>
       organization.planSlug !== "free" &&
       !organization.complimentaryPlanId &&
-      (organization.subscriptionStatus === "active" ||
-        organization.subscriptionStatus === "trialing"),
+      organization.subscriptionStatus === "active",
   );
   const mrr = new Map<string, number>();
   for (const organization of paidOrganizations) {

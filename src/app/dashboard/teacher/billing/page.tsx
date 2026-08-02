@@ -90,7 +90,6 @@ export default async function TeacherBillingPage({
           subscriptionStatus={data.organization.subscriptionStatus}
           currentPeriodEnd={data.organization.currentPeriodEnd}
           cancelAtPeriodEnd={data.organization.cancelAtPeriodEnd}
-          trialEndsAt={data.organization.trialEndsAt}
           graceStartedAt={data.organization.graceStartedAt}
           graceEndsAt={data.organization.graceEndsAt}
         />

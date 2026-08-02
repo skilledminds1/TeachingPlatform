@@ -117,7 +117,6 @@ function organization(overrides: AnyRecord = {}): AnyRecord {
     payfastToken: "tok-1",
     currentPeriodEnd: null,
     cancelAtPeriodEnd: false,
-    trialEndsAt: null,
     graceStartedAt: null,
     graceEndsAt: null,
     dunningStage: 0,
@@ -162,38 +161,6 @@ beforeEach(() => {
   state.fxRate = 18.5;
   state.updateThrowsForOrg = null;
   loggerError.mockClear();
-});
-
-describe("trial expiry", () => {
-  it("drops an expired trial to Free and clears the trial marker", async () => {
-    state.organizations = [
-      organization({ subscriptionStatus: "trialing", trialEndsAt: daysAgo(1), planId: "plan-pro" }),
-    ];
-
-    const summary = await runSubscriptionLifecycle(NOW);
-
-    expect(summary.trialsEnded).toBe(1);
-    expect(soleUpdate()).toMatchObject({
-      planId: FREE_PLAN.id,
-      subscriptionStatus: "active",
-      trialEndsAt: null,
-      currentPeriodEnd: null,
-      pendingPlanId: null,
-      pendingChangeAt: null,
-    });
-    expect(state.notifications[0]).toMatchObject({ type: "billing.trial_ended" });
-  });
-
-  it("leaves a trial that has not yet expired alone", async () => {
-    state.organizations = [
-      organization({ subscriptionStatus: "trialing", trialEndsAt: daysAhead(1) }),
-    ];
-
-    const summary = await runSubscriptionLifecycle(NOW);
-
-    expect(summary.trialsEnded).toBe(0);
-    expect(state.orgUpdates).toHaveLength(0);
-  });
 });
 
 describe("complimentary access", () => {
@@ -591,16 +558,17 @@ describe("missed renewal watchdog", () => {
 // only thing that advances grace, dunning and expiry for every other subscriber.
 it("isolates a failing organization from the rest of the run", async () => {
   state.updateThrowsForOrg = "org-1";
+  const expiring = { complimentaryPlanId: "plan-pro", complimentaryExpiresAt: daysAgo(1) };
   state.organizations = [
-    organization({ id: "org-1", subscriptionStatus: "trialing", trialEndsAt: daysAgo(1) }),
-    organization({ id: "org-2", subscriptionStatus: "trialing", trialEndsAt: daysAgo(1) }),
+    organization({ id: "org-1", ...expiring }),
+    organization({ id: "org-2", ...expiring }),
   ];
 
   const summary = await runSubscriptionLifecycle(NOW);
 
   expect(summary.scanned).toBe(2);
   expect(summary.failures).toBe(1);
-  expect(summary.trialsEnded).toBe(1);
+  expect(summary.complimentaryExpired).toBe(1);
   expect(state.orgUpdates).toHaveLength(1);
   expect((state.orgUpdates[0] as { where: { id: string } }).where.id).toBe("org-2");
 });

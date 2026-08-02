@@ -20,7 +20,6 @@ const MISSED_RENEWAL_GRACE_DAYS = 2;
 
 type LifecycleSummary = {
   scanned: number;
-  trialsEnded: number;
   cancellationsApplied: number;
   planChangesApplied: number;
   graceExpired: number;
@@ -73,7 +72,6 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
     where: {
       deletedAt: null,
       OR: [
-        { trialEndsAt: { lte: now } },
         { graceStartedAt: { not: null } },
         { pendingChangeAt: { lte: now } },
         { cancelAtPeriodEnd: true, currentPeriodEnd: { lte: now } },
@@ -94,7 +92,6 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
   });
   const summary: LifecycleSummary = {
     scanned: organizations.length,
-    trialsEnded: 0,
     cancellationsApplied: 0,
     planChangesApplied: 0,
     graceExpired: 0,
@@ -141,33 +138,6 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
           "billing.complimentary_expired",
           "Complimentary plan ended",
           "Your complimentary plan ended and your organization is now on Free.",
-        );
-        continue;
-      }
-
-      if (
-        organization.subscriptionStatus === "trialing" &&
-        organization.trialEndsAt &&
-        organization.trialEndsAt <= now
-      ) {
-        await db.organization.update({
-          where: { id: organization.id },
-          data: {
-            planId: freePlan.id,
-            subscriptionStatus: "active",
-            trialEndsAt: null,
-            currentPeriodEnd: null,
-            pendingPlanId: null,
-            pendingBillingInterval: null,
-            pendingChangeAt: null,
-          },
-        });
-        summary.trialsEnded += 1;
-        await notifyAdmins(
-          organization.id,
-          "billing.trial_ended",
-          "Paid trial ended",
-          "Your 14-day paid trial ended. Your organization is now on Free.",
         );
         continue;
       }

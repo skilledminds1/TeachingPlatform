@@ -78,12 +78,16 @@ Amounts are stored in `Plan.monthlyPriceCents` and `Plan.annualPriceCents` with 
 ## Subscription States
 
 ```
-trialing → active → past_due → cancelled → free
+active → past_due → cancelled → free
 ```
+
+There is no trial. New teachers land directly on Free and upgrade by checking out.
+`startPaidTrial` was removed in MON-25: it had no caller in any registration, checkout
+or admin flow, so the 14-day trial this table used to advertise never existed in the
+product. The `trialing` enum value survives only for legacy rows.
 
 | State | Platform behavior |
 |-------|-------------------|
-| trialing | Full Pro features; 14 days. **Not currently reachable** — no registration, checkout or admin flow calls startPaidTrial, so new teachers land directly on Free. The webhook and lifecycle branches exist and work; only the entry point is missing (MON-25). |
 | active | Plan features enabled |
 | past_due | 7-day grace; warn user |
 | cancelled | Active until period end, then Free |

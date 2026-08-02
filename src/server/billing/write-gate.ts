@@ -13,7 +13,6 @@ export async function getOrganizationGrowthWriteBlock(
     where: { id: organizationId },
     select: {
       subscriptionStatus: true,
-      trialEndsAt: true,
       graceStartedAt: true,
       graceEndsAt: true,
     },

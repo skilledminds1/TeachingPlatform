@@ -22,7 +22,6 @@ enum OrgRole {
 }
 
 enum SubscriptionStatus {
-  trialing
   active
   past_due
   cancelled

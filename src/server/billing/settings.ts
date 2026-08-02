@@ -22,7 +22,6 @@ export async function getBillingSettings() {
         billingInterval: true,
         currentPeriodEnd: true,
         cancelAtPeriodEnd: true,
-        trialEndsAt: true,
         graceStartedAt: true,
         graceEndsAt: true,
         dunningStage: true,

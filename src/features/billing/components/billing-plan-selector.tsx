@@ -61,7 +61,6 @@ export function BillingPlanSelector({
   subscriptionStatus,
   currentPeriodEnd,
   cancelAtPeriodEnd,
-  trialEndsAt,
   graceStartedAt,
   graceEndsAt,
 }: {
@@ -73,10 +72,9 @@ export function BillingPlanSelector({
   autoCheckoutInterval?: "monthly" | "annual";
   pendingPlan: { slug: string; name: string } | null;
   pendingChangeAt: Date | null;
-  subscriptionStatus: "trialing" | "active" | "past_due" | "cancelled";
+  subscriptionStatus: "active" | "past_due" | "cancelled";
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
-  trialEndsAt: Date | null;
   graceStartedAt: Date | null;
   graceEndsAt: Date | null;
 }) {
@@ -181,12 +179,6 @@ export function BillingPlanSelector({
 
   return (
     <div className="space-y-6">
-      {subscriptionStatus === "trialing" && trialEndsAt ? (
-        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 text-sm">
-          Your explicit paid trial ends {new Date(trialEndsAt).toLocaleDateString()}. If you do not
-          convert, the organization moves to Free.
-        </div>
-      ) : null}
       {subscriptionStatus === "past_due" && graceStartedAt && graceEndsAt ? (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm">
           <p className="font-medium">Payment recovery period</p>
