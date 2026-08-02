@@ -12,17 +12,33 @@ export type TeacherSearchFilters = {
   /** INT-10: BCP-47 code. The primary axis students search on in an international market. */
   language?: string;
   sort?: TeacherSort;
+  /** QLT-08: 1-based. Without it, teacher 61 onwards was unreachable entirely. */
+  page?: number;
+  pageSize?: number;
 };
 
 // INT-12: order by the USD-normalised rate. Ordering by hourlyRateCents mixed currencies,
 // so "price: low to high" ranked a EUR 40 teacher below a USD 45 one despite costing more.
-const orderBy: Record<TeacherSort, Prisma.TeacherProfileOrderByWithRelationInput> = {
-  recommended: { submittedAt: "desc" },
-  price_asc: { hourlyRateUsdCents: "asc" },
-  price_desc: { hourlyRateUsdCents: "desc" },
-  rating: { submittedAt: "desc" }, // re-sorted by aggregate rating below
-  newest: { createdAt: "desc" },
+//
+// QLT-08: "rating" used to map to submittedAt here and get re-sorted in memory afterwards,
+// which meant it ranked the 60 most recently submitted teachers rather than the platform's
+// best. It orders by the denormalised column now, nulls last so an unreviewed teacher does
+// not outrank a well-reviewed one.
+const orderBy: Record<TeacherSort, Prisma.TeacherProfileOrderByWithRelationInput[]> = {
+  recommended: [{ submittedAt: "desc" }],
+  price_asc: [{ hourlyRateUsdCents: "asc" }],
+  price_desc: [{ hourlyRateUsdCents: "desc" }],
+  rating: [
+    { ratingAverage: { sort: "desc", nulls: "last" } },
+    { ratingCount: "desc" },
+    { submittedAt: "desc" },
+  ],
+  newest: [{ createdAt: "desc" }],
 };
+
+/** QLT-08: a page of teachers, not the whole marketplace. */
+const DEFAULT_PAGE_SIZE = 24;
+const MAX_PAGE_SIZE = 60;
 
 export async function searchTeachers(filters: TeacherSearchFilters) {
   const where: Prisma.TeacherProfileWhereInput = {
@@ -58,13 +74,29 @@ export async function searchTeachers(filters: TeacherSearchFilters) {
   if (filters.maxRateCents) {
     where.hourlyRateUsdCents = { lte: filters.maxRateCents };
   }
+  // QLT-08: filtered in SQL. In memory over 60 rows, this could return an empty page while
+  // plenty of matching teachers existed further down the list.
+  if (filters.minRating) {
+    where.ratingAverage = { gte: filters.minRating };
+  }
 
-  const profiles = await db.teacherProfile.findMany({
-    where,
-    orderBy: orderBy[filters.sort ?? "recommended"],
-    take: 60,
-    select: {
-      id: true,
+  const page = Math.max(1, Math.trunc(filters.page ?? 1));
+  const pageSize = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(1, Math.trunc(filters.pageSize ?? DEFAULT_PAGE_SIZE)),
+  );
+
+  // QLT-08: a bounded page plus a total, replacing a hard `take: 60` with no pagination at
+  // all — which made every teacher past the 60th unreachable through the UI.
+  const [total, profiles] = await Promise.all([
+    db.teacherProfile.count({ where }),
+    db.teacherProfile.findMany({
+      where,
+      orderBy: orderBy[filters.sort ?? "recommended"],
+      take: pageSize,
+      skip: (page - 1) * pageSize,
+      select: {
+        id: true,
       slug: true,
       headline: true,
       bio: true,
@@ -75,42 +107,30 @@ export async function searchTeachers(filters: TeacherSearchFilters) {
       user: { select: { name: true, avatarUrl: true } },
       subjects: { select: { subject: { select: { name: true, slug: true } } } },
       languages: { select: { code: true, proficiency: true } },
+      // QLT-08: the aggregates the filter and sort above already used.
+      ratingAverage: true,
+      ratingCount: true,
     },
-  });
+    }),
+  ]);
 
-  const ratings = await db.review.groupBy({
-    by: ["teacherId"],
-    where: {
-      status: "approved",
-      teacherId: { in: profiles.map((profile) => profile.userId) },
-    },
-    _avg: { rating: true },
-    _count: true,
-  });
-  const ratingByTeacher = new Map(
-    ratings.map((entry) => [
-      entry.teacherId,
-      { average: entry._avg.rating ?? 0, count: entry._count },
-    ]),
-  );
-
-  let results = profiles.map((profile) => ({
+  // QLT-08: the per-page groupBy over reviews is gone — the aggregate is a column now, and
+  // the filter and sort that need it ran in SQL above. The shape callers consume is kept.
+  const teachers = profiles.map(({ ratingAverage, ratingCount, ...profile }) => ({
     ...profile,
-    rating: ratingByTeacher.get(profile.userId) ?? { average: 0, count: 0 },
+    rating: {
+      average: ratingAverage === null ? 0 : Number(ratingAverage),
+      count: ratingCount,
+    },
   }));
 
-  if (filters.minRating) {
-    results = results.filter(
-      (profile) => profile.rating.count > 0 && profile.rating.average >= filters.minRating!,
-    );
-  }
-  if (filters.sort === "rating") {
-    results.sort(
-      (a, b) => b.rating.average - a.rating.average || b.rating.count - a.rating.count,
-    );
-  }
-
-  return results;
+  return {
+    teachers,
+    total,
+    page,
+    pageSize,
+    pageCount: Math.max(1, Math.ceil(total / pageSize)),
+  };
 }
 
 export async function getMarketplaceSubjects() {

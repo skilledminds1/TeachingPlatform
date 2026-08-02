@@ -758,6 +758,15 @@ model TeacherProfile {
   screenedAt         DateTime?                @map("screened_at")
   screeningSource    String?                  @map("screening_source")
   screeningMatches   Json?                    @map("screening_matches")
+  /// QLT-08: denormalised review aggregates, written only by recomputeTeacherAggregates.
+  ///
+  /// searchTeachers took 60 profiles by submittedAt and then applied minRating and the
+  /// rating sort in memory over just those 60 — so "sort by rating" returned the best of the
+  /// 60 most recently submitted rather than the platform's best, and minRating could return
+  /// an empty page while matching teachers existed. Filtering and ordering need the
+  /// aggregate before the page is chosen, exactly as the course catalog did (QLT-07).
+  ratingAverage      Decimal?                 @map("rating_average") @db.Decimal(3, 2)
+  ratingCount        Int                      @default(0) @map("rating_count")
   createdAt          DateTime                 @default(now()) @map("created_at")
   updatedAt          DateTime                 @updatedAt @map("updated_at")
   deletedAt          DateTime?                @map("deleted_at")
@@ -772,6 +781,10 @@ model TeacherProfile {
   @@index([status])
   @@index([slug])
   @@index([hourlyRateUsdCents])
+  /// QLT-08: the marketplace's sort keys, now applied in SQL over every approved teacher
+  /// rather than in JavaScript over the 60 most recent.
+  @@index([status, ratingAverage])
+  @@index([status, submittedAt])
   @@map("teacher_profiles")
 }
 

@@ -38,7 +38,11 @@ export default async function FindTutorPage({
   const maxRate = Number(first("maxRate"));
   const minRating = Number(first("minRating"));
   const sortParam = first("sort");
-  const [user, subjects, teachers, fx] = await Promise.all([
+  // QLT-08: without a page parameter the marketplace showed the first 60 teachers and no
+  // way to reach any others.
+  const pageParam = Number(first("page"));
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? Math.trunc(pageParam) : 1;
+  const [user, subjects, results, fx] = await Promise.all([
     getCurrentUser(),
     getMarketplaceSubjects(),
     searchTeachers({
@@ -49,9 +53,24 @@ export default async function FindTutorPage({
       minRating: Number.isFinite(minRating) && minRating > 0 ? minRating : undefined,
       sort:
         sortParam && validSorts.has(sortParam) ? (sortParam as TeacherSort) : "recommended",
+      page,
     }),
     getConversionContext(),
   ]);
+
+  const { teachers, total, pageCount } = results;
+
+  /** Preserve every active filter when moving between pages. */
+  const pageHref = (target: number): string => {
+    const next = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (key === "page") continue;
+      if (typeof value === "string" && value) next.set(key, value);
+    }
+    if (target > 1) next.set("page", String(target));
+    const queryString = next.toString();
+    return queryString ? `/find-tutor?${queryString}` : "/find-tutor";
+  };
 
   const showStudentNav =
     Boolean(user) && !user?.isPlatformAdmin && !hasTeacherMembership(user!);
@@ -94,7 +113,12 @@ export default async function FindTutorPage({
           <TeacherFilters subjects={subjects} />
         </Suspense>
         <p className="text-sm text-muted-foreground">
-          {teachers.length} tutor{teachers.length === 1 ? "" : "s"} available
+          {/*
+            QLT-08: the TOTAL, not the length of this page. It used to read "60 tutors
+            available" no matter how many there really were.
+          */}
+          {total} tutor{total === 1 ? "" : "s"} available
+          {pageCount > 1 ? ` · page ${results.page} of ${pageCount}` : ""}
         </p>
         {teachers.length > 0 ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -111,6 +135,44 @@ export default async function FindTutorPage({
             />
           </div>
         )}
+
+        {/*
+          QLT-08: without these, everything past the first page is unreachable — which was
+          the whole defect. Rendered as links so they work without JavaScript and so a
+          crawler can follow them into the rest of the catalogue.
+        */}
+        {pageCount > 1 ? (
+          <nav
+            aria-label="Tutor pages"
+            className="flex items-center justify-between gap-3 pt-2"
+          >
+            {results.page > 1 ? (
+              <Link
+                href={pageHref(results.page - 1)}
+                className="rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
+                rel="prev"
+              >
+                Previous
+              </Link>
+            ) : (
+              <span />
+            )}
+            <span className="text-sm text-muted-foreground">
+              Page {results.page} of {pageCount}
+            </span>
+            {results.page < pageCount ? (
+              <Link
+                href={pageHref(results.page + 1)}
+                className="rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
+                rel="next"
+              >
+                Next
+              </Link>
+            ) : (
+              <span />
+            )}
+          </nav>
+        ) : null}
       </main>
     </div>
   );

@@ -1,5 +1,6 @@
 "use server";
 
+import { recomputeTeacherAggregatesSafely } from "@/server/marketplace/aggregates";
 import { recomputeCourseAggregatesSafely } from "@/server/courses/aggregates";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -349,7 +350,8 @@ export async function moderateReview(
   const admin = await requirePlatformAdmin();
   const review = await db.review.findUnique({
     where: { id: parsedId.data },
-    select: { id: true, status: true },
+    // QLT-08: teacherId is needed to recompute the marketplace rating after this decision.
+    select: { id: true, status: true, teacherId: true },
   });
 
   if (!review) return fail("Review not found.", "NOT_FOUND");
@@ -369,6 +371,10 @@ export async function moderateReview(
       },
     }),
   ]);
+
+  // QLT-08: the decisive recompute. Only approved reviews count, so this is the moment a
+  // teacher's marketplace rating actually moves.
+  await recomputeTeacherAggregatesSafely(review.teacherId);
 
   revalidatePath("/admin");
   revalidatePath("/admin/reviews");

@@ -1,5 +1,6 @@
 "use server";
 
+import { recomputeTeacherAggregatesSafely } from "@/server/marketplace/aggregates";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
@@ -50,6 +51,10 @@ export async function submitReview(
       status: "pending",
     },
   });
+  // QLT-08: keep the marketplace's denormalised rating in step. A pending review does not
+  // change the average, but recomputing here means the column is never derived from a
+  // single code path that someone could later reorder around.
+  await recomputeTeacherAggregatesSafely(booking.teacherId);
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/bookings/${booking.id}`);
   if (booking.teacher.teacherProfile?.slug) {
