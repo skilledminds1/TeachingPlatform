@@ -353,11 +353,15 @@ export async function markAttemptFailed(input: {
   failureCode?: string;
   failureMessage?: string;
 }): Promise<void> {
-  await db.$transaction(async (tx) => {
+  // QLT-01: this recorded the event and then ignored whether it was NEW, unlike
+  // confirmBookingPayment and applyRefundToAttempt, which both return early on a replay.
+  // Providers redeliver aggressively, so every retry of one failed payment re-wrote the
+  // attempt and sent the student another "your payment failed" email.
+  const isNewEvent = await db.$transaction(async (tx) => {
     const attempt = await tx.paymentAttempt.findUnique({ where: { id: input.attemptId } });
-    if (!attempt || attempt.status === "succeeded") return;
+    if (!attempt || attempt.status === "succeeded") return false;
 
-    await recordPaymentEvent({
+    const event = await recordPaymentEvent({
       tx,
       provider: attempt.provider,
       providerEventId: input.providerEventId,
@@ -365,6 +369,7 @@ export async function markAttemptFailed(input: {
       payload: input.payload,
       paymentAttemptId: attempt.id,
     });
+    if (!event.created) return false;
 
     await tx.paymentAttempt.update({
       where: { id: attempt.id },
@@ -374,7 +379,13 @@ export async function markAttemptFailed(input: {
         failureMessage: input.failureMessage ?? null,
       },
     });
+    return true;
   });
+
+  // Outside the transaction, so it has to be gated separately — otherwise the duplicate
+  // email survives even though the duplicate write no longer does.
+  if (!isNewEvent) return;
+
   await notifyPaymentFailed(input.attemptId).catch((error) => {
     logger.warn("payment_failure_notification_failed", { error, attemptId: input.attemptId });
   });
