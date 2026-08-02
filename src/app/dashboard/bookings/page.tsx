@@ -49,6 +49,7 @@ export default async function StudentBookingsPage({
         <GoogleCalendarConnectCard
           connected={Boolean(connection)}
           email={connection?.googleEmail ?? null}
+          needsReconnect={connection?.needsReconnect ?? false}
           configured={hasGoogleCalendarEnv()}
           returnTo="/dashboard/bookings"
         />

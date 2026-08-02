@@ -157,6 +157,14 @@ async function refreshAccessToken(connectionId: string, refreshToken: string) {
     body,
   });
   if (!response.ok) {
+    // QLT-09: a refresh token can be revoked from the Google account page at any time,
+    // without the teacher ever visiting this platform. Every sync call site is
+    // fire-and-forget, so before this the only symptom was lessons quietly not appearing.
+    // Record it so the UI can ask for a reconnect.
+    await db.calendarConnection
+      .update({ where: { id: connectionId }, data: { needsReconnect: true } })
+      .catch(() => undefined);
+    logger.warn("google_calendar_refresh_failed", { connectionId });
     throw new Error("Failed to refresh Google Calendar token.");
   }
   const json = (await response.json()) as {
@@ -166,7 +174,13 @@ async function refreshAccessToken(connectionId: string, refreshToken: string) {
   const expiresAt = new Date(Date.now() + json.expires_in * 1000);
   await db.calendarConnection.update({
     where: { id: connectionId },
-    data: { accessToken: encryptSecret(json.access_token), tokenExpiresAt: expiresAt },
+    data: {
+      accessToken: encryptSecret(json.access_token),
+      tokenExpiresAt: expiresAt,
+      // Cleared on success, so the flag tracks the current state rather than accumulating
+      // a history of transient failures.
+      needsReconnect: false,
+    },
   });
   return json.access_token;
 }
@@ -213,8 +227,11 @@ export async function createEventForBooking(input: {
   const booking = await db.booking.findUnique({
     where: { id: input.bookingId },
     include: {
-      teacher: { select: { name: true, email: true, timezone: true } },
-      student: { select: { name: true, email: true, timezone: true } },
+      // QLT-09: the email is deliberately NOT selected. It was only ever read to put in a
+      // Google attendee list, and a field that is never fetched cannot be leaked back in by
+      // the next edit to this file.
+      teacher: { select: { name: true, timezone: true } },
+      student: { select: { name: true, timezone: true } },
     },
   });
   if (!booking || booking.status !== "confirmed") return;
@@ -222,9 +239,9 @@ export async function createEventForBooking(input: {
   const isTeacher = booking.teacherId === input.userId;
   const counterpart = isTeacher ? booking.student : booking.teacher;
   const timeZone = isTeacher ? booking.teacher.timezone : booking.student.timezone;
-  const summary = isTeacher
-    ? `Lesson with ${booking.student.name}`
-    : `Lesson with ${booking.teacher.name}`;
+  // QLT-09: the name, which is what the calendar owner needs to see, and which was already
+  // here. Only the email address went away.
+  const summary = `Lesson with ${counterpart.name}`;
 
   const response = await fetch(
     `${GOOGLE_EVENTS_URL}/${encodeURIComponent(token.calendarId)}/events`,
@@ -239,7 +256,15 @@ export async function createEventForBooking(input: {
         description: `Amazing Skills lesson\n${env.NEXT_PUBLIC_APP_URL}/dashboard/bookings/${booking.id}`,
         start: { dateTime: booking.startsAt.toISOString(), timeZone },
         end: { dateTime: booking.endsAt.toISOString(), timeZone },
-        attendees: [{ email: counterpart.email }],
+        // QLT-09: NO attendees. This used to be `[{ email: counterpart.email }]`, which
+        // wrote the student's email address into the teacher's Google Calendar and the
+        // teacher's into the student's — a personal-data disclosure to a third-party
+        // processor that nobody consented to, and one that also made Google send an
+        // invitation from the calendar owner's own address.
+        //
+        // Nothing is lost: the summary already names the counterparty, which is what the
+        // calendar owner actually needs to see. Attendee sync could be reinstated behind a
+        // two-sided opt-in, but that is machinery for a feature nobody asked for.
       }),
     },
   );
@@ -273,17 +298,45 @@ export async function deleteEventForBooking(input: {
   if (!event) return;
 
   const token = await getValidAccessToken(input.userId);
-  if (token) {
-    await fetch(
+  if (!token) {
+    // No usable token — keep the row. It carries the only copy of the external event id,
+    // and without it the cancelled lesson stays on the calendar as busy time forever with
+    // nothing left to clean it up.
+    logger.warn("google_calendar_delete_skipped_no_token", { bookingId: input.bookingId });
+    return;
+  }
+
+  let removed = false;
+  try {
+    const response = await fetch(
       `${GOOGLE_EVENTS_URL}/${encodeURIComponent(token.calendarId)}/events/${encodeURIComponent(event.externalEventId)}`,
       {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token.accessToken}` },
       },
-    ).catch(() => undefined);
+    );
+    // 404 and 410 mean the event is already gone, which is the outcome we wanted.
+    removed = response.ok || response.status === 404 || response.status === 410;
+    if (!removed) {
+      logger.warn("google_calendar_delete_failed", {
+        bookingId: input.bookingId,
+        status: response.status,
+      });
+    }
+  } catch (error) {
+    logger.warn("google_calendar_delete_error", {
+      bookingId: input.bookingId,
+      error: String(error),
+    });
   }
 
-  await db.bookingCalendarEvent.delete({ where: { id: event.id } }).catch(() => undefined);
+  // QLT-09: ONLY drop the local row once the remote is actually gone. Deleting it
+  // regardless — which is what this used to do — discarded the external event id on
+  // failure, so a cancelled lesson lingered permanently on the teacher's calendar as busy
+  // time and nothing could ever remove it. Retaining the row keeps a retry possible.
+  if (removed) {
+    await db.bookingCalendarEvent.delete({ where: { id: event.id } }).catch(() => undefined);
+  }
 }
 
 export async function updateEventForBooking(input: {
@@ -308,8 +361,11 @@ export async function updateEventForBooking(input: {
   const booking = await db.booking.findUnique({
     where: { id: input.bookingId },
     include: {
-      teacher: { select: { name: true, email: true, timezone: true } },
-      student: { select: { name: true, email: true, timezone: true } },
+      // QLT-09: the email is deliberately NOT selected. It was only ever read to put in a
+      // Google attendee list, and a field that is never fetched cannot be leaked back in by
+      // the next edit to this file.
+      teacher: { select: { name: true, timezone: true } },
+      student: { select: { name: true, timezone: true } },
     },
   });
   if (!booking || booking.status !== "confirmed") return;
@@ -317,9 +373,9 @@ export async function updateEventForBooking(input: {
   const isTeacher = booking.teacherId === input.userId;
   const counterpart = isTeacher ? booking.student : booking.teacher;
   const timeZone = isTeacher ? booking.teacher.timezone : booking.student.timezone;
-  const summary = isTeacher
-    ? `Lesson with ${booking.student.name}`
-    : `Lesson with ${booking.teacher.name}`;
+  // QLT-09: the name, which is what the calendar owner needs to see, and which was already
+  // here. Only the email address went away.
+  const summary = `Lesson with ${counterpart.name}`;
 
   const response = await fetch(
     `${GOOGLE_EVENTS_URL}/${encodeURIComponent(token.calendarId)}/events/${encodeURIComponent(event.externalEventId)}`,
@@ -334,7 +390,8 @@ export async function updateEventForBooking(input: {
         description: `Amazing Skills lesson\n${env.NEXT_PUBLIC_APP_URL}/dashboard/bookings/${booking.id}`,
         start: { dateTime: booking.startsAt.toISOString(), timeZone },
         end: { dateTime: booking.endsAt.toISOString(), timeZone },
-        attendees: [{ email: counterpart.email }],
+        // QLT-09: no attendees on the update path either — see createEventForBooking. A
+        // reschedule would otherwise re-disclose the address the create path no longer does.
       }),
     },
   );

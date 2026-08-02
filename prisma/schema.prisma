@@ -998,6 +998,11 @@ model CalendarConnection {
   tokenExpiresAt DateTime @map("token_expires_at")
   googleEmail    String?  @map("google_email")
   calendarId     String   @default("primary") @map("calendar_id")
+  /// QLT-09: set when a token refresh fails, so the UI can ask for a reconnect instead of
+  /// silently syncing nothing. A refresh token can be revoked from the Google account page
+  /// at any time, and until now that failure was invisible: lessons simply stopped
+  /// appearing on the calendar with nothing anywhere saying why.
+  needsReconnect Boolean  @default(false) @map("needs_reconnect")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
