@@ -1,17 +1,17 @@
 import type { User as AuthUser } from "@supabase/supabase-js";
 import { isValidIanaTimeZone } from "@/lib/timezone-validation";
-import type { OrgRole, Prisma, User } from "@prisma/client";
+import type { OrgRole, User } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { toCountryCode } from "@/lib/countries";
-import { db } from "@/lib/db";
+import { db, type DbTransactionClient } from "@/lib/db";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import { registerRoleSchema, type RegisterRole } from "@/lib/validations/auth";
 import { hasCurrentLegalAcceptances } from "@/server/legal/acceptance";
 import { slugify } from "@/utils/slugify";
 
-type DbClient = Prisma.TransactionClient | typeof db;
+type DbClient = DbTransactionClient | typeof db;
 
 export type SessionUser = User & {
   memberships: Array<{

@@ -4,7 +4,7 @@ import type { EnforcementScope, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { db } from "@/lib/db";
+import { db, type DbTransactionClient } from "@/lib/db";
 import {
   requireAuth,
   requireAuthenticatedIdentity,
@@ -459,7 +459,7 @@ function normalizedScopes(
 }
 
 async function applySanctionState(
-  tx: Prisma.TransactionClient,
+  tx: DbTransactionClient,
   userId: string,
   type: "warning" | "restriction" | "suspension" | "delist" | "removal",
   reason: string,
@@ -491,7 +491,7 @@ async function applySanctionState(
 }
 
 async function restoreAfterOverturn(
-  tx: Prisma.TransactionClient,
+  tx: DbTransactionClient,
   userId: string,
   type: "warning" | "restriction" | "suspension" | "delist" | "removal",
 ) {
@@ -515,7 +515,7 @@ async function restoreAfterOverturn(
 }
 
 async function audit(
-  tx: Prisma.TransactionClient,
+  tx: DbTransactionClient,
   adminUserId: string,
   action: string,
   targetType: string,

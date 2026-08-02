@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { PaymentAttempt, PaymentProvider, Prisma } from "@prisma/client";
 
-import { db } from "@/lib/db";
+import { db, type DbTransactionClient } from "@/lib/db";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/observability/logger";
 import { ensureVideoSessionForBooking } from "@/server/video/sessions";
@@ -12,7 +12,7 @@ import {
   notifyPaymentFailed,
 } from "@/server/notifications/notify";
 
-type Tx = Prisma.TransactionClient;
+type Tx = DbTransactionClient;
 
 export async function recordPaymentEvent(input: {
   provider: PaymentProvider;
