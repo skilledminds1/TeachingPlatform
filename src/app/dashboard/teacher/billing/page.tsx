@@ -102,7 +102,7 @@ export default async function TeacherBillingPage({
             </p>
           </div>
           <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[720px] text-start text-sm">
               <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">Issued</th>

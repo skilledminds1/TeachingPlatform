@@ -39,7 +39,7 @@ function PasswordInput({
           id={id}
           type={visible ? "text" : "password"}
           autoComplete={autoComplete}
-          className="pr-10"
+          className="pe-10"
           aria-invalid={Boolean(error)}
           {...registration}
         />

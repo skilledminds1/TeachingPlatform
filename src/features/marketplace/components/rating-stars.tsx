@@ -1,8 +1,9 @@
 import { Star } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
 import { cn } from "@/lib/utils";
 
-export function RatingStars({
+export async function RatingStars({
   average,
   count,
   showCount = true,
@@ -11,8 +12,10 @@ export function RatingStars({
   count: number;
   showCount?: boolean;
 }) {
+  const t = await getTranslations("marketplace");
+
   if (count === 0) {
-    return <span className="text-xs text-muted-foreground">No reviews yet</span>;
+    return <span className="text-xs text-muted-foreground">{t("noReviews")}</span>;
   }
 
   return (

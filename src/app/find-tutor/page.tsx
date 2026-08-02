@@ -10,6 +10,8 @@ import { TeacherCard } from "@/features/marketplace/components/teacher-card";
 import { TeacherFilters } from "@/features/marketplace/components/teacher-filters";
 import { StudentNavWithNotifications } from "@/features/student-dashboard/components/student-nav-with-notifications";
 import { getCurrentUser, hasTeacherMembership } from "@/server/auth/session";
+import { getTranslations } from "next-intl/server";
+
 import { SiteFooter } from "@/features/marketing/components/site-footer";
 import {
   getMarketplaceSubjects,
@@ -33,6 +35,8 @@ export default async function FindTutorPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const t = await getTranslations("marketplace");
+  const tNav = await getTranslations("nav");
   const params = await searchParams;
   const first = (key: string): string | undefined => {
     const value = params[key];
@@ -90,17 +94,17 @@ export default async function FindTutorPage({
               Amazing Skills
             </Link>
             {/* GLO-03: a navigation landmark, so it can be jumped to rather than tabbed past. */}
-            <nav aria-label="Account" className="flex items-center gap-2">
+            <nav aria-label={tNav("accountNavLabel")} className="flex items-center gap-2">
               {user ? (
                 <Button variant="ghost" render={<Link href="/dashboard" />}>
-                  Dashboard
+                  {tNav("dashboard")}
                 </Button>
               ) : (
                 <>
                   <Button variant="ghost" render={<Link href="/login" />}>
-                    Sign in
+                    {tNav("signIn")}
                   </Button>
-                  <Button render={<Link href="/register" />}>Get started</Button>
+                  <Button render={<Link href="/register" />}>{tNav("getStarted")}</Button>
                 </>
               )}
             </nav>
@@ -109,9 +113,9 @@ export default async function FindTutorPage({
       )}
       <main id="main-content" className="mx-auto max-w-6xl space-y-6 px-6 py-10">
         <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Find a tutor</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
           <p className="text-muted-foreground">
-            Every tutor is verified before appearing here. Lessons are live video, one on one.
+            {t("subtitle")}
           </p>
         </div>
         {/*
@@ -122,22 +126,28 @@ export default async function FindTutorPage({
         */}
         <section aria-labelledby="filters-heading">
           <h2 id="filters-heading" className="sr-only">
-            Filter tutors
+            {t("filtersHeading")}
           </h2>
           <Suspense>
             <TeacherFilters subjects={subjects} />
           </Suspense>
         </section>
         <h2 id="results-heading" className="sr-only">
-          Tutors
+          {t("resultsHeading")}
         </h2>
         <p className="text-sm text-muted-foreground">
           {/*
             QLT-08: the TOTAL, not the length of this page. It used to read "60 tutors
             available" no matter how many there really were.
+
+            GLO-01: an ICU plural, not `count === 1 ? "" : "s"`. English has two plural forms
+            and Arabic has six — zero, one, two, few, many, other — so appending an "s" is not
+            a rule that survives translation. The catalogue carries each language's own forms.
           */}
-          {total} tutor{total === 1 ? "" : "s"} available
-          {pageCount > 1 ? ` · page ${results.page} of ${pageCount}` : ""}
+          {t("tutorCount", { count: total })}
+          {pageCount > 1
+            ? ` · ${t("pageOf", { page: results.page, total: pageCount })}`
+            : ""}
         </p>
         {teachers.length > 0 ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -149,8 +159,8 @@ export default async function FindTutorPage({
           <div className="rounded-xl border border-border bg-card shadow-sm">
             <EmptyState
               icon={GraduationCap}
-              title="No tutors match these filters"
-              description="Try clearing a filter or searching for a different subject. New tutors join after admin approval."
+              title={t("emptyTitle")}
+              description={t("emptyBody")}
             />
           </div>
         )}
@@ -162,7 +172,7 @@ export default async function FindTutorPage({
         */}
         {pageCount > 1 ? (
           <nav
-            aria-label="Tutor pages"
+            aria-label={t("pagesLabel")}
             className="flex items-center justify-between gap-3 pt-2"
           >
             {results.page > 1 ? (
@@ -171,13 +181,13 @@ export default async function FindTutorPage({
                 className="rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
                 rel="prev"
               >
-                Previous
+                {t("previous")}
               </Link>
             ) : (
               <span />
             )}
             <span className="text-sm text-muted-foreground">
-              Page {results.page} of {pageCount}
+              {t("pageOf", { page: results.page, total: pageCount })}
             </span>
             {results.page < pageCount ? (
               <Link
@@ -185,7 +195,7 @@ export default async function FindTutorPage({
                 className="rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
                 rel="next"
               >
-                Next
+                {t("next")}
               </Link>
             ) : (
               <span />

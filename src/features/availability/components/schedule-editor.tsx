@@ -247,7 +247,7 @@ export function ScheduleEditor({
               >
                 <div>
                   <span className="font-medium">{exception.specificDate}</span>
-                  <span className="ml-2 text-muted-foreground">
+                  <span className="ms-2 text-muted-foreground">
                     {exception.startTime}–{exception.endTime} ·{" "}
                     {exception.isBlocked ? "Blocked" : "Extra hours"}
                   </span>

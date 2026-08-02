@@ -53,7 +53,7 @@ export function StudentsTable({ students }: { students: StudentTableRow[] }) {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search"
-            className="pl-9"
+            className="ps-9"
             aria-label="Search students"
           />
         </div>
@@ -78,7 +78,7 @@ export function StudentsTable({ students }: { students: StudentTableRow[] }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
+              <tr className="border-b border-border/60 text-start text-xs text-muted-foreground">
                 <th className="px-5 py-3 font-medium">Name</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium">Lessons</th>

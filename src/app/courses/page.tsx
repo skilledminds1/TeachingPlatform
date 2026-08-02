@@ -15,6 +15,8 @@ import {
   type CourseSort,
 } from "@/server/courses/queries";
 import { getMarketplaceSubjects } from "@/server/marketplace/teachers";
+import { getTranslations } from "next-intl/server";
+
 import { SiteFooter } from "@/features/marketing/components/site-footer";
 
 export const metadata: Metadata = {
@@ -39,6 +41,8 @@ export default async function CoursesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const t = await getTranslations("coursesPage");
+  const tNav = await getTranslations("nav");
   const params = await searchParams;
   const first = (key: string): string | undefined => {
     const value = params[key];
@@ -82,20 +86,20 @@ export default async function CoursesPage({
               Amazing Skills
             </Link>
             {/* GLO-03: a navigation landmark, so it can be jumped to rather than tabbed past. */}
-            <nav aria-label="Account" className="flex items-center gap-2">
+            <nav aria-label={tNav("accountNavLabel")} className="flex items-center gap-2">
               <Button variant="ghost" render={<Link href="/find-tutor" />}>
-                Tutors
+                {t("tutors")}
               </Button>
               {user ? (
                 <Button variant="ghost" render={<Link href="/dashboard" />}>
-                  Dashboard
+                  {tNav("dashboard")}
                 </Button>
               ) : (
                 <>
                   <Button variant="ghost" render={<Link href="/login" />}>
-                    Sign in
+                    {tNav("signIn")}
                   </Button>
-                  <Button render={<Link href="/register" />}>Get started</Button>
+                  <Button render={<Link href="/register" />}>{tNav("getStarted")}</Button>
                 </>
               )}
             </nav>
@@ -105,16 +109,16 @@ export default async function CoursesPage({
 
       <main id="main-content" className="mx-auto max-w-6xl space-y-6 px-6 py-10">
         <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Browse courses</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
           <p className="text-muted-foreground">
-            Self-paced courses with downloadable materials from verified teachers.
+            {t("subtitle")}
           </p>
         </div>
 
         {/* GLO-03: see /find-tutor — heading navigation could not reach either region. */}
         <section aria-labelledby="filters-heading">
           <h2 id="filters-heading" className="sr-only">
-            Filter courses
+            {t("filtersHeading")}
           </h2>
           <Suspense>
             <CourseFilters subjects={subjects} />
@@ -122,10 +126,10 @@ export default async function CoursesPage({
         </section>
 
         <h2 id="results-heading" className="sr-only">
-          Courses
+          {t("resultsHeading")}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {result.total} course{result.total === 1 ? "" : "s"} available
+          {t("courseCount", { count: result.total })}
         </p>
 
         {result.courses.length > 0 ? (
@@ -138,8 +142,8 @@ export default async function CoursesPage({
           <div className="rounded-xl border border-border bg-card shadow-sm">
             <EmptyState
               icon={BookOpen}
-              title="No courses match these filters"
-              description="Try clearing a filter or searching for a different subject. New courses appear when teachers publish them."
+              title={t("emptyTitle")}
+              description={t("emptyBody")}
             />
           </div>
         )}

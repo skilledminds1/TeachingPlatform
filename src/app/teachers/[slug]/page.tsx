@@ -276,7 +276,7 @@ export async function TeacherProfileContent({
                   {[...availabilityByDay.entries()].map(([day, slots]) => (
                     <li key={day} className="flex items-start justify-between gap-3 text-sm">
                       <span className="font-medium">{dayNames[day] ?? `Day ${day}`}</span>
-                      <span className="text-right text-muted-foreground">
+                      <span className="text-end text-muted-foreground">
                         {slots
                           .map((slot) => `${formatTime(slot.start)}–${formatTime(slot.end)}`)
                           .join(", ")}

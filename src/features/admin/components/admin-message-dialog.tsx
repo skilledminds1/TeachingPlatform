@@ -85,7 +85,7 @@ export function AdminMessageDialog({
               placeholder="Write an official platform message…"
               onChange={(event) => setBody(event.target.value)}
             />
-            <p className="text-right text-xs text-muted-foreground">
+            <p className="text-end text-xs text-muted-foreground">
               {body.length}/2,000
             </p>
           </div>

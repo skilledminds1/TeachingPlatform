@@ -166,7 +166,7 @@ export function EnrolledCourseViewer({
                         <button
                           type="button"
                           onClick={() => setSelectedLessonId(lesson.id)}
-                          className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+                          className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-start text-sm transition-colors ${
                             active
                               ? "bg-primary/10 text-foreground"
                               : "text-muted-foreground hover:bg-muted hover:text-foreground"

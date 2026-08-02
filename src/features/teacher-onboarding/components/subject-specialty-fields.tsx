@@ -105,7 +105,7 @@ export function SubjectSpecialtyFields({
                 <ul className="flex flex-wrap gap-2" aria-label={`${subject.name} specialties`}>
                   {selected.map((specialty) => (
                     <li key={specialty}>
-                      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-background py-1 pr-1 pl-2.5 text-sm">
+                      <span className="inline-flex items-center gap-1 rounded-md border border-border bg-background py-1 pe-1 ps-2.5 text-sm">
                         {specialty}
                         <Button
                           type="button"

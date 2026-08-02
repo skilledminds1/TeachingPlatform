@@ -1,0 +1,11 @@
+-- GLO-01: remember which language a user reads the interface in.
+--
+-- Nullable with no default and no backfill, deliberately. NULL does not mean "English" — it
+-- means "nobody has chosen", which is a different fact and the one that lets negotiation from
+-- Accept-Language keep working for everyone who has never touched the switcher. Defaulting to
+-- 'en' would freeze every existing account into English and silently disable the negotiation
+-- for exactly the users it was built for.
+--
+-- VARCHAR(10) holds a BCP-47 tag with a region subtag ("pt-BR", "zh-Hant") rather than only
+-- the two-letter ones shipping today, so adding a regional variant later is not a migration.
+ALTER TABLE "users" ADD COLUMN "locale" VARCHAR(10);

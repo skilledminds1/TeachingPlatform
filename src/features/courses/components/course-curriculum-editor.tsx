@@ -217,7 +217,7 @@ export function CourseCurriculumEditor({
                 </div>
               </div>
 
-              <ul className="mt-4 space-y-3 border-l border-border pl-4">
+              <ul className="mt-4 space-y-3 border-s border-border ps-4">
                 {module.lessons.map((lesson, lessonIndex) => {
                   const draft = lessonDrafts[lesson.id] ?? {
                     title: lesson.title,
@@ -232,24 +232,24 @@ export function CourseCurriculumEditor({
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <button
                           type="button"
-                          className="text-left text-sm font-medium hover:underline"
+                          className="text-start text-sm font-medium hover:underline"
                           onClick={() =>
                             setExpandedLessonId(expanded ? null : lesson.id)
                           }
                         >
                           Lecture {lessonIndex + 1}. {lesson.title}
                           {lesson.isPreview ? (
-                            <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                            <span className="ms-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
                               Preview
                             </span>
                           ) : null}
                           {video ? (
-                            <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            <span className="ms-2 text-xs font-normal text-muted-foreground">
                               · video
                             </span>
                           ) : null}
                           {resources.length > 0 ? (
-                            <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            <span className="ms-2 text-xs font-normal text-muted-foreground">
                               · {resources.length} resource
                               {resources.length === 1 ? "" : "s"}
                             </span>

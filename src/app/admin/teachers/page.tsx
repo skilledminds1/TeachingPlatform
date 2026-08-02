@@ -141,7 +141,7 @@ export default async function AdminTeachersPage() {
                               {" "}
                               · {qualification.institution} · {qualification.issuedYear}
                             </span>
-                            <span className="ml-2 text-xs capitalize text-muted-foreground">
+                            <span className="ms-2 text-xs capitalize text-muted-foreground">
                               ({formatStatus(qualification.status)})
                             </span>
                           </li>

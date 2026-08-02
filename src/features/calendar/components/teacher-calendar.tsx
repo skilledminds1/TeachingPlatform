@@ -213,7 +213,7 @@ export function TeacherCalendar({
 
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] flex-col bg-background lg:flex-row">
-      <aside className="w-full shrink-0 space-y-6 border-b border-border p-4 lg:w-56 lg:border-r lg:border-b-0 lg:p-5">
+      <aside className="w-full shrink-0 space-y-6 border-b border-border p-4 lg:w-56 lg:border-e lg:border-b-0 lg:p-5">
         <div className="space-y-2">
           <Button
             className="w-full justify-center"
@@ -366,14 +366,14 @@ export function TeacherCalendar({
         ) : (
           <div className="min-h-0 flex-1 overflow-auto">
             <div className="sticky top-0 z-20 grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] border-b border-border bg-background">
-              <div className="border-r border-border" />
+              <div className="border-e border-border" />
               {days.map((day) => {
                 const isToday = day.hasSame(now, "day");
                 return (
                   <div
                     key={day.toISODate()}
                     className={cn(
-                      "border-r border-border px-2 py-2 text-center last:border-r-0",
+                      "border-e border-border px-2 py-2 text-center last:border-e-0",
                       day.weekday === 7 && "bg-muted/40",
                     )}
                   >
@@ -391,7 +391,7 @@ export function TeacherCalendar({
             </div>
 
             <div className="relative grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
-              <div className="relative border-r border-border">
+              <div className="relative border-e border-border">
                 {HOURS.map((hour) => (
                   <div
                     key={hour}
@@ -425,7 +425,7 @@ export function TeacherCalendar({
                   <div
                     key={dateIso}
                     className={cn(
-                      "relative border-r border-border last:border-r-0",
+                      "relative border-e border-border last:border-e-0",
                       day.weekday === 7 && "bg-muted/20",
                     )}
                     style={{ height: HOUR_HEIGHT * HOURS.length }}
@@ -471,7 +471,7 @@ export function TeacherCalendar({
                           disabled={isPending}
                           onClick={() => removeException(exception.id)}
                           className={cn(
-                            "absolute inset-x-1 overflow-hidden rounded-md border px-1.5 py-1 text-left text-[11px] leading-tight",
+                            "absolute inset-x-1 overflow-hidden rounded-md border px-1.5 py-1 text-start text-[11px] leading-tight",
                             exception.isBlocked
                               ? "border-amber-500/40 bg-amber-500/15 text-amber-950 dark:text-amber-100"
                               : "border-violet-500/40 bg-violet-500/15 text-violet-950 dark:text-violet-100",
@@ -498,8 +498,8 @@ export function TeacherCalendar({
                         (end.diff(start, "minutes").minutes / 60) * HOUR_HEIGHT;
                       const pending = booking.status === "pending_payment";
                       const accent = booking.isFirstLesson
-                        ? "border-l-emerald-500"
-                        : "border-l-sky-500";
+                        ? "border-s-emerald-500"
+                        : "border-s-sky-500";
 
                       return (
                         <button
@@ -511,7 +511,7 @@ export function TeacherCalendar({
                             setLessonOpen(true);
                           }}
                           className={cn(
-                            "absolute inset-x-1 overflow-hidden rounded-md border border-l-4 bg-card px-1.5 py-1 text-left text-[11px] leading-tight shadow-sm",
+                            "absolute inset-x-1 overflow-hidden rounded-md border border-s-4 bg-card px-1.5 py-1 text-start text-[11px] leading-tight shadow-sm",
                             accent,
                             pending
                               ? "border-dashed border-border text-muted-foreground"
@@ -544,7 +544,7 @@ export function TeacherCalendar({
                         className="pointer-events-none absolute right-0 left-0 z-10 border-t-2 border-foreground"
                         style={{ top: (nowMinutes / 60) * HOUR_HEIGHT }}
                       >
-                        <span className="absolute -top-1.5 -right-0 size-0 border-y-[6px] border-l-[8px] border-y-transparent border-l-foreground" />
+                        <span className="absolute -top-1.5 -right-0 size-0 border-y-[6px] border-s-[8px] border-y-transparent border-s-foreground" />
                       </div>
                     ) : null}
                   </div>

@@ -264,7 +264,7 @@ export default async function TeacherAnalyticsPage({
               />
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-[720px] w-full text-left text-sm">
+                <table className="min-w-[720px] w-full text-start text-sm">
                   <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
                     <tr>
                       <th className="px-6 py-3 font-medium">Course</th>

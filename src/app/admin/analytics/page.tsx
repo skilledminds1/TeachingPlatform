@@ -147,7 +147,7 @@ export default async function AdminAnalyticsPage({
           </p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[760px] text-start text-sm">
             <thead className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
               <tr>
                 <th className="px-6 py-3 font-medium">Currency</th>

@@ -194,7 +194,7 @@ export function ProfileEditor({
                   onClick={() => setSection(item.id)}
                   aria-current={active ? "true" : undefined}
                   className={cn(
-                    "w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors",
+                    "w-full rounded-lg px-3 py-2 text-start text-sm font-medium transition-colors",
                     active
                       ? "bg-muted text-foreground"
                       : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -415,7 +415,7 @@ export function ProfileEditor({
               </p>
               <ul className="mt-2 space-y-2">
                 {videoDos.map((item) => (
-                  <li key={item} className="pl-6 text-sm text-muted-foreground">
+                  <li key={item} className="ps-6 text-sm text-muted-foreground">
                     {item}
                   </li>
                 ))}
@@ -427,7 +427,7 @@ export function ProfileEditor({
               </p>
               <ul className="mt-2 space-y-2">
                 {videoDonts.map((item) => (
-                  <li key={item} className="pl-6 text-sm text-muted-foreground">
+                  <li key={item} className="ps-6 text-sm text-muted-foreground">
                     {item}
                   </li>
                 ))}
@@ -535,7 +535,7 @@ export function ProfileEditor({
                   <Input
                     id="hourlyRate"
                     inputMode="decimal"
-                    className="pl-8"
+                    className="ps-8"
                     placeholder="25"
                     aria-invalid={!!form.formState.errors.hourlyRate}
                     {...form.register("hourlyRate")}

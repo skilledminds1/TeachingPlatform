@@ -1,0 +1,90 @@
+{
+  "nav": {
+    "brand": "Amazing Skills",
+    "findTutor": "ابحث عن معلم",
+    "courses": "الدورات",
+    "howItWorks": "كيف يعمل",
+    "forTeachers": "للمعلمين",
+    "pricing": "الأسعار",
+    "faq": "الأسئلة الشائعة",
+    "signIn": "تسجيل الدخول",
+    "getStarted": "ابدأ الآن",
+    "dashboard": "لوحة التحكم",
+    "accountNavLabel": "الحساب",
+    "mainNavLabel": "الرئيسية"
+  },
+  "footer": {
+    "platform": "المنصة",
+    "account": "الحساب",
+    "legal": "الشؤون القانونية",
+    "findTutors": "ابحث عن معلمين",
+    "courses": "الدورات",
+    "becomeTeacher": "كن معلمًا",
+    "pricing": "الأسعار",
+    "faq": "الأسئلة الشائعة",
+    "signIn": "تسجيل الدخول",
+    "createAccount": "إنشاء حساب",
+    "resetPassword": "إعادة تعيين كلمة المرور",
+    "terms": "شروط الخدمة",
+    "privacy": "سياسة الخصوصية",
+    "refundPolicy": "سياسة الاسترداد",
+    "teacherAgreement": "اتفاقية المعلم",
+    "accessibility": "إمكانية الوصول"
+  },
+  "marketplace": {
+    "title": "ابحث عن معلم",
+    "subtitle": "نتحقق من كل معلم قبل ظهوره هنا. الدروس عبر فيديو مباشر، فردية.",
+    "filtersHeading": "تصفية المعلمين",
+    "resultsHeading": "المعلمون",
+    "tutorCount": "{count, plural, =0 {لا يوجد معلمون متاحون} zero {لا يوجد معلمون متاحون} one {معلم واحد متاح} two {معلمان متاحان} few {# معلمين متاحين} many {# معلمًا متاحًا} other {# معلم متاح}}",
+    "pageOf": "صفحة {page} من {total}",
+    "previous": "السابق",
+    "next": "التالي",
+    "pagesLabel": "صفحات المعلمين",
+    "emptyTitle": "لا يوجد معلم يطابق هذه الفلاتر",
+    "emptyBody": "جرّب إزالة أحد الفلاتر أو البحث عن مادة أخرى. ينضم المعلمون الجدد بعد موافقة الإدارة.",
+    "perHour": "في الساعة",
+    "noReviews": "لا توجد تقييمات بعد"
+  },
+  "filters": {
+    "searchPlaceholder": "ابحث بالاسم أو المادة أو كلمة مفتاحية…",
+    "searchLabel": "البحث عن معلمين",
+    "subjectLabel": "تصفية حسب المادة",
+    "allSubjects": "كل المواد",
+    "languageLabel": "تصفية حسب لغة التدريس",
+    "anyLanguage": "أي لغة",
+    "rateLabel": "تصفية حسب السعر بالساعة",
+    "anyRate": "أي سعر",
+    "maxRate": "حتى {amount}/ساعة",
+    "ratingLabel": "تصفية حسب التقييم",
+    "anyRating": "أي تقييم",
+    "ratingAndUp": "{stars} نجوم فأكثر",
+    "fiveStarsOnly": "5 نجوم فقط",
+    "sortLabel": "ترتيب المعلمين",
+    "sortRecommended": "موصى بهم",
+    "sortRating": "الأعلى تقييمًا",
+    "sortPriceAsc": "السعر: من الأقل إلى الأعلى",
+    "sortPriceDesc": "السعر: من الأعلى إلى الأقل",
+    "sortNewest": "أحدث المعلمين",
+    "clear": "مسح"
+  },
+  "coursesPage": {
+    "title": "تصفح الدورات",
+    "subtitle": "دورات ذاتية الوتيرة مع مواد قابلة للتنزيل من معلمين موثوقين.",
+    "filtersHeading": "تصفية الدورات",
+    "resultsHeading": "الدورات",
+    "courseCount": "{count, plural, =0 {لا توجد دورات متاحة} zero {لا توجد دورات متاحة} one {دورة واحدة متاحة} two {دورتان متاحتان} few {# دورات متاحة} many {# دورة متاحة} other {# دورة متاحة}}",
+    "emptyTitle": "لا توجد دورة تطابق هذه الفلاتر",
+    "emptyBody": "جرّب إزالة أحد الفلاتر أو البحث عن مادة أخرى. تظهر الدورات عندما ينشرها المعلمون.",
+    "backToCourses": "العودة إلى الدورات",
+    "tutors": "المعلمون"
+  },
+  "language": {
+    "label": "اللغة",
+    "change": "تغيير اللغة",
+    "current": "اللغة الحالية: {language}"
+  },
+  "a11y": {
+    "skipToContent": "تخطَّ إلى المحتوى الرئيسي"
+  }
+}

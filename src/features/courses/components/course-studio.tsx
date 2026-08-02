@@ -208,7 +208,7 @@ export function CourseStudio({
                     onClick={() => setSection(item.id)}
                     aria-current={active ? "true" : undefined}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors",
+                      "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm font-medium transition-colors",
                       active
                         ? "bg-muted text-foreground"
                         : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -385,7 +385,7 @@ export function CourseStudio({
                   <Input
                     id="studio-price"
                     inputMode="decimal"
-                    className="pl-8"
+                    className="ps-8"
                     value={price}
                     onChange={(event) => setPrice(event.target.value)}
                   />

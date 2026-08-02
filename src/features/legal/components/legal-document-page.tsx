@@ -55,7 +55,7 @@ export function LegalDocumentPage({
               </p>
             ))}
             {section.bullets ? (
-              <ul className="list-disc space-y-2 pl-6 text-muted-foreground">
+              <ul className="list-disc space-y-2 ps-6 text-muted-foreground">
                 {section.bullets.map((bullet) => (
                   <li key={bullet}>{bullet}</li>
                 ))}

@@ -32,7 +32,7 @@ export default async function EmailDeliveryPage() {
         </p>
       </div>
       <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <table className="w-full min-w-[800px] text-left text-sm">
+        <table className="w-full min-w-[800px] text-start text-sm">
           <thead className="border-b border-border bg-muted/50 text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Created</th>

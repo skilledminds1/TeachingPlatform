@@ -235,7 +235,7 @@ function ScheduleForm({
                 />
                 <Select
                   id="schedule-student"
-                  className="pl-9"
+                  className="ps-9"
                   value={studentId}
                   onChange={(event) => setStudentId(event.target.value)}
                 >
@@ -258,7 +258,7 @@ function ScheduleForm({
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                className="flex items-center gap-3 rounded-xl border-2 border-foreground px-3 py-3 text-left"
+                className="flex items-center gap-3 rounded-xl border-2 border-foreground px-3 py-3 text-start"
               >
                 <CalendarDays className="size-4 shrink-0" aria-hidden />
                 <span className="flex-1 text-sm font-medium">Single</span>
@@ -268,7 +268,7 @@ function ScheduleForm({
                 type="button"
                 disabled
                 title="Weekly lessons coming soon"
-                className="flex items-center gap-3 rounded-xl border border-border px-3 py-3 text-left opacity-50"
+                className="flex items-center gap-3 rounded-xl border border-border px-3 py-3 text-start opacity-50"
               >
                 <RefreshCw className="size-4 shrink-0" aria-hidden />
                 <span className="flex-1 text-sm font-medium">Weekly</span>

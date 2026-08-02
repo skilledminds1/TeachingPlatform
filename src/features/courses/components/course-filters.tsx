@@ -82,7 +82,7 @@ export function CourseFilters({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search courses by title, teacher, or keyword…"
-          className="pl-9"
+          className="ps-9"
           aria-label="Search courses"
         />
       </form>

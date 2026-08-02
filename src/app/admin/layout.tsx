@@ -50,7 +50,7 @@ export default async function AdminLayout({
           </Link>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden text-right sm:block">
+            <div className="hidden text-end sm:block">
               <p className="text-sm font-medium">{admin.name}</p>
               <p className="text-xs text-muted-foreground">{admin.email}</p>
             </div>
@@ -66,7 +66,7 @@ export default async function AdminLayout({
       </header>
 
       <div className="lg:grid lg:grid-cols-[240px_1fr]">
-        <aside className="border-b border-border bg-background lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:border-r lg:border-b-0">
+        <aside className="border-b border-border bg-background lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:border-e lg:border-b-0">
           <AdminNav />
         </aside>
         <main id="main-content" className="min-w-0 p-4 md:p-6 lg:p-8">{children}</main>

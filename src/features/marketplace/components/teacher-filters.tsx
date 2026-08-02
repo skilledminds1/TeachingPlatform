@@ -7,43 +7,47 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { teachingLanguageOptions } from "@/lib/languages";
+import { formatCurrency } from "@/lib/format";
+import { useTranslations } from "next-intl";
 
 const selectClassName =
   "h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none [&>option]:bg-background";
 
 const languageOptions = teachingLanguageOptions();
 
-const maxRateOptions = [
-  { value: "", label: "Any rate" },
-  { value: "500", label: "Up to $5/hour" },
-  { value: "1000", label: "Up to $10/hour" },
-  { value: "2000", label: "Up to $20/hour" },
-  { value: "5000", label: "Up to $50/hour" },
-  { value: "10000", label: "Up to $100/hour" },
-  { value: "15000", label: "Up to $150/hour" },
-  { value: "25000", label: "Up to $250/hour" },
+/** Values are URL parameters — never translated. Cents are formatted per locale at render. */
+const maxRateOptions: Array<{ value: string; cents?: number }> = [
+  { value: "" },
+  { value: "500", cents: 500 },
+  { value: "1000", cents: 1000 },
+  { value: "2000", cents: 2000 },
+  { value: "5000", cents: 5000 },
+  { value: "10000", cents: 10000 },
+  { value: "15000", cents: 15000 },
+  { value: "25000", cents: 25000 },
 ];
 
-const ratingOptions = [
-  { value: "", label: "Any rating" },
-  { value: "3", label: "3 stars & up" },
-  { value: "4", label: "4 stars & up" },
-  { value: "5", label: "5 stars only" },
+const ratingOptions: Array<{ value: string; stars?: number }> = [
+  { value: "" },
+  { value: "3", stars: 3 },
+  { value: "4", stars: 4 },
+  { value: "5", stars: 5 },
 ];
 
 const sortOptions = [
-  { value: "recommended", label: "Recommended" },
-  { value: "rating", label: "Highest rated" },
-  { value: "price_asc", label: "Price: low to high" },
-  { value: "price_desc", label: "Price: high to low" },
-  { value: "newest", label: "Newest teachers" },
-];
+  { value: "recommended", key: "sortRecommended" },
+  { value: "rating", key: "sortRating" },
+  { value: "price_asc", key: "sortPriceAsc" },
+  { value: "price_desc", key: "sortPriceDesc" },
+  { value: "newest", key: "sortNewest" },
+] as const;
 
 export function TeacherFilters({
   subjects,
 }: {
   subjects: Array<{ slug: string; name: string }>;
 }) {
+  const t = useTranslations("filters");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -86,9 +90,9 @@ export function TeacherFilters({
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search by name, subject, or keyword…"
-          className="pl-9"
-          aria-label="Search teachers"
+          placeholder={t("searchPlaceholder")}
+          className="ps-9"
+          aria-label={t("searchLabel")}
         />
       </form>
 
@@ -97,9 +101,9 @@ export function TeacherFilters({
           className={selectClassName}
           value={searchParams.get("subject") ?? ""}
           onChange={(event) => applyParam("subject", event.target.value)}
-          aria-label="Filter by subject"
+          aria-label={t("subjectLabel")}
         >
-          <option value="">All subjects</option>
+          <option value="">{t("allSubjects")}</option>
           {subjects.map((subject) => (
             <option key={subject.slug} value={subject.slug}>
               {subject.name}
@@ -113,9 +117,9 @@ export function TeacherFilters({
           className={selectClassName}
           value={searchParams.get("language") ?? ""}
           onChange={(event) => applyParam("language", event.target.value)}
-          aria-label="Filter by teaching language"
+          aria-label={t("languageLabel")}
         >
-          <option value="">Any language</option>
+          <option value="">{t("anyLanguage")}</option>
           {languageOptions.map((option) => (
             <option key={option.code} value={option.code}>
               {option.name}
@@ -127,11 +131,13 @@ export function TeacherFilters({
           className={selectClassName}
           value={searchParams.get("maxRate") ?? ""}
           onChange={(event) => applyParam("maxRate", event.target.value)}
-          aria-label="Filter by hourly rate"
+          aria-label={t("rateLabel")}
         >
           {maxRateOptions.map((option) => (
             <option key={option.value} value={option.value}>
-              {option.label}
+              {option.cents === undefined
+                ? t("anyRate")
+                : t("maxRate", { amount: formatCurrency(option.cents, "USD") })}
             </option>
           ))}
         </select>
@@ -140,11 +146,15 @@ export function TeacherFilters({
           className={selectClassName}
           value={searchParams.get("minRating") ?? ""}
           onChange={(event) => applyParam("minRating", event.target.value)}
-          aria-label="Filter by rating"
+          aria-label={t("ratingLabel")}
         >
           {ratingOptions.map((option) => (
             <option key={option.value} value={option.value}>
-              {option.label}
+              {option.stars === undefined
+                ? t("anyRating")
+                : option.stars === 5
+                  ? t("fiveStarsOnly")
+                  : t("ratingAndUp", { stars: option.stars })}
             </option>
           ))}
         </select>
@@ -153,11 +163,11 @@ export function TeacherFilters({
           className={selectClassName}
           value={searchParams.get("sort") ?? "recommended"}
           onChange={(event) => applyParam("sort", event.target.value)}
-          aria-label="Sort teachers"
+          aria-label={t("sortLabel")}
         >
           {sortOptions.map((option) => (
             <option key={option.value} value={option.value}>
-              {option.label}
+              {t(option.key)}
             </option>
           ))}
         </select>
@@ -174,7 +184,7 @@ export function TeacherFilters({
             }}
           >
             <X className="size-3.5" aria-hidden />
-            Clear
+            {t("clear")}
           </Button>
         ) : null}
       </div>

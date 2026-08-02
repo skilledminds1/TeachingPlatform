@@ -47,7 +47,7 @@ export function NotificationLink({
   return (
     <button
       type="button"
-      className="w-full text-left"
+      className="w-full text-start"
       onClick={() =>
         startTransition(async () => {
           await markNotificationRead(id);

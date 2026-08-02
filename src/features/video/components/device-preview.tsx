@@ -264,7 +264,7 @@ export function DevicePreview() {
               </p>
             </div>
             {error ? (
-              <div className="flex max-w-lg items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-left text-sm text-destructive">
+              <div className="flex max-w-lg items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-start text-sm text-destructive">
                 <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
                 <p>{error}</p>
               </div>
@@ -334,7 +334,7 @@ export function DevicePreview() {
               </div>
             </div>
 
-            <div className="space-y-5 border-t border-border p-5 lg:border-t-0 lg:border-l">
+            <div className="space-y-5 border-t border-border p-5 lg:border-t-0 lg:border-s">
               <div className="space-y-2">
                 <label className="text-sm font-medium" htmlFor="preview-mic">
                   Microphone

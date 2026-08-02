@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatCurrency } from "@/lib/format";
@@ -19,7 +20,7 @@ type TeacherCardData = {
   rating: { average: number; count: number };
 };
 
-export function TeacherCard({
+export async function TeacherCard({
   teacher,
   fxRates,
   fxStale,
@@ -29,6 +30,7 @@ export function TeacherCard({
   fxRates: Record<string, number>;
   fxStale: boolean;
 }) {
+  const t = await getTranslations("marketplace");
   return (
     <Link
       href={`/find-tutor/${teacher.slug}`}
@@ -51,11 +53,11 @@ export function TeacherCard({
             />
           </div>
         </div>
-        <div className="shrink-0 text-right">
+        <div className="shrink-0 text-end">
           <p className="font-semibold">
             {formatCurrency(teacher.hourlyRateCents, teacher.currency)}
           </p>
-          <p className="text-xs text-muted-foreground">per hour</p>
+          <p className="text-xs text-muted-foreground">{t("perHour")}</p>
           <IndicativePrice
             amountMinorUnits={teacher.hourlyRateCents}
             currency={teacher.currency}

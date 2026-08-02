@@ -149,7 +149,7 @@ export function NotificationBell({ initial }: { initial: NotificationBellData })
                       <button
                         type="button"
                         className={cn(
-                          "w-full px-4 py-3 text-left transition-colors hover:bg-muted/50",
+                          "w-full px-4 py-3 text-start transition-colors hover:bg-muted/50",
                           !item.readAt && "bg-primary/5",
                         )}
                         onClick={() => openNotification(item)}

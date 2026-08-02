@@ -143,7 +143,7 @@ export default async function CourseSalesPage({
                       <p className="font-medium">{"★".repeat(review.rating)} · {review.student.name}</p>
                       <p className="mt-1 text-muted-foreground">{review.comment}</p>
                       {review.teacherResponse ? (
-                        <p className="mt-3 border-l-2 border-primary pl-3">
+                        <p className="mt-3 border-s-2 border-primary ps-3">
                           Teacher response: {review.teacherResponse}
                         </p>
                       ) : null}

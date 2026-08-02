@@ -25,7 +25,7 @@ export default async function AdminOrganizationsPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-start text-sm">
               <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
                 <tr>
                   <th className="px-5 py-3 font-medium">Organization</th>

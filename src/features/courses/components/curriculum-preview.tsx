@@ -59,7 +59,7 @@ export function CurriculumPreview({ modules }: { modules: CurriculumModule[] }) 
               <span className="text-muted-foreground">{index + 1}.</span> {module.title}
             </p>
             {module.lessons.length > 0 ? (
-              <ul className="mt-2 space-y-1.5 border-l border-border pl-4">
+              <ul className="mt-2 space-y-1.5 border-s border-border ps-4">
                 {module.lessons.map((lesson) => (
                   <li key={lesson.id} className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
                     <span>{lesson.title}</span>

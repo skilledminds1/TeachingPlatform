@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 /**
  * Skip to main content (GLO-03).
  *
@@ -13,7 +15,9 @@
  *
  * The target is `#main-content`, which every `<main>` in the application carries.
  */
-export function SkipLink() {
+export async function SkipLink() {
+  const t = await getTranslations("a11y");
+
   return (
     <a
       href="#main-content"
@@ -23,7 +27,7 @@ export function SkipLink() {
       // keyboard. Measured: with focus-visible it stayed clipped at inset(50%).
       className="sr-only rounded-md bg-background px-4 py-2 text-sm font-medium text-foreground shadow-lg outline-2 outline-offset-2 outline-ring focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100]"
     >
-      Skip to main content
+      {t("skipToContent")}
     </a>
   );
 }

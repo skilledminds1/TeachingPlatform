@@ -67,7 +67,7 @@ export function SubjectSelect({
         <ul className="flex flex-wrap gap-2" aria-label="Selected subjects">
           {selected.map((subject) => (
             <li key={subject.id}>
-              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 py-1 pr-1 pl-2.5 text-sm">
+              <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 py-1 pe-1 ps-2.5 text-sm">
                 {subject.name}
                 <Button
                   type="button"

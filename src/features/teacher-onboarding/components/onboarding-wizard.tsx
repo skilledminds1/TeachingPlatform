@@ -351,7 +351,7 @@ export function OnboardingWizard({
                     <Input
                       id="hourlyRate"
                       inputMode="decimal"
-                      className="pl-8"
+                      className="ps-8"
                       placeholder="25"
                       aria-invalid={!!form.formState.errors.hourlyRate}
                       {...form.register("hourlyRate")}

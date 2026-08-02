@@ -24,7 +24,7 @@ export default async function AdminPaymentsPage() {
           description="Teachers are responsible for issuing refunds directly to students."
         />
         <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[900px] text-start text-sm">
             <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Request</th>
@@ -126,7 +126,7 @@ export default async function AdminPaymentsPage() {
           description="Transaction records only. These amounts are not Amazing Skills revenue."
         />
         <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-          <table className="w-full min-w-[850px] text-left text-sm">
+          <table className="w-full min-w-[850px] text-start text-sm">
             <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Type</th>

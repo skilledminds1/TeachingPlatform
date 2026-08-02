@@ -95,13 +95,17 @@ describe("landmarks and heading outline on public pages", () => {
     }
   });
 
-  // The marketplace headers were a bare div of links, so there was no navigation region to
-  // jump to — the only way past them was to tab through every one.
-  it("marks the marketplace header links as navigation", () => {
+  /**
+   * The marketplace headers were a bare div of links, so there was no navigation region to
+   * jump to — the only way past them was to tab through every one.
+   *
+   * Asserted on the presence of a LABELLED nav rather than on the label's text: GLO-01 moved
+   * that string into the catalogue, and a test that pins the English wording would fail on
+   * every locale that translates it correctly.
+   */
+  it("marks the marketplace header links as labelled navigation", () => {
     for (const page of ["src/app/find-tutor/page.tsx", "src/app/courses/page.tsx"]) {
-      expect(read(page), `${page} header is not a nav`).toMatch(
-        /<nav aria-label="Account"/,
-      );
+      expect(read(page), `${page} header is not a nav`).toMatch(/<nav\s+aria-label=[{"]/);
     }
   });
 
@@ -184,9 +188,10 @@ describe("the accessibility statement", () => {
     const publicSet = middleware.split("publicExact = new Set([")[1].split("]);")[0];
     expect(publicSet).toContain('"/accessibility"');
 
-    expect(read("src/features/marketing/components/site-footer.tsx")).toContain(
-      '{ href: "/accessibility", label: "Accessibility" }',
-    );
+    // Href and catalogue key, not the English label — GLO-01 moved the text into messages/.
+    const footer = read("src/features/marketing/components/site-footer.tsx");
+    expect(footer).toMatch(/href: '\/accessibility', key: 'accessibility'/);
+    expect(JSON.parse(read("messages/en.json")).footer.accessibility).toBe("Accessibility");
     expect(read("src/app/sitemap.ts")).toContain('path: "/accessibility"');
   });
 });

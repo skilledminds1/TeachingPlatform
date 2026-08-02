@@ -1,0 +1,90 @@
+{
+  "nav": {
+    "brand": "Amazing Skills",
+    "findTutor": "Buscar profesor",
+    "courses": "Cursos",
+    "howItWorks": "Cómo funciona",
+    "forTeachers": "Para profesores",
+    "pricing": "Precios",
+    "faq": "Preguntas frecuentes",
+    "signIn": "Iniciar sesión",
+    "getStarted": "Empezar",
+    "dashboard": "Panel",
+    "accountNavLabel": "Cuenta",
+    "mainNavLabel": "Principal"
+  },
+  "footer": {
+    "platform": "Plataforma",
+    "account": "Cuenta",
+    "legal": "Legal",
+    "findTutors": "Buscar profesores",
+    "courses": "Cursos",
+    "becomeTeacher": "Enseña con nosotros",
+    "pricing": "Precios",
+    "faq": "Preguntas frecuentes",
+    "signIn": "Iniciar sesión",
+    "createAccount": "Crear cuenta",
+    "resetPassword": "Restablecer contraseña",
+    "terms": "Términos del servicio",
+    "privacy": "Política de privacidad",
+    "refundPolicy": "Política de reembolsos",
+    "teacherAgreement": "Acuerdo del profesor",
+    "accessibility": "Accesibilidad"
+  },
+  "marketplace": {
+    "title": "Busca un profesor",
+    "subtitle": "Verificamos a cada profesor antes de publicarlo aquí. Las clases son en vídeo en directo, uno a uno.",
+    "filtersHeading": "Filtrar profesores",
+    "resultsHeading": "Profesores",
+    "tutorCount": "{count, plural, =0 {No hay profesores disponibles} one {# profesor disponible} other {# profesores disponibles}}",
+    "pageOf": "Página {page} de {total}",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "pagesLabel": "Páginas de profesores",
+    "emptyTitle": "Ningún profesor coincide con estos filtros",
+    "emptyBody": "Prueba a quitar un filtro o a buscar otra materia. Los nuevos profesores aparecen tras la aprobación del equipo.",
+    "perHour": "por hora",
+    "noReviews": "Aún no hay reseñas"
+  },
+  "filters": {
+    "searchPlaceholder": "Busca por nombre, materia o palabra clave…",
+    "searchLabel": "Buscar profesores",
+    "subjectLabel": "Filtrar por materia",
+    "allSubjects": "Todas las materias",
+    "languageLabel": "Filtrar por idioma de enseñanza",
+    "anyLanguage": "Cualquier idioma",
+    "rateLabel": "Filtrar por tarifa por hora",
+    "anyRate": "Cualquier tarifa",
+    "maxRate": "Hasta {amount}/hora",
+    "ratingLabel": "Filtrar por valoración",
+    "anyRating": "Cualquier valoración",
+    "ratingAndUp": "{stars} estrellas o más",
+    "fiveStarsOnly": "Solo 5 estrellas",
+    "sortLabel": "Ordenar profesores",
+    "sortRecommended": "Recomendados",
+    "sortRating": "Mejor valorados",
+    "sortPriceAsc": "Precio: de menor a mayor",
+    "sortPriceDesc": "Precio: de mayor a menor",
+    "sortNewest": "Profesores más recientes",
+    "clear": "Borrar"
+  },
+  "coursesPage": {
+    "title": "Explorar cursos",
+    "subtitle": "Cursos a tu ritmo, con materiales descargables, creados por profesores verificados.",
+    "filtersHeading": "Filtrar cursos",
+    "resultsHeading": "Cursos",
+    "courseCount": "{count, plural, =0 {No hay cursos disponibles} one {# curso disponible} other {# cursos disponibles}}",
+    "emptyTitle": "Ningún curso coincide con estos filtros",
+    "emptyBody": "Prueba a quitar un filtro o a buscar otra materia. Los cursos aparecen cuando los profesores los publican.",
+    "backToCourses": "Volver a los cursos",
+    "tutors": "Profesores"
+  },
+  "language": {
+    "label": "Idioma",
+    "change": "Cambiar idioma",
+    "current": "Idioma actual: {language}"
+  },
+  "a11y": {
+    "skipToContent": "Saltar al contenido principal"
+  }
+}

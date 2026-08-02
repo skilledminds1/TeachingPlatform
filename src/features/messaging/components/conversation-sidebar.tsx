@@ -58,7 +58,7 @@ export function ConversationSidebar({
   }, [conversations, query, tab]);
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col border-r border-border/60 bg-background md:w-80 lg:w-96">
+    <aside className="flex h-full min-h-0 w-full flex-col border-e border-border/60 bg-background md:w-80 lg:w-96">
       <div className="p-4 pb-0">
         <div className="relative">
           <Search
@@ -69,7 +69,7 @@ export function ConversationSidebar({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search conversations"
-            className="pl-9"
+            className="ps-9"
             aria-label="Search conversations"
           />
         </div>

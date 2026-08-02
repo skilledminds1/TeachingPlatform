@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Bricolage_Grotesque, Inter } from "next/font/google";
 
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
+
 import { SkipLink } from "@/components/a11y/skip-link";
 import { Providers } from "@/components/providers";
+import { directionFor } from "@/i18n/locales";
 import { CSP_NONCE_HEADER } from "@/lib/security/csp";
 import { Toaster } from "@/components/ui/sonner";
 import "@livekit/components-styles";
@@ -39,13 +43,27 @@ export default async function RootLayout({
   // theme. The value is set on the request by src/middleware.ts.
   const nonce = (await headers()).get(CSP_NONCE_HEADER) ?? undefined;
 
+  // GLO-01: `lang` was the literal "en" and `dir` was never set at all, so assistive
+  // technology announced every language in an English voice and right-to-left text rendered
+  // left-to-right. Both come from the resolved locale now.
+  const locale = await getLocale();
+  const messages = await getMessages();
+  const direction = directionFor(locale);
+
   return (
-    <html lang="en" className={`${inter.variable} ${bricolage.variable}`} suppressHydrationWarning>
+    <html
+      lang={locale}
+      dir={direction}
+      className={`${inter.variable} ${bricolage.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-screen font-sans antialiased">
-        {/* GLO-03: first focusable element on every page, before any navigation. */}
-        <SkipLink />
-        <Providers nonce={nonce}>{children}</Providers>
-        <Toaster richColors closeButton position="top-right" />
+        <NextIntlClientProvider messages={messages} locale={locale}>
+          {/* GLO-03: first focusable element on every page, before any navigation. */}
+          <SkipLink />
+          <Providers nonce={nonce}>{children}</Providers>
+          <Toaster richColors closeButton position="top-right" />
+        </NextIntlClientProvider>
       </body>
     </html>
   );

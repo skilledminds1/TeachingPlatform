@@ -97,7 +97,7 @@ export function SettingsEditor({
                   onClick={() => setSection(item.id)}
                   aria-current={active ? "true" : undefined}
                   className={cn(
-                    "relative w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors",
+                    "relative w-full rounded-lg px-3 py-2 text-start text-sm font-medium transition-colors",
                     active
                       ? "bg-muted text-foreground"
                       : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",

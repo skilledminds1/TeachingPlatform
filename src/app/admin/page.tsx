@@ -146,7 +146,7 @@ export default async function AdminDashboardPage() {
                       <p className="truncate text-sm font-medium">{user.name}</p>
                       <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                     </div>
-                    <div className="shrink-0 text-right">
+                    <div className="shrink-0 text-end">
                       <StatusBadge tone={role === "platform admin" ? "info" : "neutral"}>
                         {role}
                       </StatusBadge>
@@ -191,7 +191,7 @@ export default async function AdminDashboardPage() {
                         {log.admin.name} · {log.targetType}
                       </p>
                     </div>
-                    <div className="shrink-0 text-right">
+                    <div className="shrink-0 text-end">
                       <StatusBadge tone={statusTone(status)}>{status}</StatusBadge>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {formatDateTime(log.createdAt, admin.timezone)}

@@ -1,39 +1,44 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+
+import { LanguageSwitcher } from "@/features/i18n/components/language-switcher";
 
 const footerColumns = [
   {
-    heading: "Platform",
+    key: 'platform',
     links: [
-      { href: "/find-tutor", label: "Find tutors" },
-      { href: "/courses", label: "Courses" },
-      { href: "/register?role=teacher", label: "Become a teacher" },
-      { href: "/#pricing", label: "Pricing" },
-      { href: "/#faq", label: "FAQ" },
+      { href: '/find-tutor', key: 'findTutors' },
+      { href: '/courses', key: 'courses' },
+      { href: '/register?role=teacher', key: 'becomeTeacher' },
+      { href: '/#pricing', key: 'pricing' },
+      { href: '/#faq', key: 'faq' },
     ],
   },
   {
-    heading: "Account",
+    key: 'account',
     links: [
-      { href: "/login", label: "Sign in" },
-      { href: "/register", label: "Create account" },
-      { href: "/forgot-password", label: "Reset password" },
+      { href: '/login', key: 'signIn' },
+      { href: '/register', key: 'createAccount' },
+      { href: '/forgot-password', key: 'resetPassword' },
     ],
   },
   {
-    heading: "Legal",
+    key: 'legal',
     links: [
-      { href: "/terms", label: "Terms of Service" },
-      { href: "/privacy", label: "Privacy Policy" },
-      { href: "/refund-policy", label: "Refund policy" },
-      { href: "/teacher-agreement", label: "Teacher Agreement" },
+      { href: '/terms', key: 'terms' },
+      { href: '/privacy', key: 'privacy' },
+      { href: '/refund-policy', key: 'refundPolicy' },
+      { href: '/teacher-agreement', key: 'teacherAgreement' },
       // GLO-03: discoverable from every page, which is where someone blocked by a barrier
       // will look for it.
-      { href: "/accessibility", label: "Accessibility" },
+      { href: '/accessibility', key: 'accessibility' },
     ],
   },
 ] as const;
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const t = await getTranslations("footer");
+
   return (
     <footer className="border-t border-border/60">
       <div className="mx-auto max-w-6xl px-6 py-12 md:px-8 md:py-16">
@@ -44,18 +49,24 @@ export function SiteFooter() {
               The online tutoring platform connecting students with expert teachers for live video
               lessons and self-paced courses.
             </p>
+            {/*
+              GLO-01: in the footer because it is on every page and it is where people look
+              for it. A visitor who landed on the wrong language should not have to read that
+              language to escape it — the options are written in their own scripts.
+            */}
+            <LanguageSwitcher className="inline-block pt-1" />
           </div>
           {footerColumns.map((column) => (
-            <nav key={column.heading} aria-label={column.heading} className="space-y-3">
-              <p className="text-sm font-semibold">{column.heading}</p>
+            <nav key={column.key} aria-label={t(column.key)} className="space-y-3">
+              <p className="text-sm font-semibold">{t(column.key)}</p>
               <ul className="space-y-2">
                 {column.links.map((link) => (
-                  <li key={link.label}>
+                  <li key={link.key}>
                     <Link
                       href={link.href}
                       className="text-sm text-muted-foreground transition-colors duration-200 hover:text-foreground"
                     >
-                      {link.label}
+                      {t(link.key)}
                     </Link>
                   </li>
                 ))}

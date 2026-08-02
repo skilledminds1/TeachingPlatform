@@ -367,6 +367,9 @@ model User {
   /// are backfilled through a prompt; registration requires it. Country gates payout
   /// eligibility (PAY-14), tax evidence (PAY-06) and restricted-jurisdiction screening.
   country                String?       @db.VarChar(2)
+  /// GLO-01: chosen interface language, BCP-47. NULL means "never chosen", which is not the
+  /// same as English — it is what keeps Accept-Language negotiation active for that account.
+  locale                 String?       @db.VarChar(10)
   /// QLT-11: excludes seeded demo accounts from the marketplace and from analytics.
   /// Replaces `email: { not: { endsWith: "teachingplatform.local" } }`, which coupled the
   /// hottest public queries to a seed-data naming convention — it hid any real user whose
