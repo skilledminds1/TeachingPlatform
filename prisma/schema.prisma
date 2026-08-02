@@ -1206,6 +1206,7 @@ model CourseCertificate {
   @@index([studentId])
   @@index([teacherId])
   @@index([verificationCode])
+  @@index([revokedAt])
   @@map("course_certificates")
 }
 
