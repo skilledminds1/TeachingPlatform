@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assertProductionEnv } from "@/lib/env-production";
 
 const optionalSecret = z.preprocess(
   (value) => (value === "" ? undefined : value),
@@ -129,6 +130,13 @@ function parseEnv(): Env {
 }
 
 export const env = parseEnv();
+
+// QLT-03: nearly every variable above is optional, so a production deploy missing its most
+// important ones boots clean and fails later in pieces — no email sent, every cron 401ing,
+// "[REPLACE BEFORE LAUNCH: ...]" rendered on the terms page. Checked here, at module load,
+// they are a failed boot instead. Skipped during `next build`, which also runs with
+// NODE_ENV=production: a build is not a boot.
+assertProductionEnv(env);
 
 /** Publishable (client) key — supports new sb_publishable_* or legacy anon JWT. */
 export function getSupabasePublishableKey(): string | undefined {

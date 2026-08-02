@@ -739,7 +739,8 @@ The money path has zero test coverage today. That is how the P1 bugs got in.
 
 ### 🟠 `QLT-03` Production-strict environment validation
 
-- [ ] **Effort:** S · <½ day · **Area:** ops
+- [x] **Effort:** S · <½ day · **Area:** ops
+- **Outcome:** Enforced at BOOT, not at build. `next build` also runs with NODE_ENV=production, so failing there would break any pipeline that compiles without production secrets while catching nothing a boot check does not — the check skips `phase-production-build`. Verified all three states end to end: production boot with an empty env refuses and lists 17 problems at once, the build phase and development both boot untouched. Payment credentials are required only when a rail is actually enabled, so a deploy is not blocked over a provider the platform is not using.
 - **Files:** `src/lib/env.ts`, `src/app/api/v1/health/ready/route.ts`, `docs/Deployment.md`
 - **What:** src/lib/env.ts is a genuine central zod schema, but DATABASE_URL, the Supabase keys, SUPABASE_SERVICE_ROLE_KEY, the payment credentials, RESEND_API_KEY, CRON_SECRET and the LiveKit vars are all optional with no production-mode strictness. A deploy missing DATABASE_URL builds and boots cleanly and only fails deep inside the first request that touches Prisma; a missing RESEND_API_KEY silently falls back to the console provider so real users receive no email; and the LEGAL_* variables default to '[REPLACE BEFORE LAUNCH: ...]' placeholders that will render to users. The require*Env helpers exist but cover only Supabase, LiveKit and Google, and they run at call time rather than at boot. Add a refinement that hard-fails when the environment is production and rejects placeholder legal values — env.ts already runs at module load, so this converts silent runtime failures into a failed deploy.
 - **Done when:** A production build with a missing DATABASE_URL, a console email provider, or a placeholder LEGAL_* value fails at boot rather than at first request.
