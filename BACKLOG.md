@@ -804,7 +804,7 @@ The money path has zero test coverage today. That is how the P1 bugs got in.
 ### 🟡 `QLT-10` Course Q&A is republished publicly without student consent
 
 - [x] **Effort:** S · <½ day · **Area:** privacy
-- **Outcome:** New `isPublic` column defaulting false, kept SEPARATE from `hidden` — that flag is the teacher/admin moderation control, and folding consent into it would mean restoring a moderated question also publishes one the student never agreed to share. Publication now requires `isPublic AND NOT hidden`. Students get an unticked opt-in at ask time plus publish/unpublish/delete on their own questions, scoped by `studentId` in the where clause rather than a separate guard. **Migration `20260802110000_qlt10_course_question_consent` is NOT applied, and it retroactively unpublishes all existing public Q&A** — that is intended (nobody consented) but it removes live content from SEO-indexed pages, so it is the user's call.
+- **Outcome:** New `isPublic` column defaulting false, kept SEPARATE from `hidden` — that flag is the teacher/admin moderation control, and folding consent into it would mean restoring a moderated question also publishes one the student never agreed to share. Publication now requires `isPublic AND NOT hidden`. Students get an unticked opt-in at ask time plus publish/unpublish/delete on their own questions, scoped by `studentId` in the where clause rather than a separate guard. **Migration `20260802110000_qlt10_course_question_consent` is applied** (confirmed 2026-08-02 against the live database; `prisma migrate status` reports no pending migrations and `course_questions.is_public` exists). The note it replaces warned that applying it would retroactively unpublish existing public Q&A and remove live content from SEO-indexed pages — that concern was moot: `course_questions` holds zero rows, so there was nothing to unpublish.
 - **Files:** `src/server/courses/queries.ts`, `src/actions/course-quality.ts`, `src/features/courses/components/course-community.tsx`, `src/app/courses/[slug]/page.tsx`
 - **What:** getPublishedCourseBySlug selects answered questions where hidden is false and the public sales page renders each question body verbatim under the reassurance 'Public answers omit student identity' — which covers the name but not the question text. On the authoring side the composer says only 'Ask the teacher about course material' and the success toast says 'Question sent to your teacher', while askCourseQuestion stores it with hidden false by default, so publication is the silent default. A student asking a personal question in a mental-health or personal-finance course finds it on an SEO-indexed public page with no control. Default hidden to true (or add an isPublic column defaulting false), require an explicit publish opt-in with clear copy in the composer, and give students delete and unpublish control over their own questions.
 - **Done when:** A newly asked question never appears publicly unless the student ticks the opt-in; students can unpublish their own questions from the course community view.
@@ -898,6 +898,35 @@ PROJECT.md still describes a South African market and a PayFast student-payment 
 
 ---
 
+## P7 — Reach the international market
+
+P3 localised the data. The product around it is still a single-language, unindexed, keyboard-only-if-you-are-lucky English website.
+
+<sub>3 tasks · 1 critical · 2 high</sub>
+
+### 🔴 `GLO-01` The interface is English-only, with no way to translate it
+
+- [ ] **Effort:** XL · 2+ weeks · **Area:** internationalisation
+- **Files:** `src/app/layout.tsx`, `src/middleware.ts`, `src/lib/format.ts`, `package.json`
+- **What:** P3 made the *data* international — viewer timezones, per-currency minor units, FX-normalised rates, a 40-language teaching filter — and then rendered all of it in hardcoded English. There is no i18n dependency in package.json, no message catalogue, no locale segment in the router, `<html lang="en">` is a literal in layout.tsx:42, and `dir` is never set on any element, so right-to-left languages cannot render correctly even if strings existed. The effect is a funnel that converts only English readers: a Brazilian student sees `R$`-converted prices and their own timezone inside an interface they may not read, and every acquisition channel inherits that ceiling. Preply and AmazingTalker, the two stated competitive references, both run 20+ interface languages precisely because non-English demand is where marketplace supply is cheapest. This is the single largest gap between "handles international users correctly" and "sells to them". Adopt a message-catalogue library, move every user-facing string out of JSX, add a locale segment with negotiated defaults from `Accept-Language` and an explicit switcher, set `lang` and `dir` from the active locale, and route all date, number and currency formatting through the existing centralised Intl helpers rather than per-call locale strings. Sequence the locales off real demand — INT-13 already captures user country, so the first three should be chosen from signup data rather than guessed.
+- **Done when:** At least one non-English locale ships end to end — marketing surface, marketplace, booking flow, checkout and transactional email — selected automatically from `Accept-Language`, overridable and persisted per user, with `lang`/`dir` set correctly and one RTL locale rendering without layout breakage; no user-facing string remains hardcoded in a component; and a test fails the build on an untranslated key in a shipped locale.
+
+### 🟠 `GLO-02` Nothing is indexable: no robots.txt, no sitemap, no canonical, no structured data
+
+- [ ] **Effort:** L · ~1 week · **Area:** discovery
+- **Files:** `src/app/robots.ts`, `src/app/sitemap.ts`, `src/middleware.ts`, `src/app/teachers/[slug]/page.tsx`, `src/app/layout.tsx`
+- **What:** Neither `src/app/robots.ts` nor `src/app/sitemap.ts` exists, no page emits a canonical URL, there is no `alternates`/`hreflang` block, and no page carries JSON-LD. Worse, the middleware matcher in middleware.ts:102 excludes only `_next/*`, `favicon.ico` and image extensions, so `/robots.txt` and `/sitemap.xml` fall through to the auth check and answer **307 → `/login`** in production — verified against amazing-skills.com. A marketplace whose competitors are built on organic search for "online spanish tutor" currently offers crawlers a login redirect where the crawl directives should be, and no URL inventory at all: teacher profiles at `/teachers/[slug]` and course pages are reachable only by internal link. Add robots and a sitemap generated from published teacher profiles and courses, exclude well-known paths from the auth matcher, emit canonical URLs, and add `Person`/`Service` and `Course` JSON-LD with aggregate ratings so listings can win rich results. This is a hard prerequisite for GLO-01 paying for itself — translated pages with no `hreflang` and no sitemap compete with each other rather than ranking.
+- **Done when:** `/robots.txt` and `/sitemap.xml` return 200 without authentication and the sitemap enumerates every published teacher and course; each public page emits a canonical URL and, once GLO-01 lands, reciprocal `hreflang` alternates; teacher and course pages validate as structured data in Google's Rich Results Test; and a test asserts the auth matcher never intercepts a well-known path.
+
+### 🟠 `GLO-03` No accessibility baseline, and the EU deadline has already passed
+
+- [ ] **Effort:** L · ~1 week · **Area:** accessibility
+- **Files:** `src/app/layout.tsx`, `src/components/`, `.github/workflows/ci.yml`
+- **What:** Measured on the live marketplace rather than assumed, the component-level hygiene is genuinely good — every form control is labelled, no image is missing `alt`, and no button lacks an accessible name. The structure around them is not: there is no skip link anywhere in the codebase, the page exposes only `main` and `header` landmarks with no `nav` or `footer`, and the heading outline is a single `H1` with nothing below it, so the filter panel and the entire result set are invisible to heading navigation — a screen-reader user tabs through every filter to reach the first tutor. `dir` is never set, which is the same blocker GLO-01 hits for RTL. Nothing in CI checks any of this, so today's good labelling is one refactor away from regressing silently. The European Accessibility Act has applied to consumer e-commerce since June 2025 and reaches non-EU traders serving EU consumers, which is the market GLO-01 exists to open; South Africa's PEPUDA and the UK Equality Act carry comparable civil exposure. Fix the structural gaps, then make them non-regressable with automated checks in the existing CI workflow.
+- **Done when:** A skip link, complete landmark structure and a correct heading outline on every public page; keyboard-only completion of the discover → book → pay flow with a visible focus indicator throughout; axe (or equivalent) running in CI and failing the build on new serious or critical violations; and a published accessibility statement naming the conformance target and the known exceptions.
+
+---
+
 ## Decisions still open
 
 | # | Question | Recommended default |
@@ -925,5 +954,5 @@ Realistically 3–4 months of solo development, with legal and provider lead tim
 ## A note on effort estimates
 
 `S` / `M` / `L` / `XL` are relative sizes for one developer who knows this codebase, not calendar
-promises. The distribution across all 110 tasks is
-43×S, 54×M, 9×L, 4×XL.
+promises. The distribution across all 113 tasks is
+43×S, 54×M, 11×L, 5×XL.
