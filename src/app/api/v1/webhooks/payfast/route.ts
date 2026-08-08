@@ -60,31 +60,28 @@ export async function POST(request: NextRequest) {
  * source, amount, and the server confirmation postback. Signature and server confirmation
  * were already done; this is the amount check.
  *
- * Checkout embeds the quoted USD cents in custom_str4, and the ZAR charged is derived from
- * it via PAYFAST_USD_ZAR_RATE. Both values arrive inside the PayFast-signed payload, so this
- * verifies they remain internally consistent: it catches FX misconfiguration and any
- * amount edited between checkout and settlement, rather than silently invoicing whatever
- * arrives.
+ * Checkout embeds the exact minor units quoted in custom_str4, and PayFast settles in the
+ * same currency the plan is priced in, so this is now an equality test. It used to compare
+ * the gross against a figure reconstructed by multiplying custom_str4 by
+ * PAYFAST_USD_ZAR_RATE, which needed a 5% tolerance to absorb rate drift — and editing that
+ * env var by more than 5% made this return 400 on a legitimate renewal PayFast had already
+ * charged, writing no invoice while the lifecycle went on to dun a teacher who had paid.
  *
- * A tolerance is used because the configured rate can legitimately move between checkout and
- * the ITN. The exact check -- comparing against a quote persisted at checkout time -- belongs
- * with the subscription provider migration (P2), which replaces this handler entirely; adding
- * a quote table for a rail we are retiring would be throwaway work.
+ * Both values arrive inside the PayFast-signed payload, so an amount edited between checkout
+ * and settlement still fails here.
  */
-const AMOUNT_TOLERANCE = 0.05;
-
 function amountLooksConsistent(params: URLSearchParams): boolean {
-  const grossZar = Number(params.get("amount_gross") ?? params.get("amount") ?? "0");
-  const quotedUsdCents = Number(params.get("custom_str4") ?? "0");
-  const rate = env.PAYFAST_USD_ZAR_RATE;
+  const gross = Number(params.get("amount_gross") ?? params.get("amount") ?? "0");
+  const quotedCents = Number(params.get("custom_str4") ?? "0");
 
-  if (!Number.isFinite(grossZar) || grossZar <= 0) return false;
-  // Without a quote or a configured rate there is nothing to compare against; the signature
-  // and server confirmation still stand, so do not reject a legitimate payment.
-  if (!Number.isFinite(quotedUsdCents) || quotedUsdCents <= 0 || !rate) return true;
+  if (!Number.isFinite(gross) || gross <= 0) return false;
+  // A payment with no quote predates this field. The signature and the server confirmation
+  // still stand, so do not reject a legitimate payment over a missing annotation.
+  if (!Number.isFinite(quotedCents) || quotedCents <= 0) return true;
 
-  const expectedZar = (quotedUsdCents / 100) * rate;
-  return Math.abs(grossZar - expectedZar) <= expectedZar * AMOUNT_TOLERANCE;
+  // Compared in minor units: 0.1 + 0.2 style float error on a rand figure is exactly how an
+  // equality test on money goes wrong.
+  return Math.round(gross * 100) === Math.round(quotedCents);
 }
 
 async function handleSubscriptionItn(params: URLSearchParams) {

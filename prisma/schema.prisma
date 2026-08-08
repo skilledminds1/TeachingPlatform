@@ -573,7 +573,7 @@ model Plan {
   description              String?
   monthlyPriceCents        Int      @map("monthly_price_cents")
   annualPriceCents         Int      @map("annual_price_cents")
-  currency                 String   @default("USD")
+  currency                 String   @default("ZAR")
   studentLimit             Int?     @map("student_limit")
   monthlyLiveLessonMinutes Int?     @map("monthly_live_lesson_minutes")
   features                 String[] @default([])

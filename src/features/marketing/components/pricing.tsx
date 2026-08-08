@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type MarketingPlan = {
@@ -65,8 +66,7 @@ export function Pricing({ plans }: { plans: MarketingPlan[] }) {
               ? plan.annualEffectiveCents
               : plan.monthlyEffectiveCents;
             const percentOff = annual ? plan.annualPercentOff : plan.monthlyPercentOff;
-            const annualSaving =
-              (plan.monthlyListCents * 12 - plan.annualListCents) / 100;
+            const annualSavingCents = plan.monthlyListCents * 12 - plan.annualListCents;
 
             return (
               <div
@@ -97,7 +97,7 @@ export function Pricing({ plans }: { plans: MarketingPlan[] }) {
                 <div className="space-y-1">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-4xl font-bold tracking-tight">
-                      ${effectiveCents / 100}
+                      {formatCurrency(effectiveCents, plan.currency)}
                     </span>
                     <span className="text-sm text-muted-foreground">
                       / {plan.monthlyListCents === 0 ? "forever" : annual ? "year" : "month"}
@@ -105,12 +105,12 @@ export function Pricing({ plans }: { plans: MarketingPlan[] }) {
                   </div>
                   {percentOff > 0 ? (
                     <p className="text-xs text-muted-foreground line-through">
-                      ${listCents / 100}
+                      {formatCurrency(listCents, plan.currency)}
                     </p>
                   ) : null}
-                  {annual && annualSaving > 0 && percentOff === 0 ? (
+                  {annual && annualSavingCents > 0 && percentOff === 0 ? (
                     <p className="text-xs font-medium text-emerald-500">
-                      Save ${annualSaving} per year
+                      Save {formatCurrency(annualSavingCents, plan.currency)} per year
                     </p>
                   ) : null}
                   {plan.saleName && percentOff > 0 ? (

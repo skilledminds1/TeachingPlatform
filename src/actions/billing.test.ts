@@ -41,7 +41,6 @@ vi.mock("@/lib/env", () => ({
     PAYFAST_MERCHANT_ID: "10000100",
     PAYFAST_MERCHANT_KEY: "merchant-key",
     PAYFAST_PASSPHRASE: "test-passphrase",
-    PAYFAST_USD_ZAR_RATE: 18.5,
     NEXT_PUBLIC_APP_URL: "https://app.example.com",
   },
 }));

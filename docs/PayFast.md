@@ -31,7 +31,6 @@ PAYFAST_MERCHANT_ID=       # Server-only
 PAYFAST_MERCHANT_KEY=      # Server-only
 PAYFAST_PASSPHRASE=        # Server-only
 PAYFAST_SANDBOX=true       # true in dev/staging
-PAYFAST_USD_ZAR_RATE=       # Maintained conversion rate used to create ZAR subscriptions
 NEXT_PUBLIC_PAYFAST_MERCHANT_ID=  # Public merchant id for form generation if needed
 ```
 
@@ -71,7 +70,11 @@ Always respond `200 OK` to PayFast after processing (or queued).
 | Professional | $19 / $190 | Monthly / annual |
 | Business | $39 / $390 | Monthly / annual |
 
-Amounts are stored in `Plan.monthlyPriceCents` and `Plan.annualPriceCents` with currency `USD`. PayFast receives a ZAR amount calculated with `PAYFAST_USD_ZAR_RATE`; Multi-Currency Pricing can let the customer view USD, while settlement remains ZAR.
+Amounts are stored in `Plan.monthlyPriceCents` and `Plan.annualPriceCents` with currency `ZAR` — the currency PayFast settles in — and are sent to PayFast unconverted.
+
+They used to be `USD`, converted at checkout by multiplying by a hand-maintained `PAYFAST_USD_ZAR_RATE`. That variable is gone, along with three defects that existed only because of it: PayFast fixes `recurring_amount` for the life of the token, so every teacher paid whatever rand figure the rate produced on their signup day forever; the ITN amount check reconstructed the expected rand from the same rate and returned 400 on a legitimate renewal whenever the rate moved more than 5%; and the scheduled plan-change path could ask PayFast to set a live subscription's recurring charge to R0.00. The ITN check is now an equality test against the exact minor units quoted in `custom_str4`.
+
+Charging a teacher outside South Africa in a currency other than ZAR is not supported on this rail and needs the merchant-of-record migration.
 
 ---
 

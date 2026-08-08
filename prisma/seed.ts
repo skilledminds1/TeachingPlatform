@@ -3,6 +3,10 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
+  // Prices are in ZAR, the currency PayFast settles in. Keep these in step with
+  // prisma/migrations/20260808160000_price_plans_in_zar, which re-prices existing rows —
+  // this seed only creates missing plans (`update: {}`), so the two must agree or a fresh
+  // environment and an existing one end up on different price lists.
   const freeFeatures = [
     "teacher_profile",
     "marketplace_listing",
@@ -41,7 +45,7 @@ async function main(): Promise<void> {
       description: "Perfect for trying the platform.",
       monthlyPriceCents: 0,
       annualPriceCents: 0,
-      currency: "USD",
+      currency: "ZAR",
       studentLimit: 1,
       monthlyLiveLessonMinutes: 120,
       features: freeFeatures,
@@ -56,9 +60,9 @@ async function main(): Promise<void> {
       name: "Starter",
       slug: "starter",
       description: "For new tutors.",
-      monthlyPriceCents: 1200,
-      annualPriceCents: 12000,
-      currency: "USD",
+      monthlyPriceCents: 19900,
+      annualPriceCents: 199000,
+      currency: "ZAR",
       studentLimit: 5,
       monthlyLiveLessonMinutes: 1200,
       features: starterFeatures,
@@ -73,9 +77,9 @@ async function main(): Promise<void> {
       name: "Professional",
       slug: "professional",
       description: "For growing businesses.",
-      monthlyPriceCents: 2900,
-      annualPriceCents: 29000,
-      currency: "USD",
+      monthlyPriceCents: 49900,
+      annualPriceCents: 499000,
+      currency: "ZAR",
       studentLimit: 15,
       monthlyLiveLessonMinutes: 4500,
       features: professionalFeatures,
@@ -90,9 +94,9 @@ async function main(): Promise<void> {
       name: "Business",
       slug: "business",
       description: "For serious educators and schools.",
-      monthlyPriceCents: 4900,
-      annualPriceCents: 49000,
-      currency: "USD",
+      monthlyPriceCents: 89900,
+      annualPriceCents: 899000,
+      currency: "ZAR",
       studentLimit: null,
       monthlyLiveLessonMinutes: null,
       features: [

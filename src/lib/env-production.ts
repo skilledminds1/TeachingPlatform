@@ -113,8 +113,41 @@ export function productionEnvProblems(env: Env): EnvProblem[] {
   requireValue(problems, "LIVEKIT_API_KEY", env.LIVEKIT_API_KEY, "LiveKit tokens cannot be signed");
   requireValue(problems, "LIVEKIT_API_SECRET", env.LIVEKIT_API_SECRET, "LiveKit tokens cannot be signed");
 
-  // Payment credentials only matter while a rail is actually switched on. Requiring them
-  // unconditionally would block a deploy over a provider the platform is not using.
+  // Subscriptions are the platform's ONLY revenue, so PayFast is not optional in production.
+  //
+  // PAYFAST_SANDBOX is the dangerous one and the reason this block exists. It defaults to
+  // "true" and nothing checked it, so a production deploy that simply omitted the variable
+  // booted green, served 200s, and routed every live checkout to the PayFast sandbox — the
+  // only money the platform collects silently not being collected, with no error anywhere.
+  // A missing credential at least fails loudly at checkout; this failed quietly at the till.
+  requireValue(
+    problems,
+    "PAYFAST_MERCHANT_ID",
+    env.PAYFAST_MERCHANT_ID,
+    "teachers cannot be charged, which is the platform's only revenue",
+  );
+  requireValue(
+    problems,
+    "PAYFAST_MERCHANT_KEY",
+    env.PAYFAST_MERCHANT_KEY,
+    "teachers cannot be charged, which is the platform's only revenue",
+  );
+  requireValue(
+    problems,
+    "PAYFAST_PASSPHRASE",
+    env.PAYFAST_PASSPHRASE,
+    "checkout signatures and ITN verification cannot be computed",
+  );
+  if (env.PAYFAST_SANDBOX !== "false") {
+    problems.push({
+      variable: "PAYFAST_SANDBOX",
+      problem:
+        'not "false" — every live checkout would be routed to the PayFast sandbox and no real payment would be taken',
+    });
+  }
+
+  // Lesson payment credentials only matter while that rail is actually switched on. Requiring
+  // them unconditionally would block a deploy over a provider the platform is not using.
   if (env.LESSON_PAYMENTS_PAYPAL_ENABLED === "true") {
     requireValue(problems, "PAYPAL_CLIENT_ID", env.PAYPAL_CLIENT_ID, "the PayPal rail is enabled but has no client id");
     requireValue(problems, "PAYPAL_CLIENT_SECRET", env.PAYPAL_CLIENT_SECRET, "the PayPal rail is enabled but has no secret");

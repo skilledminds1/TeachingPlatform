@@ -27,6 +27,10 @@ function goodEnv(overrides: Partial<Env> = {}): Env {
     LIVEKIT_API_KEY: "lk",
     LIVEKIT_API_SECRET: "lks",
     LESSON_PAYMENTS_PAYPAL_ENABLED: "false",
+    PAYFAST_MERCHANT_ID: "10000100",
+    PAYFAST_MERCHANT_KEY: "merchant-key",
+    PAYFAST_PASSPHRASE: "passphrase",
+    PAYFAST_SANDBOX: "false",
     LEGAL_ENTITY_NAME: "Amazing Skills (Pty) Ltd",
     LEGAL_REGISTRATION_NUMBER: "2020/123456/07",
     LEGAL_BUSINESS_ADDRESS: "1 Somewhere Road, Cape Town",
@@ -43,6 +47,26 @@ function problemFor(overrides: Partial<Env>): string[] {
 describe("a complete production environment", () => {
   it("reports nothing wrong", () => {
     expect(productionEnvProblems(goodEnv())).toEqual([]);
+  });
+});
+
+describe("subscriptions, which are the platform's only revenue", () => {
+  it("catches missing PayFast credentials", () => {
+    expect(problemFor({ PAYFAST_MERCHANT_ID: undefined })).toContain("PAYFAST_MERCHANT_ID");
+    expect(problemFor({ PAYFAST_MERCHANT_KEY: undefined })).toContain("PAYFAST_MERCHANT_KEY");
+    expect(problemFor({ PAYFAST_PASSPHRASE: undefined })).toContain("PAYFAST_PASSPHRASE");
+  });
+
+  /**
+   * The worst of the silent failures, and the reason this block exists. PAYFAST_SANDBOX
+   * defaults to "true" and nothing checked it, so a production deploy that simply omitted the
+   * variable booted green, served 200s, and routed every live checkout to the PayFast sandbox.
+   * A missing credential fails loudly at checkout; this failed quietly at the till.
+   */
+  it("catches a production deploy still pointed at the PayFast sandbox", () => {
+    expect(problemFor({ PAYFAST_SANDBOX: "true" })).toContain("PAYFAST_SANDBOX");
+    // Absent is the same hazard as "true", because absent IS "true" after the schema default.
+    expect(problemFor({ PAYFAST_SANDBOX: undefined })).toContain("PAYFAST_SANDBOX");
   });
 });
 

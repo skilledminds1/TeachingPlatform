@@ -287,7 +287,7 @@ describe("scheduled plan change", () => {
     const summary = await runSubscriptionLifecycle(NOW);
 
     expect(state.provider.updated).toEqual([
-      { token: "tok-1", amountCents: Math.round(29900 * 18.5), frequency: 6 },
+      { token: "tok-1", amountCents: 29900, frequency: 6 },
     ]);
     expect(summary.planChangesApplied).toBe(1);
     expect(soleUpdate()).toMatchObject({
@@ -307,17 +307,20 @@ describe("scheduled plan change", () => {
     await runSubscriptionLifecycle(NOW);
 
     expect(state.provider.updated).toEqual([
-      { token: "tok-1", amountCents: Math.round(2900 * 18.5), frequency: 3 },
+      { token: "tok-1", amountCents: 2900, frequency: 3 },
     ]);
   });
 
   // MON-14. The recurring amount was `Math.round(usdCents * (rate ?? 0))`, so an unset rate
   // asked the provider to set a live subscription's recurring charge to zero while granting
-  // the new plan. The invariant survives the rail: a plan change whose price cannot be
-  // computed must make no provider call and must not grant the plan.
-  it("makes no provider call and grants nothing when the price cannot be computed", async () => {
-    state.fxRate = undefined;
-    state.organizations = [pending()];
+  // the new plan. Plans are priced in the settlement currency now, so there is no rate to be
+  // missing — but a paid plan priced at zero reaches the identical outcome, so the invariant
+  // is pinned against the price itself: a plan change that would charge nothing must make no
+  // provider call and must not grant the plan.
+  it("makes no provider call and grants nothing when a paid plan would charge zero", async () => {
+    state.organizations = [
+      pending({ pendingPlan: plan({ monthlyPriceCents: 0, annualPriceCents: 0 }) }),
+    ];
 
     const summary = await runSubscriptionLifecycle(NOW);
 
@@ -327,7 +330,7 @@ describe("scheduled plan change", () => {
     expect(summary.planChangesApplied).toBe(0);
     expect(summary.failures).toBe(1);
     expect(loggerError).toHaveBeenCalledWith(
-      "subscription_plan_change_missing_fx_rate",
+      "subscription_plan_change_zero_price",
       expect.objectContaining({ organizationId: "org-1" }),
     );
   });

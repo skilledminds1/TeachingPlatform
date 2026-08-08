@@ -65,14 +65,9 @@ export async function createSubscriptionCheckout(
     return fail("Only organization admins can change billing.", "FORBIDDEN");
   }
 
-  if (
-    !env.PAYFAST_MERCHANT_ID ||
-    !env.PAYFAST_MERCHANT_KEY ||
-    !env.PAYFAST_PASSPHRASE ||
-    !env.PAYFAST_USD_ZAR_RATE
-  ) {
+  if (!env.PAYFAST_MERCHANT_ID || !env.PAYFAST_MERCHANT_KEY || !env.PAYFAST_PASSPHRASE) {
     return fail(
-      "PayFast billing is not configured. Add merchant credentials and PAYFAST_USD_ZAR_RATE.",
+      "PayFast billing is not configured. Add the merchant credentials.",
       "VALIDATION_ERROR",
     );
   }
@@ -113,15 +108,19 @@ export async function createSubscriptionCheckout(
     parsed.data.interval,
     sales.get(plan.id),
   );
-  const usdCents = priced.effectiveCents;
-  const toZar = (cents: number) => ((cents / 100) * env.PAYFAST_USD_ZAR_RATE!).toFixed(2);
+  // Plans are priced in the currency PayFast settles in, so there is no conversion here and
+  // no rate to drift. The old code multiplied a USD price by PAYFAST_USD_ZAR_RATE at checkout
+  // — and since PayFast fixes recurring_amount for the life of the token, every teacher was
+  // left paying the rand figure that one env var happened to produce on the day they signed
+  // up, permanently, while the catalogue moved on without them.
+  const chargeCents = priced.effectiveCents;
+  const toAmount = (cents: number) => (cents / 100).toFixed(2);
   // First charge honours any active promotion.
-  const amountZar = toZar(usdCents);
+  const amountDue = toAmount(chargeCents);
   // MON-22: renewals bill at list price. Previously the discounted figure was sent as
   // `recurring_amount` too, so a time-limited promotion ("30% off launch weekend") became a
-  // permanent discount for anyone who happened to check out during it — PayFast fixes
-  // recurring_amount for the life of the token and nothing ever re-baselined it.
-  const recurringZar = toZar(priced.listCents);
+  // permanent discount for anyone who happened to check out during it.
+  const recurringAmount = toAmount(priced.listCents);
   const appUrl = env.NEXT_PUBLIC_APP_URL;
   const appHost = new URL(appUrl).hostname;
   const isLocalApp = appHost === "localhost" || appHost === "127.0.0.1";
@@ -174,7 +173,7 @@ export async function createSubscriptionCheckout(
     }
     const updated = await updatePayfastSubscription({
       token: organization.payfastToken,
-      amountCents: Math.round(Number(amountZar) * 100),
+      amountCents: chargeCents,
       frequency: parsed.data.interval === "annual" ? 6 : 3,
     });
     if (!updated) {
@@ -224,7 +223,7 @@ export async function createSubscriptionCheckout(
 
   fields.set("email_address", user.email);
   fields.set("m_payment_id", `${membership.organizationId}-${randomBytes(8).toString("hex")}`);
-  fields.set("amount", amountZar);
+  fields.set("amount", amountDue);
   fields.set(
     "item_name",
     priced.percentOff > 0
@@ -234,7 +233,9 @@ export async function createSubscriptionCheckout(
   fields.set("custom_str1", membership.organizationId);
   fields.set("custom_str2", plan.id);
   fields.set("custom_str3", parsed.data.interval);
-  fields.set("custom_str4", String(usdCents));
+  // The exact minor units quoted, so the ITN amount check is an equality test
+  // rather than a tolerance around a reconstructed conversion.
+  fields.set("custom_str4", String(chargeCents));
   fields.set("subscription_type", "1");
   // MON-23: PayFast operates on South African time (UTC+2) and rejects a billing_date in
   // the past. Deriving it from server UTC meant that between 22:00 and 23:59 UTC the
@@ -244,7 +245,7 @@ export async function createSubscriptionCheckout(
     "billing_date",
     DateTime.now().setZone(PAYFAST_TIMEZONE).toFormat("yyyy-MM-dd"),
   );
-  fields.set("recurring_amount", recurringZar);
+  fields.set("recurring_amount", recurringAmount);
   fields.set("frequency", parsed.data.interval === "annual" ? "6" : "3");
   fields.set("cycles", "0");
   fields.set("signature", createPayfastSignature(fields.entries(), env.PAYFAST_PASSPHRASE));

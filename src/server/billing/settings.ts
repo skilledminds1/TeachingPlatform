@@ -61,10 +61,7 @@ export async function getBillingSettings() {
     liveLessonUsage,
     invoices,
     payfastConfigured: Boolean(
-      env.PAYFAST_MERCHANT_ID &&
-        env.PAYFAST_MERCHANT_KEY &&
-        env.PAYFAST_PASSPHRASE &&
-        env.PAYFAST_USD_ZAR_RATE,
+      env.PAYFAST_MERCHANT_ID && env.PAYFAST_MERCHANT_KEY && env.PAYFAST_PASSPHRASE,
     ),
   };
 }

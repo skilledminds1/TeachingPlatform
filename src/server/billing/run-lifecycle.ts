@@ -184,18 +184,22 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
         organization.pendingChangeAt <= now &&
         organization.payfastToken
       ) {
-        const usdCents =
+        const planPriceCents =
           organization.pendingBillingInterval === "annual"
             ? organization.pendingPlan.annualPriceCents
             : organization.pendingPlan.monthlyPriceCents;
-        // A missing FX rate previously fell back to `?? 0`, which would ask PayFast to set
-        // the recurring charge to R0.00 while granting the new plan. Skip the change and
-        // count a failure instead, so it surfaces rather than silently zeroing a live
-        // subscription. (The interactive checkout path already refuses to run without it.)
-        if (organization.pendingPlan.slug !== "free" && !env.PAYFAST_USD_ZAR_RATE) {
-          logger.error("subscription_plan_change_missing_fx_rate", {
+        // MON-14: the invariant survives the removal of the FX rate, because the hazard did.
+        //
+        // This used to be `usdCents * PAYFAST_USD_ZAR_RATE`, guarded against the rate being
+        // unset — the earlier `?? 0` fallback asked PayFast to set a live subscription's
+        // recurring charge to R0.00 while granting the new plan. There is no rate to be
+        // missing now, but a paid plan priced at zero is a data error that produces exactly
+        // the same outcome, so the guard moves to the price itself rather than disappearing.
+        if (organization.pendingPlan.slug !== "free" && planPriceCents <= 0) {
+          logger.error("subscription_plan_change_zero_price", {
             organizationId: organization.id,
             pendingPlanId: organization.pendingPlan.id,
+            planPriceCents,
           });
           summary.failures += 1;
           continue;
@@ -206,7 +210,7 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
             ? await cancelPayfastSubscription(organization.payfastToken)
             : await updatePayfastSubscription({
                 token: organization.payfastToken,
-                amountCents: Math.round(usdCents * (env.PAYFAST_USD_ZAR_RATE as number)),
+                amountCents: planPriceCents,
                 frequency: organization.pendingBillingInterval === "annual" ? 6 : 3,
               });
         if (!updated) {

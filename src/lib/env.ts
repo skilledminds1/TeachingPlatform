@@ -9,10 +9,6 @@ const optionalLongSecret = z.preprocess(
   (value) => (value === "" ? undefined : value),
   z.string().min(32).optional(),
 );
-const optionalPositiveNumber = z.preprocess(
-  (value) => (value === "" || value === undefined ? undefined : value),
-  z.coerce.number().positive().optional(),
-);
 
 const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
@@ -32,7 +28,6 @@ const envSchema = z.object({
   PAYFAST_MERCHANT_KEY: optionalSecret,
   PAYFAST_PASSPHRASE: optionalSecret,
   PAYFAST_SANDBOX: z.enum(["true", "false"]).default("true"),
-  PAYFAST_USD_ZAR_RATE: optionalPositiveNumber,
   LESSON_PAYMENTS_PAYPAL_ENABLED: z.enum(["true", "false"]).default("false"),
   LESSON_PAYMENT_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(30),
   LIVEKIT_URL: z.string().url().optional(),
@@ -100,7 +95,6 @@ function parseEnv(): Env {
     PAYFAST_MERCHANT_KEY: process.env.PAYFAST_MERCHANT_KEY,
     PAYFAST_PASSPHRASE: process.env.PAYFAST_PASSPHRASE,
     PAYFAST_SANDBOX: process.env.PAYFAST_SANDBOX,
-    PAYFAST_USD_ZAR_RATE: process.env.PAYFAST_USD_ZAR_RATE,
     LESSON_PAYMENTS_PAYPAL_ENABLED: process.env.LESSON_PAYMENTS_PAYPAL_ENABLED,
     LESSON_PAYMENT_TIMEOUT_MINUTES: process.env.LESSON_PAYMENT_TIMEOUT_MINUTES,
     LIVEKIT_URL: process.env.LIVEKIT_URL,

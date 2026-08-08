@@ -99,7 +99,6 @@ vi.mock("@/lib/env", () => ({
     // Left unset on purpose: the ZAR cross-check is wire format that dies with the rail.
     // Without a rate the handler only insists the payment was positive, which is the part
     // of the check that is really an invariant.
-    PAYFAST_USD_ZAR_RATE: undefined,
   },
 }));
 
