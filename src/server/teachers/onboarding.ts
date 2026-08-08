@@ -103,10 +103,22 @@ export async function getTeacherProfileReadiness() {
 
   const requiresVideoForSubmission = profile?.status !== "approved";
 
+  // PAY-15: a linked payment account is NOT a condition of being listed.
+  //
+  // It used to be, and that was a closed loop with no exit: submission required an account,
+  // and createTeacherPaymentAccount refuses while the PayPal rail is disabled — which it is,
+  // by a hardcoded defect list no configuration can clear. So no teacher could ever submit a
+  // profile, and the marketplace could not acquire supply at all.
+  //
+  // Beyond the deadlock it is the wrong order. Linking a payout destination is the highest
+  // friction step in onboarding, and asking for it before the platform has produced a single
+  // student is asking a teacher to do paperwork on spec. The check stays in `checks` so the
+  // dashboard can prompt for it, and the prompt appears where it actually matters — when a
+  // booking request arrives. When the teacher payment-link model lands (PAY-07), the hard
+  // gate belongs there, on accepting a lesson, not here on being discoverable.
   const readyToSubmit =
     profileComplete &&
     checks.emailVerified &&
-    checks.paymentLinked &&
     checks.qualifyingPlan &&
     (!requiresVideoForSubmission || checks.videoAdded);
 

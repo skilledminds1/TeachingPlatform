@@ -48,7 +48,6 @@ export default async function TeacherDashboardPage() {
     { label: "Profile information complete", complete: profileComplete },
     { label: "Introduction video uploaded", complete: checks.videoAdded },
     { label: "Email address verified", complete: checks.emailVerified },
-    { label: "Payment account linked", complete: checks.paymentLinked },
     { label: "Listing plan active", complete: checks.qualifyingPlan },
   ];
 
@@ -240,7 +239,8 @@ export default async function TeacherDashboardPage() {
           <div className="border-b border-border/60 px-6 py-5">
             <h2 className="font-heading text-lg font-semibold">Profile readiness</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Complete every item before submitting for approval.
+              Complete every item before submitting for approval. You don&apos;t need a payment
+              method to be listed — set that up before your first lesson.
             </p>
           </div>
           <div className="p-6">
@@ -277,7 +277,7 @@ export default async function TeacherDashboardPage() {
                   variant="outline"
                   render={<Link href="/dashboard/teacher/payments" />}
                 >
-                  Link payment account
+                  Set up how students pay you
                   <ExternalLink className="size-3.5" aria-hidden />
                 </Button>
               ) : null}

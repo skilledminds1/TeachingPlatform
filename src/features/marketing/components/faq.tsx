@@ -12,7 +12,7 @@ const faqs = [
   {
     question: "How are teachers verified?",
     answer:
-      "Every teacher profile is manually reviewed before it appears on Find Tutor. We check qualifications, profile completeness, and that a valid payment account is linked.",
+      "Every teacher profile is manually reviewed before it appears on Find Tutor. We check qualifications, profile completeness, an introduction video, and a verified email address.",
   },
   {
     question: "What do teachers pay?",

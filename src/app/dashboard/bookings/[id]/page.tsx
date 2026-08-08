@@ -119,7 +119,27 @@ export default async function BookingDetailsPage({
               </p>
             ) : null}
             {isTeacher ? (
-              <div className="mt-4">
+              <div className="mt-4 space-y-4">
+                {/*
+                  PAY-15: the prompt lives here rather than in onboarding. A payment method is
+                  not required to be listed, so this is the first moment it actually matters —
+                  a real student, on a real slot, with no way to pay.
+                */}
+                {booking.teacher.teacherPaymentAccounts.length === 0 ? (
+                  <div className="rounded-lg border border-border bg-background/60 p-4 text-sm">
+                    <p className="font-medium">Your student has no way to pay you yet</p>
+                    <p className="mt-1 text-muted-foreground">
+                      You can still accept this lesson, but set up how students pay you before it
+                      starts. Payments go directly to you — Amazing Skills never handles them.
+                    </p>
+                    <Link
+                      href="/dashboard/teacher/payments"
+                      className="mt-2 inline-block font-medium text-primary hover:underline"
+                    >
+                      Set up how students pay you
+                    </Link>
+                  </div>
+                ) : null}
                 <ConfirmVideoBookingButton bookingId={booking.id} />
               </div>
             ) : null}

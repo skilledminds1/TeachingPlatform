@@ -165,7 +165,9 @@ Platform revenue = subscriptions only. Lesson payments bypass the platform ledge
 Teacher completes profile → Submits for review → Platform admin approves/rejects → Live on marketplace
 ```
 
-**Requirements:** Pro plan+, verified email, complete profile (bio 100+ words, photo, subjects, hourly rate, PayPal linked).
+**Requirements:** A plan that includes marketplace listing, verified email, and a complete profile — bio of 100+ words, photo, subjects, hourly rate, at least one qualification, and an introduction video.
+
+A payment method is deliberately **not** a listing requirement (PAY-15). It was, and it deadlocked onboarding: submission required a linked account while account creation was disabled, so no teacher could ever be listed. It is also the wrong order — linking a payout destination is the highest-friction step in onboarding, and asking for it before the platform has produced a single student is asking for paperwork on spec. Teachers are prompted when their first booking request arrives, which is the first moment it matters.
 
 **SLA:** 48 business hours.
 

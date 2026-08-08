@@ -52,7 +52,7 @@ Organization admins **cannot** access `/admin/*`.
 
 1. Teacher submits profile (status → `pending_approval`)
 2. Profile appears in `/admin/teachers?status=pending`
-3. Admin reviews: bio, photo, subjects, rate, payment account linked
+3. Admin reviews: bio, photo, subjects, rate, qualifications, introduction video
 4. **Approve** → status `approved`; profile live on marketplace
 5. **Reject** → status `rejected`; `rejectionReason` sent to teacher via notification
 
