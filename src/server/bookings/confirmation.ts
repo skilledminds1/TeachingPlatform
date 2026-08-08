@@ -151,14 +151,7 @@ export async function expireUnansweredBookingRequests(now = new Date()): Promise
           confirmationExpiresAt: null,
         },
       });
-      if (result.count === 0) return false;
-
-      // Any checkout the student opened against this booking dies with it.
-      await tx.paymentAttempt.updateMany({
-        where: { bookingId: booking.id, status: { in: ["pending", "requires_action"] } },
-        data: { status: "expired" },
-      });
-      return true;
+      return result.count > 0;
     });
     if (!cancelled) continue;
 

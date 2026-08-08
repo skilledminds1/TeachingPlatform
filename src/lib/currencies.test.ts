@@ -8,7 +8,6 @@ import {
   LESSON_CURRENCIES,
   minorUnitExponent,
   minorUnitFactor,
-  providersForCurrency,
   toMinorUnits,
 } from "./currencies";
 
@@ -76,17 +75,12 @@ describe("lesson currencies", () => {
     ]);
   });
 
-  it("routes no provider for an unsupported currency", () => {
-    // Returning a provider anyway invited a checkout that could only fail at the processor.
-    expect(providersForCurrency("ZAR")).toEqual([]);
-    expect(providersForCurrency("INR")).toEqual([]);
-    expect(providersForCurrency("")).toEqual([]);
-  });
-
-  it("routes PayPal for every supported currency", () => {
-    for (const item of LESSON_CURRENCIES) {
-      expect(providersForCurrency(item.code)).toContain("paypal");
-    }
+  it("does not treat an unlisted currency as a lesson currency", () => {
+    // These are excluded by the ECB-quote and exponent gates now, not by a payment rail —
+    // see the comment on LESSON_CURRENCIES. The assertion is that an unlisted code is
+    // rejected rather than silently accepted at its face value.
+    expect(isLessonCurrency("XXX")).toBe(false);
+    expect(isLessonCurrency("")).toBe(false);
   });
 });
 

@@ -121,57 +121,56 @@ export function toMinorUnits(amount: string | number, currency: string): number 
  * The order carries no other meaning and nothing may index into this array — see
  * `getCurrencyMeta`.
  *
- * INT-09: every entry here was checked against BOTH gates a currency has to clear, because
- * clearing only one is how ZAR got listed:
+ * INT-09 checked every entry against two gates. ONE OF THEM IS GONE.
  *
- *  1. The payment rail can actually transact it. PayPal publishes 25 currencies.
- *  2. The ECB reference feed behind `fx_rates` quotes it, or the teacher is ranked in the
- *     marketplace price filter as though their price were already USD (see src/lib/fx.ts).
+ * The first gate used to be "PayPal can transact it", and it was the binding one: INR, ZAR,
+ * KRW, IDR, TRY, BGN, ISK, RON were all excluded purely because PayPal did not list them,
+ * and BRL, CNY and MYR because PayPal supported them for in-country accounts only. The PayPal
+ * rail is deleted. Students now pay on the TEACHER's own provider, so the currency a teacher
+ * may price in is constrained by their provider and not by ours — a rand-priced lesson paid
+ * through Yoco is not this platform's problem to route.
  *
- * Deliberately NOT listed, with the reason, so this is re-checked rather than re-litigated
- * when the rail changes:
+ * The second gate still binds: the ECB reference feed behind `fx_rates` must quote the
+ * currency, or the marketplace price filter ranks that teacher as though their number were
+ * already USD (see src/lib/fx.ts). RUB fails this and stays out.
  *
- *  - INR, KRW, ZAR, IDR, TRY, BGN, ISK, RON — quoted by the ECB but absent from PayPal's
- *    supported-currency list entirely. INR is the painful one: India is an obvious market
- *    for this platform, and it is blocked by the provider, not by us. It should be the
- *    first currency revisited when the Stripe rail lands.
- *  - BRL, CNY, MYR — PayPal supports these for IN-COUNTRY accounts only. On a cross-border
- *    marketplace that means most checkouts fail, which is the ZAR failure mode wearing a
- *    different hat.
- *  - HUF, TWD — PayPal documents these as not supporting decimals, but ISO 4217 (and
- *    therefore ICU, and therefore `minorUnitExponent`) gives them 2. When the provider and
- *    the standard disagree about the exponent, listing the currency means shipping an
- *    amount one of the two will reject.
- *  - RUB — PayPal-supported, but not quoted by the ECB feed, so gate 2 fails.
+ * The exponent gate also still binds, for a different reason: HUF and TWD are documented
+ * with no decimals by some providers while ISO 4217 — and therefore ICU, and therefore
+ * `minorUnitExponent` — gives them 2. Listing a currency the code and the payer's bank
+ * disagree about is how an amount ends up 100x wrong.
+ *
+ * THIS LIST IS NOW NARROWER THAN IT NEEDS TO BE. Widening it is a real task — each addition
+ * needs an ECB quote and an exponent check — and deliberately not done as part of deleting
+ * the rail, so that the additions get their own review rather than riding along in a deletion.
+ * INR and ZAR are the two that most obviously belong.
  */
 export const LESSON_CURRENCIES = [
-  { code: "USD", label: "US Dollar ($)", symbol: "$", providers: ["paypal"] as const },
-  { code: "EUR", label: "Euro (€)", symbol: "€", providers: ["paypal"] as const },
-  { code: "GBP", label: "British Pound (£)", symbol: "£", providers: ["paypal"] as const },
-  { code: "AUD", label: "Australian Dollar (A$)", symbol: "A$", providers: ["paypal"] as const },
-  { code: "CAD", label: "Canadian Dollar (C$)", symbol: "C$", providers: ["paypal"] as const },
-  { code: "CHF", label: "Swiss Franc (CHF)", symbol: "CHF", providers: ["paypal"] as const },
-  { code: "CZK", label: "Czech Koruna (Kč)", symbol: "Kč", providers: ["paypal"] as const },
-  { code: "DKK", label: "Danish Krone (kr)", symbol: "kr", providers: ["paypal"] as const },
-  { code: "HKD", label: "Hong Kong Dollar (HK$)", symbol: "HK$", providers: ["paypal"] as const },
-  { code: "ILS", label: "Israeli New Shekel (₪)", symbol: "₪", providers: ["paypal"] as const },
+  { code: "USD", label: "US Dollar ($)", symbol: "$" },
+  { code: "EUR", label: "Euro (€)", symbol: "€" },
+  { code: "GBP", label: "British Pound (£)", symbol: "£" },
+  { code: "AUD", label: "Australian Dollar (A$)", symbol: "A$" },
+  { code: "CAD", label: "Canadian Dollar (C$)", symbol: "C$" },
+  { code: "CHF", label: "Swiss Franc (CHF)", symbol: "CHF" },
+  { code: "CZK", label: "Czech Koruna (Kč)", symbol: "Kč" },
+  { code: "DKK", label: "Danish Krone (kr)", symbol: "kr" },
+  { code: "HKD", label: "Hong Kong Dollar (HK$)", symbol: "HK$" },
+  { code: "ILS", label: "Israeli New Shekel (₪)", symbol: "₪" },
   // Zero-decimal. The reason the exponent had to be fixed before this list could grow.
-  { code: "JPY", label: "Japanese Yen (¥)", symbol: "¥", providers: ["paypal"] as const },
-  { code: "MXN", label: "Mexican Peso (MX$)", symbol: "MX$", providers: ["paypal"] as const },
-  { code: "NOK", label: "Norwegian Krone (kr)", symbol: "kr", providers: ["paypal"] as const },
-  { code: "NZD", label: "New Zealand Dollar (NZ$)", symbol: "NZ$", providers: ["paypal"] as const },
-  { code: "PHP", label: "Philippine Peso (₱)", symbol: "₱", providers: ["paypal"] as const },
-  { code: "PLN", label: "Polish Złoty (zł)", symbol: "zł", providers: ["paypal"] as const },
-  { code: "SEK", label: "Swedish Krona (kr)", symbol: "kr", providers: ["paypal"] as const },
-  { code: "SGD", label: "Singapore Dollar (S$)", symbol: "S$", providers: ["paypal"] as const },
-  { code: "THB", label: "Thai Baht (฿)", symbol: "฿", providers: ["paypal"] as const },
+  { code: "JPY", label: "Japanese Yen (¥)", symbol: "¥" },
+  { code: "MXN", label: "Mexican Peso (MX$)", symbol: "MX$" },
+  { code: "NOK", label: "Norwegian Krone (kr)", symbol: "kr" },
+  { code: "NZD", label: "New Zealand Dollar (NZ$)", symbol: "NZ$" },
+  { code: "PHP", label: "Philippine Peso (₱)", symbol: "₱" },
+  { code: "PLN", label: "Polish Złoty (zł)", symbol: "zł" },
+  { code: "SEK", label: "Swedish Krona (kr)", symbol: "kr" },
+  { code: "SGD", label: "Singapore Dollar (S$)", symbol: "S$" },
+  { code: "THB", label: "Thai Baht (฿)", symbol: "฿" },
 ] as const;
 
 /** The fallback whenever a currency is missing or unrecognised. */
 export const DEFAULT_LESSON_CURRENCY = "USD" as const;
 
 export type LessonCurrency = (typeof LESSON_CURRENCIES)[number]["code"];
-export type LessonPaymentProvider = "paypal";
 
 const currencySet = new Set<string>(LESSON_CURRENCIES.map((item) => item.code));
 
@@ -188,13 +187,6 @@ export function getCurrencyMeta(code: string) {
     // fallback up by name so the list order carries no meaning.
     LESSON_CURRENCIES.find((item) => item.code === DEFAULT_LESSON_CURRENCY)!
   );
-}
-
-export function providersForCurrency(code: string): LessonPaymentProvider[] {
-  const meta = LESSON_CURRENCIES.find((item) => item.code === code);
-  // An unknown currency has no rail. Returning a provider anyway invited a checkout that
-  // could only fail at the payment processor.
-  return meta ? [...meta.providers] : [];
 }
 
 export function currencySymbol(code: string): string {

@@ -127,13 +127,13 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 
 ## Phase 7 — Teacher Payments
 
-**Goal:** Students pay teachers via the teacher's own linked PayPal account.
+**Goal:** Students pay teachers via the teacher's own hosted-checkout link.
 
 | Task | Status |
 |------|--------|
-| PayPal OAuth linking foundation | Done (credentials required) |
+| Teacher payment-link model with host allowlist | Done |
 | Student checkout at booking | Pending |
-| PayPal webhook for confirmation | Done (provider approval required) |
+| Teacher attestation that a payment arrived | Done (gates nothing by design) |
 | Teacher earnings summary | Pending |
 
 **Exit criteria:** Student pays teacher directly; booking confirmed; platform never holds funds.
@@ -195,7 +195,7 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 |------|----------|-----------|
 | 2026-07 | Preply/AmazingTalker model over LMS-first | User priority: live tutoring marketplace |
 | 2026-07 | PayFast for platform subscriptions only | SA market; platform revenue separation |
-| 2026-07 | Teacher's own PayPal for student→teacher payments | Platform does not handle teacher payouts |
+| 2026-08 | Teacher's own payment link; PayPal rail deleted | The platform never possesses lesson funds, so it is not a payment facilitator |
 | 2026-07 | LiveKit Cloud for embedded video | Secure JWT access and flexible 1-on-1 UI |
 | 2026-07 | `isPlatformAdmin` on User model | Simplest secure admin provisioning |
 | 2026-07 | 9-phase roadmap | Matches TODO.md and PROJECT.md |

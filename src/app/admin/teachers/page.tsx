@@ -71,10 +71,10 @@ export default async function AdminTeachersPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Payment account</p>
+                      <p className="text-xs text-muted-foreground">Students pay via</p>
                       <p className="flex items-center gap-1.5 font-medium capitalize">
                         <CreditCard className="size-3.5" aria-hidden />
-                        {profile.user.teacherPaymentAccounts[0]?.provider ?? "Not linked"}
+                        {profile.paymentLinkHost ?? "Not linked"}
                       </p>
                     </div>
                   </div>

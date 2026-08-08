@@ -14,7 +14,6 @@ function fixture(
   return {
     payments: [],
     refundRequests: [],
-    disputes: [],
     learnerActivity: [],
     organizations: [],
     subscriptionInvoices: [],

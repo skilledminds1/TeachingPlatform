@@ -127,14 +127,6 @@ export async function getBookingForUser(bookingId: string) {
           teacherProfile: {
             select: { paymentLinkUrl: true, paymentLinkHost: true },
           },
-          teacherPaymentAccounts: {
-            where: {
-              isActive: true,
-              onboardingStatus: "complete",
-              provider: "paypal",
-            },
-            select: { provider: true },
-          },
         },
       },
     },

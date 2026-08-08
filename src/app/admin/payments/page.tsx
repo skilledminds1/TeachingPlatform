@@ -1,4 +1,4 @@
-import { CircleDollarSign, FileText, Handshake, ShieldAlert } from "lucide-react";
+import { CircleDollarSign, FileText, Handshake } from "lucide-react";
 
 import { AdminPageHeader } from "@/features/admin/components/admin-page-header";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
@@ -85,41 +85,9 @@ export default async function AdminPaymentsPage() {
 
       <section className="space-y-4">
         <SectionHeading
-          icon={ShieldAlert}
-          title="Provider disputes"
-          description="Chargebacks and disputes reported by the connected payment provider."
-        />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {data.disputes.map((dispute) => (
-            <article key={dispute.id} className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-medium">{dispute.providerCaseId}</p>
-                <StatusBadge tone={statusTone(dispute.status)}>
-                  {formatStatus(dispute.status)}
-                </StatusBadge>
-              </div>
-              <p className="mt-3 text-sm text-muted-foreground">
-                {dispute.reason ?? "No provider reason supplied"}
-              </p>
-              <p className="mt-3 text-sm font-medium">
-                {formatCurrency(
-                  dispute.amountCents ?? dispute.paymentAttempt.amountCents,
-                  dispute.currency ?? dispute.paymentAttempt.currency,
-                )}
-              </p>
-            </article>
-          ))}
-          {data.disputes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No provider disputes.</p>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <SectionHeading
           icon={CircleDollarSign}
-          title="Teacher-processed transactions"
-          description="Transaction records only. These amounts are not Amazing Skills revenue."
+          title="Payments teachers reported"
+          description="What teachers said they received. Amazing Skills does not process these payments and cannot verify them — they are reports, not records."
         />
         <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
           <table className="w-full min-w-[850px] text-start text-sm">
@@ -128,25 +96,25 @@ export default async function AdminPaymentsPage() {
                 <th className="px-4 py-3 font-medium">Student</th>
                 <th className="px-4 py-3 font-medium">Teacher</th>
                 <th className="px-4 py-3 font-medium">Amount</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Created</th>
+                <th className="px-4 py-3 font-medium">Reference</th>
+                <th className="px-4 py-3 font-medium">Reported</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {data.recentPayments.map((payment) => (
                 <tr key={payment.id}>
-                  <td className="px-4 py-3">{payment.booking?.student.name ?? "—"}</td>
-                  <td className="px-4 py-3">{payment.booking?.teacher.name ?? "—"}</td>
+                  <td className="px-4 py-3">{payment.student.name}</td>
+                  <td className="px-4 py-3">{payment.teacher.name}</td>
                   <td className="px-4 py-3">
-                    {formatCurrency(payment.amountCents, payment.currency)}
+                    {formatCurrency(payment.hourlyRateCents, payment.currency)}
                   </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge tone={statusTone(payment.status)}>
-                      {formatStatus(payment.status)}
-                    </StatusBadge>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                    {payment.paymentReference ?? "—"}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {formatDateTime(payment.createdAt, admin.timezone)}
+                    {payment.paymentReportedAt
+                      ? formatDateTime(payment.paymentReportedAt, admin.timezone)
+                      : "—"}
                   </td>
                 </tr>
               ))}

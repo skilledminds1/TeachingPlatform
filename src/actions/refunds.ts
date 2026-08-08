@@ -52,17 +52,9 @@ export async function requestBookingRefund(
       teacherId: true,
       startsAt: true,
       currency: true,
+      hourlyRateCents: true,
+      paymentReportedAt: true,
       refundRequest: { select: { id: true } },
-      paymentAttempts: {
-        where: { status: { in: ["succeeded", "partially_refunded"] } },
-        orderBy: { succeededAt: "desc" },
-        take: 1,
-        select: {
-          id: true,
-          amountCents: true,
-          refundedCents: true,
-        },
-      },
     },
   });
 
@@ -70,19 +62,25 @@ export async function requestBookingRefund(
   if (booking.refundRequest) {
     return fail("A refund request already exists for this lesson.", "CONFLICT");
   }
-  const attempt = booking.paymentAttempts[0];
-  if (!attempt || attempt.refundedCents >= attempt.amountCents) {
-    return fail("This lesson has no refundable payment.", "CONFLICT");
+  // The platform never received this payment, so it cannot know the amount from its own
+  // records. The lesson's own price is the only figure it has, and the teacher confirming
+  // receipt is the only signal that money moved at all. Requests on a lesson nobody has
+  // marked paid are refused rather than raised against a payment that may never have
+  // happened.
+  if (!booking.paymentReportedAt) {
+    return fail(
+      "Your teacher has not recorded a payment for this lesson yet. Message them first.",
+      "CONFLICT",
+    );
   }
 
   const policyEligible = isBookingRefundPolicyEligible(booking.startsAt);
   const request = await db.refundRequest.create({
     data: {
       bookingId: booking.id,
-      paymentAttemptId: attempt.id,
       studentId: booking.studentId,
       teacherId: booking.teacherId,
-      requestedAmountCents: attempt.amountCents - attempt.refundedCents,
+      requestedAmountCents: booking.hourlyRateCents,
       currency: booking.currency,
       reason: parsed.data.reason,
       policyEligible,
@@ -143,41 +141,23 @@ export async function markRefundSent(
     select: {
       id: true,
       requestedAmountCents: true,
-      paymentAttemptId: true,
-      paymentAttempt: { select: { id: true, amountCents: true, refundedCents: true } },
     },
   });
   if (!request) return fail("Approved refund request not found.", "NOT_FOUND");
 
-  // MON-09: this used to update the RefundRequest row alone, leaving PaymentAttempt reading
-  // as fully paid and unrefunded while the request read "refunded" — two ledgers that
-  // permanently disagreed. Because the platform never holds funds, this manual path is the
-  // EXPECTED route for most refunds, not an edge case.
-  await db.$transaction(async (tx) => {
-    await tx.refundRequest.update({
-      where: { id: request.id },
-      data: {
-        status: "refunded",
-        providerRefundId: parsed.data.providerReference,
-        providerRefundedCents: request.requestedAmountCents,
-        resolvedAt: new Date(),
-      },
-    });
-
-    if (request.paymentAttempt) {
-      const refundedCents = Math.min(
-        request.paymentAttempt.amountCents,
-        request.paymentAttempt.refundedCents + request.requestedAmountCents,
-      );
-      const fullyRefunded = refundedCents >= request.paymentAttempt.amountCents;
-      await tx.paymentAttempt.update({
-        where: { id: request.paymentAttempt.id },
-        data: {
-          refundedCents,
-          status: fullyRefunded ? "refunded" : "partially_refunded",
-        },
-      });
-    }
+  // MON-09 kept its shape but lost its second ledger. There used to be a PaymentAttempt row
+  // to keep in step, which could disagree with the request; the platform no longer records a
+  // payment at all, so the RefundRequest IS the record. `providerReference` is free text the
+  // teacher pastes from wherever they actually sent the money — the platform cannot verify it
+  // and does not pretend to.
+  await db.refundRequest.update({
+    where: { id: request.id },
+    data: {
+      status: "refunded",
+      providerRefundId: parsed.data.providerReference,
+      providerRefundedCents: request.requestedAmountCents,
+      resolvedAt: new Date(),
+    },
   });
 
   revalidateRefundViews();

@@ -146,13 +146,6 @@ export function productionEnvProblems(env: Env): EnvProblem[] {
     });
   }
 
-  // Lesson payment credentials only matter while that rail is actually switched on. Requiring
-  // them unconditionally would block a deploy over a provider the platform is not using.
-  if (env.LESSON_PAYMENTS_PAYPAL_ENABLED === "true") {
-    requireValue(problems, "PAYPAL_CLIENT_ID", env.PAYPAL_CLIENT_ID, "the PayPal rail is enabled but has no client id");
-    requireValue(problems, "PAYPAL_CLIENT_SECRET", env.PAYPAL_CLIENT_SECRET, "the PayPal rail is enabled but has no secret");
-    requireValue(problems, "PAYPAL_WEBHOOK_ID", env.PAYPAL_WEBHOOK_ID, "PayPal webhook signatures cannot be verified");
-  }
 
   // Legal identity. These render to users on the pages that exist to be trusted.
   const legalText: Array<[string, string]> = [

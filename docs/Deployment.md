@@ -9,8 +9,7 @@ Deploy on **Vercel** with **Supabase** (PostgreSQL, Auth, Storage, Realtime).
 ```
 Vercel (Next.js)
   ├── Supabase (Auth, DB, Storage, Realtime)
-  ├── PayFast (platform subscriptions)
-  ├── PayFast + PayPal (student→teacher payments)
+  ├── PayFast (teacher subscriptions — the only money the platform receives)
   └── LiveKit Cloud (video sessions)
 ```
 
@@ -44,9 +43,8 @@ PAYFAST_MERCHANT_KEY=
 PAYFAST_PASSPHRASE=
 PAYFAST_SANDBOX=true
 
-# Teacher payment providers
-PAYPAL_CLIENT_ID=
-PAYPAL_CLIENT_SECRET=
+# Student -> teacher lesson payments need no configuration: teachers save a hosted-checkout
+# link from their own provider and the platform holds no keys.
 
 # Video
 LIVEKIT_URL=wss://your-project.livekit.cloud
@@ -190,19 +188,15 @@ The process-local limiter is intended for local development and single-instance 
 - Production: https://www.amazing-skills.com (also https://amazing-skills.com)
 - Vercel preview alias: https://amazing-skills.vercel.app
 - Health: `/api/v1/health`
-- PayPal webhook: `/api/v1/webhooks/paypal`
 - PayFast ITN: `/api/v1/webhooks/payfast`
 
 ## Launch Checklist
 
 - [x] Production Supabase configured (Site URL + redirect URLs)
 - [x] PayFast live credentials (subscriptions)
-- [ ] PayPal partner app configured (teacher lesson linking)
 - [x] LiveKit Cloud URL and production API credentials
 - [x] All env vars in Vercel
 - [x] Domain DNS pointed at Vercel (GoDaddy A `@` → `76.76.21.21`, CNAME `www` → `cname.vercel-dns.com`)
-- [x] PayPal webhook registered (`PAYPAL_WEBHOOK_ID`)
 - [x] Migrations applied / verified on production DB
 - [ ] Platform admin seeded
-- [ ] Rotate PayPal client secret (shared in chat)
 - [ ] Security checklist complete

@@ -89,12 +89,12 @@ Amazing Skills is a **live tutoring marketplace** (Preply / AmazingTalker model)
 
 ---
 
-## Phase 7 — Teacher Payments (PayPal)
+## Phase 7 — Teacher Payments (teacher's own payment link)
 
-- Teacher links their own PayPal account in settings
+- Teacher saves a hosted-checkout link from their own provider in settings
 - Student pays teacher at booking checkout
 - Platform does NOT handle, hold, or disburse these funds; the teacher is the seller of record
-- Payment confirmation via PayPal webhook
+- The teacher marks the payment received; the platform never sees it
 - Teacher earnings summary (from provider data)
 
 ---

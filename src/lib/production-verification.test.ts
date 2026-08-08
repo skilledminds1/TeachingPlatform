@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { currentLegalDocumentsForRole } from "@/lib/legal/documents";
-import {
-  amountsMatch,
-  providerAmount,
-  providerAmountToMinorUnits,
-  routeLessonProviders,
-} from "@/lib/payments/routing";
 import { isBookingRefundPolicyEligible } from "@/lib/refunds/policy";
 import { isAuthorizedBearer } from "@/lib/security/cron-auth";
 import {
@@ -26,18 +20,6 @@ describe("PayFast signatures", () => {
     expect(createPayfastSignature(fields, "secret")).toBe(
       "e5c585af062840165f9888f25d1bd7a7",
     );
-  });
-});
-
-describe("payment amount conversion", () => {
-  it("converts safely between cents and provider major units", () => {
-    expect(providerAmount(12345, "USD")).toBe("123.45");
-    expect(providerAmountToMinorUnits("12.345", "USD")).toBe(1235);
-    expect(amountsMatch(1235, "12.35", "USD")).toBe(true);
-  });
-
-  it("does not route to an unlinked payment provider", () => {
-    expect(routeLessonProviders({ currency: "USD", linkedProviders: [] })).toEqual([]);
   });
 });
 

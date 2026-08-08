@@ -15,7 +15,7 @@ export async function getAdminPaymentOperations() {
     targetId: admin.id,
   });
 
-  const [refundRequests, disputes, recentPayments, subscriptionInvoices] = await Promise.all([
+  const [refundRequests, recentPayments, subscriptionInvoices] = await Promise.all([
     db.refundRequest.findMany({
       orderBy: { requestedAt: "desc" },
       take: 100,
@@ -24,38 +24,19 @@ export async function getAdminPaymentOperations() {
         teacher: { select: { id: true, name: true, email: true } },
       },
     }),
-    db.paymentDispute.findMany({
-      orderBy: { openedAt: "desc" },
-      take: 100,
-      include: {
-        paymentAttempt: {
-          select: {
-            amountCents: true,
-            currency: true,
-            bookingId: true,
-          },
-        },
-      },
-    }),
-    db.paymentAttempt.findMany({
-      orderBy: { createdAt: "desc" },
+    db.booking.findMany({
+      where: { paymentReportedAt: { not: null } },
+      orderBy: { paymentReportedAt: "desc" },
       take: 100,
       select: {
         id: true,
-        provider: true,
-        status: true,
-        amountCents: true,
-        refundedCents: true,
+        hourlyRateCents: true,
         currency: true,
-        providerPaymentId: true,
-        createdAt: true,
-        booking: {
-          select: {
-            id: true,
-            student: { select: { name: true, email: true } },
-            teacher: { select: { name: true, email: true } },
-          },
-        },
+        paymentReportedAt: true,
+        paymentReference: true,
+        startsAt: true,
+        student: { select: { name: true, email: true } },
+        teacher: { select: { name: true, email: true } },
       },
     }),
     db.subscriptionInvoice.findMany({
@@ -67,5 +48,5 @@ export async function getAdminPaymentOperations() {
     }),
   ]);
 
-  return { refundRequests, disputes, recentPayments, subscriptionInvoices };
+  return { refundRequests, recentPayments, subscriptionInvoices };
 }

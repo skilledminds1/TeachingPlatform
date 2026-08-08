@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
     return new NextResponse("PayFast validation failed", { status: 400 });
   }
 
-  // Ignore any legacy lesson Split Payment ITNs — student payments use PayPal only.
+  // Ignore any legacy lesson Split Payment ITNs. PayFast is the SUBSCRIPTION rail only;
+  // students pay teachers on the teacher's own provider and none of it passes through here.
   if (params.get("custom_str1") === "lesson") {
     return new NextResponse("OK");
   }

@@ -45,10 +45,8 @@ function completeProfile(overrides: AnyRecord = {}) {
     introVideoPath: "teacher-1/v.mp4",
     subjects: [{ subjectId: "subject-1" }],
     qualifications: [{ id: "qual-1" }],
-    user: {
-      avatarUrl: "https://example.com/a.png",
-      teacherPaymentAccounts: [],
-    },
+    paymentLinkUrl: null,
+    user: { avatarUrl: "https://example.com/a.png" },
     organization: { plan: { name: "Starter", marketplaceListing: true } },
     ...overrides,
   };
@@ -76,13 +74,8 @@ describe("getTeacherProfileReadiness", () => {
     expect(readiness.checks).toHaveProperty("paymentLinked", false);
   });
 
-  it("reports paymentLinked once an account exists", async () => {
-    state.profile = completeProfile({
-      user: {
-        avatarUrl: "https://example.com/a.png",
-        teacherPaymentAccounts: [{ id: "account-1" }],
-      },
-    });
+  it("reports paymentLinked once a payment link is saved", async () => {
+    state.profile = completeProfile({ paymentLinkUrl: "https://buy.stripe.com/abc" });
 
     const readiness = await getTeacherProfileReadiness();
 

@@ -20,7 +20,6 @@ const state = {
     updateManyResult: { count: 1 },
     calls: [] as AnyRecord[],
   },
-  attemptWrites: { updateMany: [] as AnyRecord[] },
   expiryCandidates: [] as AnyRecord[],
 };
 
@@ -29,12 +28,6 @@ const tx = {
     updateMany: vi.fn(async (args: AnyRecord) => {
       state.booking.calls.push(args);
       return state.booking.updateManyResult;
-    }),
-  },
-  paymentAttempt: {
-    updateMany: vi.fn(async (args: AnyRecord) => {
-      state.attemptWrites.updateMany.push(args);
-      return { count: 0 };
     }),
   },
 };
@@ -88,7 +81,6 @@ beforeEach(() => {
   state.booking.row = { ...PENDING };
   state.booking.updateManyResult = { count: 1 };
   state.booking.calls = [];
-  state.attemptWrites.updateMany = [];
   state.expiryCandidates = [];
   vi.clearAllMocks();
   ensureRoomMock.mockResolvedValue({ id: "session-1" });
@@ -222,21 +214,8 @@ describe("expireUnansweredBookingRequests", () => {
     expect(expired).toBe(0);
     // And critically, no cancellation email is sent for a lesson that is going ahead.
     expect(notifyCancelledMock).not.toHaveBeenCalled();
-    expect(state.attemptWrites.updateMany).toHaveLength(0);
   });
 
-  it("expires open payment attempts only for a booking it actually cancelled", async () => {
-    state.expiryCandidates = [{ id: "booking-1" }];
-
-    await expireUnansweredBookingRequests(new Date("2026-08-08T12:00:00.000Z"));
-
-    const [attemptWrite] = state.attemptWrites.updateMany;
-    expect((attemptWrite.data as AnyRecord).status).toBe("expired");
-    // Only attempts that were still open — never a succeeded one.
-    expect((attemptWrite.where as AnyRecord).status).toEqual({
-      in: ["pending", "requires_action"],
-    });
-  });
 });
 
 describe("confirmationWindowExpiry", () => {

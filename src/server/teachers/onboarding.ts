@@ -53,15 +53,6 @@ export async function getTeacherProfileReadiness() {
       user: {
         select: {
           avatarUrl: true,
-          teacherPaymentAccounts: {
-            where: {
-              isActive: true,
-              onboardingStatus: "complete",
-              provider: "paypal",
-              providerAccountId: { not: { startsWith: "local_" } },
-            },
-            select: { id: true },
-          },
         },
       },
       organization: {
@@ -87,7 +78,7 @@ export async function getTeacherProfileReadiness() {
     qualificationAdded: Boolean(profile?.qualifications.length),
     videoAdded: Boolean(profile?.introVideoUrl && profile?.introVideoPath),
     emailVerified: Boolean(authUser?.email_confirmed_at),
-    paymentLinked: Boolean(profile?.user.teacherPaymentAccounts.length),
+    paymentLinked: Boolean(profile?.paymentLinkUrl),
     qualifyingPlan: Boolean(profile?.organization.plan.marketplaceListing),
   };
 
@@ -106,9 +97,10 @@ export async function getTeacherProfileReadiness() {
   // PAY-15: a linked payment account is NOT a condition of being listed.
   //
   // It used to be, and that was a closed loop with no exit: submission required an account,
-  // and createTeacherPaymentAccount refuses while the PayPal rail is disabled — which it is,
-  // by a hardcoded defect list no configuration can clear. So no teacher could ever submit a
-  // profile, and the marketplace could not acquire supply at all.
+  // and account creation refused while the PayPal rail was disabled — which it always was,
+  // by a hardcoded defect list no configuration could clear. So no teacher could ever submit
+  // a profile, and the marketplace could not acquire supply at all. That rail is now deleted;
+  // the ordering argument below is why the gate does not simply move to the payment link.
   //
   // Beyond the deadlock it is the wrong order. Linking a payout destination is the highest
   // friction step in onboarding, and asking for it before the platform has produced a single

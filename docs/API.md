@@ -9,8 +9,6 @@
 | Route | Purpose | Auth |
 |-------|---------|------|
 | `POST /api/v1/webhooks/payfast` | PayFast ITN — **platform subscriptions only** | Signature |
-| `GET /api/v1/payments/paypal/callback` | PayPal OAuth return | Teacher session |
-| `POST /api/v1/webhooks/paypal` | PayPal — student→teacher booking payment | Signature |
 | `GET /api/v1/health` | Health check | None |
 
 **Platform never webhooks for teacher disbursements** — only subscription and booking confirmation from teacher's payment provider.
@@ -42,7 +40,7 @@
 `createSubscriptionCheckout` (hosted PayFast for Free→paid; in-place PayFast update for paid upgrades)
 
 ### Teacher Payments — `src/actions/payment-linking.ts`
-`startPayPalConnect`, `disconnectPaymentAccount`
+`saveMyPaymentLink`, `confirmMyPaymentLinkChange`, `removeMyPaymentLink`, `reportLessonPaymentReceived`
 
 ### Reviews — `src/actions/reviews.ts`
 `submitReview`; moderation is handled by `moderateReview` in `src/actions/admin.ts`

@@ -135,7 +135,7 @@ export default async function BookingDetailsPage({
                   not required to be listed, so this is the first moment it actually matters —
                   a real student, on a real slot, with no way to pay.
                 */}
-                {booking.teacher.teacherPaymentAccounts.length === 0 ? (
+                {!booking.teacher.teacherProfile?.paymentLinkUrl ? (
                   <div className="rounded-lg border border-border bg-background/60 p-4 text-sm">
                     <p className="font-medium">Your student has no way to pay you yet</p>
                     <p className="mt-1 text-muted-foreground">

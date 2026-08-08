@@ -378,7 +378,7 @@ export function OnboardingWizard({
                     ))}
                   </select>
                   <FieldDescription>
-                    Students pay you via PayPal in this currency once your account is linked.
+                    Students see your rate in this currency and pay you in it through your own payment link.
                   </FieldDescription>
                   <FieldError errors={[form.formState.errors.currency]} />
                 </Field>

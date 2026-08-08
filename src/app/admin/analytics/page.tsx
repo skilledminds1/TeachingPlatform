@@ -71,7 +71,7 @@ export default async function AdminAnalyticsPage({
 
       <section className="space-y-4">
         <SectionHeading
-          title="Teacher-processed transaction volume"
+          title="Payments teachers reported"
           description={data.teacherVolume.note}
         />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -161,7 +161,7 @@ export default async function AdminAnalyticsPage({
               {data.teacherVolume.successfulTransactions === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
-                    No verified teacher-processed transactions in this period.
+                    No teacher reported a payment in this period.
                   </td>
                 </tr>
               ) : null}
@@ -172,8 +172,8 @@ export default async function AdminAnalyticsPage({
 
       <section className="space-y-4">
         <SectionHeading
-          title="Refund and dispute operations"
-          description="Reported amounts are requested refund values; refunded amounts come from the verified payment ledger."
+          title="Refund operations"
+          description="Requested amounts, and what teachers marked as sent. The platform processes neither and cannot verify either."
         />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard
@@ -183,22 +183,15 @@ export default async function AdminAnalyticsPage({
             icon={RefreshCcw}
           />
           <StatCard
-            label="Provider disputes"
-            value={formatNumber(data.refunds.disputeCount)}
-            detail={`${data.refunds.openDisputeCount} open or under review`}
-            icon={ShieldAlert}
-          />
-          <StatCard
             label="Active learner retention"
             value={`${data.learners.retentionRate}%`}
             detail={`${data.learners.retained} retained of ${data.learners.previousActive} prior active learners`}
             icon={Users}
           />
         </div>
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-2">
           <MoneyList title="Reported refund amounts" rows={data.refunds.reportedByCurrency} />
-          <MoneyList title="Provider-refunded amounts" rows={data.refunds.refundedByCurrency} />
-          <MoneyList title="Disputed amounts" rows={data.refunds.disputedByCurrency} />
+          <MoneyList title="Refunds marked sent" rows={data.refunds.refundedByCurrency} />
         </div>
         <div className="rounded-lg border border-border/70 bg-muted/20 p-4 text-xs text-muted-foreground">
           <p>{data.learners.retentionNote}</p>

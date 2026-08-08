@@ -483,20 +483,7 @@ export async function cancelBooking(
       paymentProvider: true,
       paymentExternalId: true,
       videoSession: { select: { livekitRoomName: true } },
-      paymentAttempts: {
-        where: { status: { in: ["succeeded", "partially_refunded"] } },
-        orderBy: { succeededAt: "desc" },
-        take: 1,
-        select: {
-          id: true,
-          provider: true,
-          providerPaymentId: true,
-          teacherMerchantId: true,
-          amountCents: true,
-          currency: true,
-          refundedCents: true,
-        },
-      },
+      paymentReportedAt: true,
     },
   });
   if (!booking) return fail("Booking not found.", "NOT_FOUND");
@@ -511,23 +498,25 @@ export async function cancelBooking(
   }
 
   const hoursUntil = (booking.startsAt.getTime() - Date.now()) / 3_600_000;
-  const attempt = booking.paymentAttempts[0];
   await db.$transaction(async (tx) => {
     await tx.booking.update({
       where: { id: booking.id },
       data: { status: "cancelled", cancellationReason: parsed.data.reason },
     });
 
-    if (booking.status === "confirmed" && attempt) {
+    // A refund request is only meaningful if money actually moved, and the only signal of
+    // that is the teacher having marked the payment received — the platform never sees it
+    // otherwise. Raising one on an unpaid lesson would put a teacher on the hook for
+    // returning something they were never sent.
+    if (booking.status === "confirmed" && booking.paymentReportedAt) {
       await tx.refundRequest.upsert({
         where: { bookingId: booking.id },
         create: {
           bookingId: booking.id,
-          paymentAttemptId: attempt.id,
           studentId: booking.studentId,
           teacherId: booking.teacherId,
-          requestedAmountCents: attempt.amountCents - attempt.refundedCents,
-          currency: attempt.currency,
+          requestedAmountCents: booking.hourlyRateCents,
+          currency: booking.currency,
           reason: parsed.data.reason,
           policyEligible: user.id === booking.teacherId || hoursUntil >= 24,
         },

@@ -26,7 +26,6 @@ function goodEnv(overrides: Partial<Env> = {}): Env {
     LIVEKIT_URL: "wss://livekit",
     LIVEKIT_API_KEY: "lk",
     LIVEKIT_API_SECRET: "lks",
-    LESSON_PAYMENTS_PAYPAL_ENABLED: "false",
     PAYFAST_MERCHANT_ID: "10000100",
     PAYFAST_MERCHANT_KEY: "merchant-key",
     PAYFAST_PASSPHRASE: "passphrase",
@@ -109,26 +108,6 @@ describe("the silent failures QLT-03 exists to catch", () => {
         NEXT_PUBLIC_SUPABASE_ANON_KEY: undefined,
       }),
     ).toContain("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
-  });
-});
-
-describe("payment credentials are required only for a rail that is on", () => {
-  it("ignores PayPal credentials while the rail is disabled", () => {
-    expect(
-      productionEnvProblems(
-        goodEnv({ LESSON_PAYMENTS_PAYPAL_ENABLED: "false", PAYPAL_CLIENT_ID: undefined }),
-      ),
-    ).toEqual([]);
-  });
-
-  it("requires them once it is enabled", () => {
-    const problems = problemFor({
-      LESSON_PAYMENTS_PAYPAL_ENABLED: "true",
-      PAYPAL_CLIENT_ID: undefined,
-      PAYPAL_CLIENT_SECRET: undefined,
-    });
-    expect(problems).toContain("PAYPAL_CLIENT_ID");
-    expect(problems).toContain("PAYPAL_CLIENT_SECRET");
   });
 });
 

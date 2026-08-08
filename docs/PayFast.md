@@ -6,7 +6,7 @@
 
 1. **Platform subscriptions** — teachers paying Amazing Skills for Starter, Professional, or Business plans.
 
-Student lesson payments use **PayPal** only (`docs/LessonPayments.md`).
+Student lesson payments do not touch PayFast at all — they go to the teacher's own payment link (`docs/LessonPayments.md`).
 
 ---
 
@@ -135,6 +135,6 @@ Call the entitlement service before every gated feature. Booking creation atomic
 
 - Process student payments to teachers
 - Hold escrow or disburse teacher earnings
-- Handle PayPal teacher accounts
+- Handle student-to-teacher lesson payments
 
 See Phase 7 teacher payment docs in [Features.md](Features.md).

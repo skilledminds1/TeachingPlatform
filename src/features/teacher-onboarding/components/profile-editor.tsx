@@ -562,7 +562,7 @@ export function ProfileEditor({
                   ))}
                 </select>
                 <FieldDescription>
-                  Students pay you via PayPal in this currency once your account is linked.
+                  Students see your rate in this currency and pay you in it through your own payment link.
                 </FieldDescription>
                 <FieldError errors={[form.formState.errors.currency]} />
               </Field>
@@ -578,7 +578,7 @@ export function ProfileEditor({
               </summary>
               <p className="mt-3 text-sm text-muted-foreground">
                 Amazing Skills takes zero commission on lesson earnings. Students pay you
-                directly via your linked PayPal account.
+                directly through your own payment link — we never handle that money.
               </p>
             </details>
           </div>

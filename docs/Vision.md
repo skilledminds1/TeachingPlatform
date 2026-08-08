@@ -26,7 +26,7 @@ Video calls are the whole product. Booking → payment → video session → rev
 
 ### 3. Platform Stays Out of Teacher Payouts
 
-Students pay teachers directly through the teacher's own PayPal account. The platform only collects teacher subscriptions via PayFast, and never handles money between a student and a teacher.
+Students pay teachers directly through the teacher's own payment link. The platform only collects teacher subscriptions via PayFast, and never handles money between a student and a teacher.
 
 ### 4. Simplicity Over Complexity
 

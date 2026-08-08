@@ -21,7 +21,6 @@ export {
 
 const SUCCESS_STATUSES = new Set(["succeeded", "refunded", "partially_refunded"]);
 const UNRESOLVED_REFUND_STATUSES = new Set(["requested", "teacher_approved", "escalated"]);
-const OPEN_DISPUTE_STATUSES = new Set(["open", "under_review"]);
 
 type Subject = {
   studentEmail: string;
@@ -46,13 +45,6 @@ export type PlatformAnalyticsFixture = {
     providerRefundedCents: number;
     currency: string;
     requestedAt: Date;
-  }>;
-  disputes: Array<Subject & {
-    id: string;
-    status: string;
-    amountCents: number;
-    currency: string;
-    openedAt: Date;
   }>;
   learnerActivity: Array<Subject & {
     studentId: string;
@@ -243,16 +235,6 @@ export function summarizePlatformAnalytics(
   const unresolvedRequests = refundRequests.filter((request) =>
     UNRESOLVED_REFUND_STATUSES.has(request.status),
   );
-  const disputes = fixture.disputes.filter(
-    (dispute) => !isDemo(dispute) && inWindow(dispute.openedAt, start, end),
-  );
-  const disputedByCurrency = new Map<string, number>();
-  for (const dispute of disputes) {
-    disputedByCurrency.set(
-      dispute.currency,
-      (disputedByCurrency.get(dispute.currency) ?? 0) + dispute.amountCents,
-    );
-  }
 
   const currentLearners = new Set(
     fixture.learnerActivity
@@ -383,10 +365,6 @@ export function summarizePlatformAnalytics(
       })),
       requestCount: refundRequests.length,
       unresolvedCount: unresolvedRequests.length,
-      disputeCount: disputes.length,
-      openDisputeCount: disputes.filter((dispute) => OPEN_DISPUTE_STATUSES.has(dispute.status))
-        .length,
-      disputedByCurrency: amountRows(disputedByCurrency),
       refundRate: percent(
         volumeRows.reduce((sum, row) => sum + row.refundedCents, 0),
         volumeRows.reduce((sum, row) => sum + row.grossCents, 0),
@@ -450,28 +428,25 @@ export async function getPlatformAnalytics(
   const [
     paymentRows,
     refundRows,
-    disputeRows,
     bookingRows,
     organizations,
     invoiceRows,
   ] = await Promise.all([
-    db.paymentAttempt.findMany({
-      where: earliest ? { createdAt: { gte: earliest, lte: now } } : { createdAt: { lte: now } },
+    // Payments the platform can see at all: what teachers reported receiving. There is no
+    // processing to observe — students pay teachers on the teacher's own provider.
+    db.booking.findMany({
+      where: {
+        paymentReportedAt: earliest ? { gte: earliest, lte: now } : { lte: now },
+      },
       select: {
         id: true,
-        status: true,
-        amountCents: true,
-        refundedCents: true,
+        hourlyRateCents: true,
         currency: true,
         createdAt: true,
-        succeededAt: true,
-        booking: {
-          select: {
-            student: { select: { email: true } },
-            teacher: { select: { email: true } },
-            organization: { select: { slug: true } },
-          },
-        },
+        paymentReportedAt: true,
+        student: { select: { email: true } },
+        teacher: { select: { email: true } },
+        organization: { select: { slug: true } },
       },
     }),
     db.refundRequest.findMany({
@@ -488,29 +463,6 @@ export async function getPlatformAnalytics(
         student: { select: { email: true } },
         teacher: { select: { email: true } },
         booking: { select: { organization: { select: { slug: true } } } },
-      },
-    }),
-    db.paymentDispute.findMany({
-      where: earliest ? { openedAt: { gte: earliest, lte: now } } : { openedAt: { lte: now } },
-      select: {
-        id: true,
-        status: true,
-        amountCents: true,
-        currency: true,
-        openedAt: true,
-        paymentAttempt: {
-          select: {
-            amountCents: true,
-            currency: true,
-            booking: {
-              select: {
-                student: { select: { email: true } },
-                teacher: { select: { email: true } },
-                organization: { select: { slug: true } },
-              },
-            },
-          },
-        },
       },
     }),
     db.booking.findMany({
@@ -563,22 +515,22 @@ export async function getPlatformAnalytics(
   const fixture: PlatformAnalyticsFixture = {
     // A payment attempt whose booking has been deleted has no subject to attribute it to,
     // so it cannot be demo-filtered and is dropped rather than counted blind.
-    payments: paymentRows.flatMap((payment) => {
-      const booking = payment.booking;
-      if (!booking) return [];
-      return [{
-        id: payment.id,
-        status: payment.status,
-        amountCents: payment.amountCents,
-        refundedCents: payment.refundedCents,
-        currency: payment.currency,
-        createdAt: payment.createdAt,
-        succeededAt: payment.succeededAt,
-        studentEmail: booking.student.email,
-        teacherEmail: booking.teacher.email,
-        organizationSlug: booking.organization.slug,
-      }];
-    }),
+    payments: paymentRows.map((payment) => ({
+      id: payment.id,
+      // Every reported payment is, by definition, one the teacher says arrived. There is no
+      // failed/pending state to distinguish because nothing here was processed.
+      status: "reported",
+      amountCents: payment.hourlyRateCents,
+      // No refunded component: a refund happens in the teacher's own provider and the
+      // platform is never told the amount.
+      refundedCents: 0,
+      currency: payment.currency,
+      createdAt: payment.createdAt,
+      succeededAt: payment.paymentReportedAt,
+      studentEmail: payment.student.email,
+      teacherEmail: payment.teacher.email,
+      organizationSlug: payment.organization.slug,
+    })),
     refundRequests: refundRows.map((request) => ({
       id: request.id,
       status: request.status,
@@ -590,20 +542,6 @@ export async function getPlatformAnalytics(
       teacherEmail: request.teacher.email,
       organizationSlug: request.booking?.organization.slug ?? "",
     })),
-    disputes: disputeRows.flatMap((dispute) => {
-      const booking = dispute.paymentAttempt.booking;
-      if (!booking) return [];
-      return [{
-        id: dispute.id,
-        status: dispute.status,
-        amountCents: dispute.amountCents ?? dispute.paymentAttempt.amountCents,
-        currency: dispute.currency ?? dispute.paymentAttempt.currency,
-        openedAt: dispute.openedAt,
-        studentEmail: booking.student.email,
-        teacherEmail: booking.teacher.email,
-        organizationSlug: booking.organization.slug,
-      }];
-    }),
     learnerActivity: bookingRows.map((booking) => ({
       studentId: booking.studentId,
       occurredAt: booking.startsAt,

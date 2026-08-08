@@ -40,8 +40,6 @@ export function buildContentSecurityPolicy(input: {
     `'nonce-${nonce}'`,
     "'strict-dynamic'",
     ...(isProduction ? [] : ["'unsafe-eval'", "'unsafe-inline'"]),
-    "https://www.paypal.com",
-    "https://www.paypalobjects.com",
     "https://accounts.google.com",
   ].join(" ");
 
@@ -53,12 +51,12 @@ export function buildContentSecurityPolicy(input: {
     // script injection.
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
-    "img-src 'self' data: blob: https://*.supabase.co https://*.paypal.com https://*.paypalobjects.com",
+    "img-src 'self' data: blob: https://*.supabase.co",
     "media-src 'self' blob: https://*.supabase.co https://*.livekit.cloud",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://api-m.paypal.com https://api-m.sandbox.paypal.com https://*.ingest.sentry.io",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://*.ingest.sentry.io",
     // Video embed hosts must match VIDEO_EMBED_HOSTS in src/lib/security/urls.ts — a test
     // asserts the two stay in sync. Without these, every lesson video iframe is blocked.
-    "frame-src 'self' https://www.paypal.com https://www.sandbox.paypal.com https://accounts.google.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.loom.com",
+    "frame-src 'self' https://accounts.google.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.loom.com",
     "form-action 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
     "frame-ancestors 'none'",
     "base-uri 'self'",

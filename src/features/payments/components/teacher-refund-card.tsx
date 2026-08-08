@@ -113,7 +113,7 @@ export function TeacherRefundCard({
           <Input
             value={reference}
             onChange={(event) => setReference(event.target.value)}
-            placeholder="PayPal refund or transfer reference"
+            placeholder="Reference from wherever you sent the refund"
           />
           <Button
             disabled={isPending || reference.trim().length < 3}

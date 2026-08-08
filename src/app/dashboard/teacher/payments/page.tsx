@@ -1,23 +1,13 @@
-import { AlertCircle, ShieldCheck } from "lucide-react";
-
 import { PaymentLinkEditor } from "@/features/payments/components/payment-link-editor";
-import { PaymentProviderCard } from "@/features/payments/components/payment-provider-card";
 import { paymentLinkProvidersForCountry } from "@/lib/payments/payment-links";
 import { db } from "@/lib/db";
 import { requireTeacher } from "@/server/auth/session";
 import { getTeacherEarningsSummary } from "@/server/teachers/earnings";
-import { getTeacherPaymentSettings } from "@/server/teachers/payments";
 
-export default async function TeacherPaymentsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ connected?: string; error?: string }>;
-}) {
+export default async function TeacherPaymentsPage() {
   const teacher = await requireTeacher();
-  const [data, earnings, query, profile] = await Promise.all([
-    getTeacherPaymentSettings(),
+  const [earnings, profile] = await Promise.all([
     getTeacherEarningsSummary(),
-    searchParams,
     db.teacherProfile.findUnique({
       where: { userId: teacher.id },
       select: {
@@ -27,7 +17,6 @@ export default async function TeacherPaymentsPage({
       },
     }),
   ]);
-  const paypal = data.accounts.find((account) => account.provider === "paypal");
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -35,22 +24,11 @@ export default async function TeacherPaymentsPage({
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Student payments</h1>
           <p className="mt-2 text-muted-foreground">
-            Connect a payment method to receive direct payments from students for lessons.
+            Students pay you directly. Save a link from your own payment provider and we send
+            them straight to it.
           </p>
         </div>
 
-        {query.connected ? (
-          <div className="flex gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-            PayPal connected successfully.
-          </div>
-        ) : null}
-        {query.error ? (
-          <div className="flex gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            The provider could not be connected. Please try again.
-          </div>
-        ) : null}
 
         <PaymentLinkEditor
           currentUrl={profile?.paymentLinkUrl ?? null}
@@ -59,34 +37,28 @@ export default async function TeacherPaymentsPage({
           providers={paymentLinkProvidersForCountry(teacher.country)}
         />
 
-        <div className="max-w-md">
-          <PaymentProviderCard
-            configured={data.configured.paypal}
-            connected={Boolean(paypal?.isActive && paypal.onboardingStatus === "complete")}
-            maskedAccountId={paypal?.maskedAccountId}
-            onboardingStatus={paypal?.onboardingStatus}
-            settlementCurrency={paypal?.settlementCurrency}
-            country={paypal?.country}
-          />
-        </div>
 
         <section className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm">
           <div>
-            <h2 className="font-semibold">Earnings summary</h2>
+            <h2 className="font-semibold">Payments you have marked as received</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Read-only totals from verified lesson payments on Amazing Skills (provider fees may
-              already be deducted at the provider).
+              Your own record, not accounting. Amazing Skills never receives these payments, so
+              it cannot see or reconcile them — the authoritative figures are in your payment
+              provider.
             </p>
           </div>
           {earnings.totals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No lesson payments recorded yet.</p>
+            <p className="text-sm text-muted-foreground">
+              Nothing recorded yet. Mark a payment received from the lesson page once it
+              arrives.
+            </p>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
               {earnings.totals.map((total) => (
                 <li key={total.currency} className="rounded-lg border border-border p-3 text-sm">
                   <p className="font-medium">{total.currency}</p>
                   <p className="mt-1 text-muted-foreground">
-                    Net {total.netLabel} from {total.count} payment
+                    {total.grossLabel} across {total.count} lesson
                     {total.count === 1 ? "" : "s"}
                   </p>
                 </li>

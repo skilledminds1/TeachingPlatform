@@ -19,7 +19,6 @@ export {
   parseAnalyticsRange,
 } from "@/features/teacher-dashboard/lib/analytics-range";
 
-const PAYMENT_STATUSES = ["succeeded", "refunded", "partially_refunded"] as const;
 
 type MoneyBucket = {
   currency: string;
@@ -111,21 +110,18 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
   const teacherId = user.id;
 
   const [paymentAttempts, bookings, relationships] = await Promise.all([
-    db.paymentAttempt.findMany({
-      // Every payment a teacher earns from is a lesson payment, so the booking's teacher is
-      // the only ownership link there is.
-      where: {
-        status: { in: [...PAYMENT_STATUSES] },
-        booking: { teacherId },
-      },
+    // What the teacher marked as received. The platform does not process lesson payments and
+    // cannot observe them, so this is a self-reported figure — labelled as such wherever it
+    // is displayed, and never presented as reconciled income.
+    db.booking.findMany({
+      where: { teacherId, paymentReportedAt: { not: null } },
       select: {
-        amountCents: true,
-        refundedCents: true,
+        hourlyRateCents: true,
         currency: true,
-        succeededAt: true,
+        paymentReportedAt: true,
         createdAt: true,
       },
-      orderBy: { succeededAt: "desc" },
+      orderBy: { paymentReportedAt: "desc" },
     }),
     db.booking.findMany({
       where: { teacherId },
@@ -146,28 +142,30 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
     }),
   ]);
 
-  const currentPayments = paymentAttempts.filter((attempt) =>
-    inWindow(attempt.succeededAt ?? attempt.createdAt, start, end),
+  const currentPayments = paymentAttempts.filter((payment) =>
+    inWindow(payment.paymentReportedAt ?? payment.createdAt, start, end),
   );
   const previousPayments =
     previousStart && previousEnd
-      ? paymentAttempts.filter((attempt) =>
-          inWindow(attempt.succeededAt ?? attempt.createdAt, previousStart, previousEnd),
+      ? paymentAttempts.filter((payment) =>
+          inWindow(payment.paymentReportedAt ?? payment.createdAt, previousStart, previousEnd),
         )
       : [];
 
   const earningsByCurrency = new Map<string, MoneyBucket>();
   const previousNetByCurrency = new Map<string, number>();
 
-  for (const attempt of currentPayments) {
-    accumulateMoney(earningsByCurrency, attempt.currency, attempt.amountCents, attempt.refundedCents);
+  // No refunded component: a refund the teacher issues happens entirely in their own payment
+  // provider, and the platform is never told the amount. Refund REQUESTS are tracked
+  // separately; they are a conversation, not a ledger entry.
+  for (const payment of currentPayments) {
+    accumulateMoney(earningsByCurrency, payment.currency, payment.hourlyRateCents, 0);
   }
 
-  for (const attempt of previousPayments) {
-    const net = attempt.amountCents - attempt.refundedCents;
+  for (const payment of previousPayments) {
     previousNetByCurrency.set(
-      attempt.currency,
-      (previousNetByCurrency.get(attempt.currency) ?? 0) + net,
+      payment.currency,
+      (previousNetByCurrency.get(payment.currency) ?? 0) + payment.hourlyRateCents,
     );
   }
 
@@ -220,14 +218,13 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
     if (index !== undefined) trend[index].completedLessons += 1;
   }
 
-  for (const attempt of currentPayments) {
-    const when = attempt.succeededAt ?? attempt.createdAt;
+  for (const payment of currentPayments) {
+    const when = payment.paymentReportedAt ?? payment.createdAt;
     const key = bucketKeyInZone(when, trendRange, timeZone);
     const index = trendIndex.get(key);
     if (index === undefined) continue;
-    const net = attempt.amountCents - attempt.refundedCents;
-    trend[index].netCentsByCurrency[attempt.currency] =
-      (trend[index].netCentsByCurrency[attempt.currency] ?? 0) + net;
+    trend[index].netCentsByCurrency[payment.currency] =
+      (trend[index].netCentsByCurrency[payment.currency] ?? 0) + payment.hourlyRateCents;
   }
 
   // Prefer a single primary currency for the trend bar (highest net in period).

@@ -134,13 +134,6 @@ export async function getTeacherModerationQueue() {
           name: true,
           email: true,
           avatarUrl: true,
-          teacherPaymentAccounts: {
-            where: {
-              isActive: true,
-              provider: "paypal",
-            },
-            select: { provider: true },
-          },
         },
       },
       organization: { select: { name: true, slug: true } },

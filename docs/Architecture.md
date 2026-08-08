@@ -22,7 +22,7 @@ Full-stack TypeScript tutoring marketplace using Next.js App Router. Live 1:1 le
 ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐
 │ Prisma/PG   │  │  Supabase   │  │  External Services  │
 │ App data    │  │ Auth·Storage│  │ PayFast (subs)      │
-│             │  │  Realtime   │  │ PayPal (tutor)      │
+│             │  │  Realtime   │  │ Teacher's own PSP   │
 └─────────────┘  └─────────────┘  │ LiveKit Cloud       │
                                   └─────────────────────┘
 ```
@@ -34,7 +34,7 @@ Two completely separate payment systems:
 | Flow | Direction | Provider | Platform role |
 |------|-----------|----------|---------------|
 | Subscription | Teacher → Platform | PayFast | Collects revenue — the only money the platform touches |
-| Lesson | Student → Teacher | Teacher's own PayPal | Opens the checkout and reads the webhook; never holds, routes, or disburses funds |
+| Lesson | Student → Teacher | Teacher's own hosted checkout | Renders a link to it. No keys, no webhook, no funds — the platform is not a party |
 
 ## Layer Responsibilities
 
@@ -45,7 +45,7 @@ Two completely separate payment systems:
 | Components | `src/components/` | Shared UI |
 | Actions | `src/actions/` | Mutations |
 | Server | `src/server/` | Queries, auth, business rules |
-| Services | `src/services/` | PayFast, PayPal, LiveKit, Resend |
+| Services | `src/services/` | PayFast, LiveKit, Resend |
 | Lib | `src/lib/` | db, supabase clients, validations |
 
 ## Request Flow (Booking Example)
@@ -55,7 +55,7 @@ Two completely separate payment systems:
 2. Client calls createBooking server action
 3. Action validates session, plan limits, slot availability
 4. Server module creates Booking (pending_payment)
-5. Redirect to the teacher's PayPal checkout
+5. Link out to the teacher's own hosted checkout
 6. Webhook confirms payment → Booking confirmed
 7. Server creates LiveKit room → VideoSession record
 8. Notifications sent (Phase 8)
@@ -78,7 +78,7 @@ In-app messaging and notifications (Phase 8); Realtime can be added later for li
 | Decision | Rationale |
 |----------|-----------|
 | PayFast subscriptions only | SA market; clear revenue separation |
-| Teacher's own PayPal for lessons | Platform avoids money transmitter complexity |
+| Teacher's own payment link for lessons | The platform never possesses the funds, which is the line every payments regime draws |
 | LiveKit Cloud video | Secure JWT access and flexible 1-on-1 React UI |
 | isPlatformAdmin flag | Simple secure admin provisioning |
 | No hosted course content | Hosting and gating course video makes the platform the deemed supplier for EU/UK VAT — see [Why courses are out of scope](../PROJECT.md#why-courses-are-out-of-scope) |
