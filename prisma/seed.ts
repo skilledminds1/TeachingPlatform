@@ -16,6 +16,12 @@ async function main(): Promise<void> {
     "basic_analytics",
     "community_support",
     "direct_payments",
+    // Free sets marketplaceListing: true but used to omit "reviews", and submitReview gates
+    // on it — so a Free teacher was listed on the marketplace and structurally unable to
+    // receive a single review. That is backwards: the teachers who most need reviews to win
+    // their first student are exactly the ones who have not paid yet, and a marketplace with
+    // no ratings on its newest supply cannot cold-start.
+    "reviews",
   ];
   const starterFeatures = [
     ...freeFeatures,
@@ -23,7 +29,6 @@ async function main(): Promise<void> {
     "file_sharing",
     "student_notes",
     "email_reminders",
-    "reviews",
     "basic_reporting",
     "custom_availability",
   ];

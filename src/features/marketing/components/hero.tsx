@@ -18,7 +18,7 @@ const trustPoints = [
   { icon: ShieldCheck, label: "Verified teachers" },
   { icon: Video, label: "Live 1-on-1 lessons" },
   { icon: Wallet, label: "Pay your teacher directly" },
-  { icon: Star, label: "Reviewed by real students" },
+  { icon: Star, label: "Reviews only after real lessons" },
 ] as const;
 
 const floatingSubjects = [

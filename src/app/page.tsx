@@ -10,7 +10,6 @@ import { Pricing } from "@/features/marketing/components/pricing";
 import { SiteFooter } from "@/features/marketing/components/site-footer";
 import { SiteHeader } from "@/features/marketing/components/site-header";
 import { Subjects } from "@/features/marketing/components/subjects";
-import { Testimonials } from "@/features/marketing/components/testimonials";
 import { getMarketingPlans } from "@/server/billing/pricing";
 
 export const metadata: Metadata = {
@@ -38,7 +37,6 @@ export default async function HomePage() {
         <Features />
         <ForTeachers />
         <Pricing plans={plans} />
-        <Testimonials />
         <Faq />
         <Cta />
       </main>
