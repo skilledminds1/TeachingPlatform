@@ -122,6 +122,11 @@ export async function getBookingForUser(bookingId: string) {
           id: true,
           name: true,
           avatarUrl: true,
+          // The destination a student is sent to in order to pay. Read from the profile so
+          // there is one source of truth for it rather than a copy on the booking.
+          teacherProfile: {
+            select: { paymentLinkUrl: true, paymentLinkHost: true },
+          },
           teacherPaymentAccounts: {
             where: {
               isActive: true,

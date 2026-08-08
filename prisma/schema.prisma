@@ -739,32 +739,52 @@ model Subject {
 }
 
 model TeacherProfile {
-  id                 String                   @id @default(uuid()) @db.Uuid
+  id                            String                   @id @default(uuid()) @db.Uuid
   /// When true, a booking request is confirmed the moment it is made and the video room is
   /// provisioned immediately. Off by default: accepting a lesson is a commitment, and a
   /// teacher who has not opted in should not be committed by someone else's click.
-  autoAcceptBookings Boolean                  @default(false) @map("auto_accept_bookings")
-  userId             String                   @unique @map("user_id") @db.Uuid
-  organizationId     String                   @map("organization_id") @db.Uuid
-  bio                String                   @default("")
-  headline           String?
-  hourlyRateCents    Int                      @default(0) @map("hourly_rate_cents")
-  currency           String                   @default("USD")
+  autoAcceptBookings            Boolean                  @default(false) @map("auto_accept_bookings")
+  userId                        String                   @unique @map("user_id") @db.Uuid
+  organizationId                String                   @map("organization_id") @db.Uuid
+  bio                           String                   @default("")
+  headline                      String?
+  hourlyRateCents               Int                      @default(0) @map("hourly_rate_cents")
+  currency                      String                   @default("USD")
   /// INT-12: hourlyRateCents normalised to USD, for the marketplace price filter and sort
   /// ONLY. Never used to charge anyone — students always pay the teacher's own listed
   /// amount in their own currency. Recomputed whenever the rate or currency changes.
-  hourlyRateUsdCents Int                      @default(0) @map("hourly_rate_usd_cents")
-  introVideoUrl      String?                  @map("intro_video_url")
-  introVideoPath     String?                  @map("intro_video_path")
-  status             TeacherProfileStatus     @default(draft)
-  rejectionReason    String?                  @map("rejection_reason")
-  slug               String                   @unique
-  submittedAt        DateTime?                @map("submitted_at")
+  hourlyRateUsdCents            Int                      @default(0) @map("hourly_rate_usd_cents")
+  /// Where a student is sent to pay this teacher. Validated against an exact-host allowlist
+  /// (src/lib/payments/payment-links.ts) — never free text, because it is rendered as an href
+  /// and a taken-over account would otherwise turn a profile into a phishing page under the
+  /// platform's branding.
+  paymentLinkUrl                String?                  @map("payment_link_url")
+  paymentLinkHost               String?                  @map("payment_link_host")
+  paymentLinkProviderId         String?                  @map("payment_link_provider_id")
+  paymentLinkSetAt              DateTime?                @map("payment_link_set_at")
+  /// A CHANGE to a live link is staged here until the teacher confirms it from their email.
+  ///
+  /// The first link needs no confirmation — there is nothing to protect yet. Replacing one
+  /// does, because that is the account-takeover payload: repoint where every future student
+  /// payment lands. SEC-02 found exactly this in the PayPal callback, where a single crafted
+  /// GET rewrote a teacher's payout destination. Staging it means a stolen session cannot
+  /// redirect money without also holding the mailbox.
+  pendingPaymentLinkUrl         String?                  @map("pending_payment_link_url")
+  pendingPaymentLinkHost        String?                  @map("pending_payment_link_host")
+  pendingPaymentLinkProviderId  String?                  @map("pending_payment_link_provider_id")
+  pendingPaymentLinkTokenHash   String?                  @unique @map("pending_payment_link_token_hash")
+  pendingPaymentLinkRequestedAt DateTime?                @map("pending_payment_link_requested_at")
+  introVideoUrl                 String?                  @map("intro_video_url")
+  introVideoPath                String?                  @map("intro_video_path")
+  status                        TeacherProfileStatus     @default(draft)
+  rejectionReason               String?                  @map("rejection_reason")
+  slug                          String                   @unique
+  submittedAt                   DateTime?                @map("submitted_at")
   /// INT-13: outcome of the sanctions-list screen run at approval, kept for audit.
-  screeningStatus    SanctionsScreeningStatus @default(not_screened) @map("screening_status")
-  screenedAt         DateTime?                @map("screened_at")
-  screeningSource    String?                  @map("screening_source")
-  screeningMatches   Json?                    @map("screening_matches")
+  screeningStatus               SanctionsScreeningStatus @default(not_screened) @map("screening_status")
+  screenedAt                    DateTime?                @map("screened_at")
+  screeningSource               String?                  @map("screening_source")
+  screeningMatches              Json?                    @map("screening_matches")
   /// QLT-08: denormalised review aggregates, written only by recomputeTeacherAggregates.
   ///
   /// searchTeachers took 60 profiles by submittedAt and then applied minRating and the
@@ -772,11 +792,11 @@ model TeacherProfile {
   /// 60 most recently submitted rather than the platform's best, and minRating could return
   /// an empty page while matching teachers existed. Filtering and ordering need the
   /// aggregate before the page is chosen (QLT-08).
-  ratingAverage      Decimal?                 @map("rating_average") @db.Decimal(3, 2)
-  ratingCount        Int                      @default(0) @map("rating_count")
-  createdAt          DateTime                 @default(now()) @map("created_at")
-  updatedAt          DateTime                 @updatedAt @map("updated_at")
-  deletedAt          DateTime?                @map("deleted_at")
+  ratingAverage                 Decimal?                 @map("rating_average") @db.Decimal(3, 2)
+  ratingCount                   Int                      @default(0) @map("rating_count")
+  createdAt                     DateTime                 @default(now()) @map("created_at")
+  updatedAt                     DateTime                 @updatedAt @map("updated_at")
+  deletedAt                     DateTime?                @map("deleted_at")
 
   user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -975,6 +995,19 @@ model Booking {
   paymentProvider       PaymentProvider? @map("payment_provider")
   paymentExternalId     String?          @map("payment_external_id")
   confirmationExpiresAt DateTime?        @map("confirmation_expires_at")
+  /// Payment is an ANNOTATION on a booking, never a gate.
+  ///
+  /// The platform cannot see a payment it never receives, so anything recorded here is
+  /// somebody's word. Confirmation runs off teacher acceptance and completion runs off
+  /// attendance — both facts the platform owns — so a false claim here changes nothing
+  /// material and there is nothing to be gained by lying.
+  ///
+  /// That only holds while lessons are 0% commission. If a cut is ever taken, a teacher who
+  /// under-reports saves money, this becomes worth lying about, and the model needs escrow
+  /// instead. Treat it as an invariant, not a preference.
+  paymentReportedAt     DateTime?        @map("payment_reported_at")
+  paymentReportedBy     String?          @map("payment_reported_by") @db.Uuid
+  paymentReference      String?          @map("payment_reference")
   cancellationReason    String?          @map("cancellation_reason")
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @updatedAt @map("updated_at")

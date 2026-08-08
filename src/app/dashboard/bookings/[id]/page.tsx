@@ -9,12 +9,10 @@ import { StatusBadge, statusTone } from "@/features/admin/components/status-badg
 import { CancelBookingButton } from "@/features/bookings/components/cancel-booking-button";
 import { ConfirmVideoBookingButton } from "@/features/video/components/confirm-video-booking-button";
 import { RescheduleResponseCard } from "@/features/bookings/components/reschedule-response-card";
-import { BookingCheckoutButtons } from "@/features/payments/components/booking-checkout-buttons";
+import { PayYourTeacherPanel } from "@/features/payments/components/pay-your-teacher-panel";
 import { RefundRequestPanel } from "@/features/payments/components/refund-request-panel";
 import { ReviewForm } from "@/features/reviews/components/review-form";
 import { formatCurrency, formatDateTime, formatStatus } from "@/lib/format";
-import { isLessonCurrency } from "@/lib/currencies";
-import { routeLessonProviders } from "@/lib/payments/routing";
 import { requireAuth } from "@/server/auth/session";
 import { getBookingForUser } from "@/server/bookings/calendar";
 
@@ -36,10 +34,6 @@ export default async function BookingDetailsPage({
   const upcoming =
     booking.startsAt > new Date() &&
     (booking.status === "pending_teacher_confirmation" || booking.status === "confirmed");
-  const providers = routeLessonProviders({
-    currency: booking.currency,
-    linkedProviders: booking.teacher.teacherPaymentAccounts.map((account) => account.provider),
-  });
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -161,15 +155,15 @@ export default async function BookingDetailsPage({
             ) : null}
             {!isTeacher ? (
               <div className="space-y-3">
-                <BookingCheckoutButtons
-                  bookingId={booking.id}
-                  providers={providers}
-                  currency={booking.currency}
-                  currencySupported={isLessonCurrency(booking.currency)}
+                <PayYourTeacherPanel
+                  teacherName={booking.teacher.name}
+                  paymentLinkUrl={booking.teacher.teacherProfile?.paymentLinkUrl ?? null}
+                  paymentLinkHost={booking.teacher.teacherProfile?.paymentLinkHost ?? null}
+                  reference={booking.id.slice(0, 8).toUpperCase()}
+                  amountLabel={formatCurrency(booking.hourlyRateCents, booking.currency)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Payment goes directly to the teacher. The teacher is responsible for refunds
-                  under our{" "}
+                  Refunds are arranged with your teacher under our{" "}
                   <Link href="/refund-policy" className="font-medium text-primary hover:underline">
                     refund policy
                   </Link>

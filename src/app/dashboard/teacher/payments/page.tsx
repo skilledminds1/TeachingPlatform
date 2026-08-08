@@ -1,6 +1,10 @@
 import { AlertCircle, ShieldCheck } from "lucide-react";
 
+import { PaymentLinkEditor } from "@/features/payments/components/payment-link-editor";
 import { PaymentProviderCard } from "@/features/payments/components/payment-provider-card";
+import { paymentLinkProvidersForCountry } from "@/lib/payments/payment-links";
+import { db } from "@/lib/db";
+import { requireTeacher } from "@/server/auth/session";
 import { getTeacherEarningsSummary } from "@/server/teachers/earnings";
 import { getTeacherPaymentSettings } from "@/server/teachers/payments";
 
@@ -9,10 +13,19 @@ export default async function TeacherPaymentsPage({
 }: {
   searchParams: Promise<{ connected?: string; error?: string }>;
 }) {
-  const [data, earnings, query] = await Promise.all([
+  const teacher = await requireTeacher();
+  const [data, earnings, query, profile] = await Promise.all([
     getTeacherPaymentSettings(),
     getTeacherEarningsSummary(),
     searchParams,
+    db.teacherProfile.findUnique({
+      where: { userId: teacher.id },
+      select: {
+        paymentLinkUrl: true,
+        paymentLinkHost: true,
+        pendingPaymentLinkHost: true,
+      },
+    }),
   ]);
   const paypal = data.accounts.find((account) => account.provider === "paypal");
 
@@ -38,6 +51,13 @@ export default async function TeacherPaymentsPage({
             The provider could not be connected. Please try again.
           </div>
         ) : null}
+
+        <PaymentLinkEditor
+          currentUrl={profile?.paymentLinkUrl ?? null}
+          currentHost={profile?.paymentLinkHost ?? null}
+          pendingHost={profile?.pendingPaymentLinkHost ?? null}
+          providers={paymentLinkProvidersForCountry(teacher.country)}
+        />
 
         <div className="max-w-md">
           <PaymentProviderCard
