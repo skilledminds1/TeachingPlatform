@@ -50,7 +50,7 @@ env:
   # Which endpoint runs on which schedule. Kept in step with src/server/jobs/registry.ts and
   # with the `on.schedule` list above by a test — a job added here without its trigger, or a
   # schedule changed in one place only, would otherwise never fire while still looking wired up.
-  JOB_SCHEDULES: '{"session-reminders":"*/15 * * * *","expire-pending-payments":"*/10 * * * *","finalize-sessions":"*/15 * * * *","refresh-fx-rates":"30 5 * * *","subscription-lifecycle":"15 2 * * *","process-email-outbox":"*/5 * * * *"}'
+  JOB_SCHEDULES: '{"session-reminders":"*/15 * * * *","expire-booking-requests":"*/10 * * * *","finalize-sessions":"*/15 * * * *","refresh-fx-rates":"30 5 * * *","subscription-lifecycle":"15 2 * * *","process-email-outbox":"*/5 * * * *"}'
 
 jobs:
   invoke:

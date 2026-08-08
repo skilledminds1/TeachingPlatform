@@ -182,7 +182,7 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
     completed: 0,
     cancelled: 0,
     no_show: 0,
-    pending_payment: 0,
+    pending_teacher_confirmation: 0,
   };
   for (const booking of currentBookings) {
     if (booking.status in bookingStatusCounts) {

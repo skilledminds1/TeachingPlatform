@@ -65,10 +65,10 @@ export async function startLessonCheckout(
   if (booking.studentId !== user.id) {
     return fail("Only the student can pay for this lesson.", "FORBIDDEN");
   }
-  if (booking.status !== "pending_payment") {
+  if (booking.status !== "pending_teacher_confirmation") {
     return fail("This booking is not awaiting payment.", "CONFLICT");
   }
-  if (booking.paymentExpiresAt && booking.paymentExpiresAt.getTime() < Date.now()) {
+  if (booking.confirmationExpiresAt && booking.confirmationExpiresAt.getTime() < Date.now()) {
     return fail("The payment window for this booking has expired.", "CONFLICT");
   }
 
@@ -91,7 +91,7 @@ export async function startLessonCheckout(
     return fail("Teacher payment account is missing.", "VALIDATION_ERROR");
   }
 
-  const expiresAt = booking.paymentExpiresAt ?? paymentWindowExpiry();
+  const expiresAt = booking.confirmationExpiresAt ?? paymentWindowExpiry();
   const idempotencyKey = `${booking.id}:${parsed.data.provider}:${Math.floor(Date.now() / 60_000)}`;
 
   const attempt = await db.paymentAttempt.create({

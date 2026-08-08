@@ -44,7 +44,7 @@ export default async function TeacherAnalyticsPage({
     { label: "Cancelled", value: data.bookings.cancelled },
     { label: "No-show", value: data.bookings.no_show },
     { label: "Confirmed", value: data.bookings.confirmed },
-    { label: "Pending payment", value: data.bookings.pending_payment },
+    { label: "Pending payment", value: data.bookings.pending_teacher_confirmation },
   ];
   const maxBooking = Math.max(1, ...bookingBars.map((item) => item.value));
 

@@ -155,7 +155,7 @@ export async function getTeacherCalendarWeek(weekParam?: string) {
           teacherId: user.id,
           startsAt: { lt: rangeEnd },
           endsAt: { gt: rangeStart },
-          status: { in: ["pending_payment", "confirmed", "completed"] },
+          status: { in: ["pending_teacher_confirmation", "confirmed", "completed"] },
         },
         orderBy: { startsAt: "asc" },
         include: {

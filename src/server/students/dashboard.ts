@@ -10,7 +10,7 @@ export async function getStudentDashboardData() {
       where: {
         studentId: user.id,
         startsAt: { gte: now },
-        status: { in: ["pending_payment", "confirmed"] },
+        status: { in: ["pending_teacher_confirmation", "confirmed"] },
       },
       orderBy: { startsAt: "asc" },
       take: 5,

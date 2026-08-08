@@ -73,7 +73,11 @@ enum TeacherPaymentOnboardingStatus {
 }
 
 enum BookingStatus {
-  pending_payment
+  /// Awaiting the teacher's acceptance. Renamed from `pending_payment`: the platform never
+  /// sees lesson money, so it cannot wait on a payment it will never be told about. The slot
+  /// is held in this state exactly as before — every availability and quota query that
+  /// treated `pending_payment` as occupied still does.
+  pending_teacher_confirmation
   confirmed
   cancelled
   completed
@@ -680,6 +684,10 @@ model Subject {
 
 model TeacherProfile {
   id                 String                   @id @default(uuid()) @db.Uuid
+  /// When true, a booking request is confirmed the moment it is made and the video room is
+  /// provisioned immediately. Off by default: accepting a lesson is a commitment, and a
+  /// teacher who has not opted in should not be committed by someone else's click.
+  autoAcceptBookings Boolean                  @default(false) @map("auto_accept_bookings")
   userId             String                   @unique @map("user_id") @db.Uuid
   organizationId     String                   @map("organization_id") @db.Uuid
   bio                String                   @default("")
@@ -899,21 +907,21 @@ model AvailabilityException {
 }
 
 model Booking {
-  id                 String           @id @default(uuid()) @db.Uuid
-  teacherId          String           @map("teacher_id") @db.Uuid
-  studentId          String           @map("student_id") @db.Uuid
-  organizationId     String           @map("organization_id") @db.Uuid
-  startsAt           DateTime         @map("starts_at")
-  endsAt             DateTime         @map("ends_at")
-  status             BookingStatus    @default(pending_payment)
-  hourlyRateCents    Int              @map("hourly_rate_cents")
-  currency           String           @default("USD")
-  paymentProvider    PaymentProvider? @map("payment_provider")
-  paymentExternalId  String?          @map("payment_external_id")
-  paymentExpiresAt   DateTime?        @map("payment_expires_at")
-  cancellationReason String?          @map("cancellation_reason")
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
+  id                    String           @id @default(uuid()) @db.Uuid
+  teacherId             String           @map("teacher_id") @db.Uuid
+  studentId             String           @map("student_id") @db.Uuid
+  organizationId        String           @map("organization_id") @db.Uuid
+  startsAt              DateTime         @map("starts_at")
+  endsAt                DateTime         @map("ends_at")
+  status                BookingStatus    @default(pending_teacher_confirmation)
+  hourlyRateCents       Int              @map("hourly_rate_cents")
+  currency              String           @default("USD")
+  paymentProvider       PaymentProvider? @map("payment_provider")
+  paymentExternalId     String?          @map("payment_external_id")
+  confirmationExpiresAt DateTime?        @map("confirmation_expires_at")
+  cancellationReason    String?          @map("cancellation_reason")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
 
   teacher             User                        @relation("TeacherBookings", fields: [teacherId], references: [id])
   student             User                        @relation("StudentBookings", fields: [studentId], references: [id])
@@ -930,7 +938,7 @@ model Booking {
   @@index([organizationId])
   @@index([startsAt])
   @@index([status])
-  @@index([paymentExpiresAt])
+  @@index([confirmationExpiresAt])
   @@map("bookings")
 }
 

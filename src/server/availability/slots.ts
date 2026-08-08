@@ -52,7 +52,7 @@ export async function getAvailableSlots(
     db.booking.findMany({
       where: {
         teacherId: profile.userId,
-        status: { in: ["pending_payment", "confirmed"] },
+        status: { in: ["pending_teacher_confirmation", "confirmed"] },
         startsAt: { lt: rangeEnd },
         endsAt: { gt: rangeStart },
       },

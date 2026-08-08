@@ -496,7 +496,7 @@ export function TeacherCalendar({
                         ((start.hour * 60 + start.minute) / 60) * HOUR_HEIGHT;
                       const height =
                         (end.diff(start, "minutes").minutes / 60) * HOUR_HEIGHT;
-                      const pending = booking.status === "pending_payment";
+                      const pending = booking.status === "pending_teacher_confirmation";
                       const accent = booking.isFirstLesson
                         ? "border-s-emerald-500"
                         : "border-s-sky-500";

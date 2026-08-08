@@ -100,7 +100,7 @@ export async function getLiveLessonUsage(organizationId: string, now = new Date(
       where: {
         organizationId,
         startsAt: { gte: periodStart, lt: periodEnd },
-        status: { in: ["pending_payment", "confirmed", "completed"] },
+        status: { in: ["pending_teacher_confirmation", "confirmed", "completed"] },
       },
       select: { startsAt: true, endsAt: true },
     }),

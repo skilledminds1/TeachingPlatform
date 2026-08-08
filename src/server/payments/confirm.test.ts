@@ -18,7 +18,6 @@ const state = {
   attempt: null as AnyRecord | null,
   // QLT-01: the refund and expiry paths write through these, so the tests need to see them.
   attemptWrites: { update: [] as AnyRecord[], updateMany: [] as AnyRecord[] },
-  expiryCandidates: { bookings: [] as AnyRecord[] },
 };
 
 const tx = {
@@ -62,7 +61,6 @@ const tx = {
 vi.mock("@/lib/db", () => ({
   db: {
     $transaction: async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx),
-    booking: { findMany: vi.fn(async () => state.expiryCandidates.bookings) },
   },
 }));
 vi.mock("@/lib/env", () => ({ env: { LESSON_PAYMENT_TIMEOUT_MINUTES: 30 } }));
@@ -84,7 +82,6 @@ vi.mock("@/server/integrations/google-calendar", () => ({
 const {
   confirmBookingPayment,
   applyRefundToAttempt,
-  expireAbandonedPayments,
   markAttemptFailed,
   paymentWindowExpiry,
 } = await import("./confirm");
@@ -126,7 +123,6 @@ beforeEach(() => {
   state.booking.updateManyResult = { count: 1 };
   state.attemptWrites.update = [];
   state.attemptWrites.updateMany = [];
-  state.expiryCandidates.bookings = [];
 });
 
 describe("confirmBookingPayment", () => {
@@ -140,12 +136,12 @@ describe("confirmBookingPayment", () => {
   });
 
   // The core race: only a booking still in pending_payment may be confirmed.
-  it("scopes the confirming update to pending_payment bookings", async () => {
+  it("scopes the confirming update to bookings still awaiting confirmation", async () => {
     state.attempt = bookingAttempt("pending_payment");
     await confirmBookingPayment(CONFIRMATION);
 
     const where = state.booking.calls[0].where as AnyRecord;
-    expect(where.status).toBe("pending_payment");
+    expect(where.status).toBe("pending_teacher_confirmation");
     expect(where.id).toBe("booking-1");
   });
 
@@ -304,54 +300,6 @@ describe("applyRefundToAttempt", () => {
     state.attempt = null;
     await applyRefundToAttempt(REFUND);
     expect(state.attemptWrites.update).toHaveLength(0);
-  });
-});
-
-/**
- * The race the expiry job exists to lose safely: a payment landing between the SELECT that
- * chose the candidates and the UPDATE that cancels them. Cancelling a booking whose payment
- * has just succeeded leaves money captured and no lesson, which is the worst outcome
- * available to this system.
- */
-describe("expireAbandonedPayments", () => {
-  it("cancels a booking that is still unpaid", async () => {
-    state.expiryCandidates.bookings = [{ id: "booking-1" }];
-    const expired = await expireAbandonedPayments(new Date("2026-08-02T12:00:00.000Z"));
-    expect(expired).toBe(1);
-  });
-
-  it("re-checks that the booking is still unpaid inside the update", async () => {
-    state.expiryCandidates.bookings = [{ id: "booking-1" }];
-    await expireAbandonedPayments(new Date("2026-08-02T12:00:00.000Z"));
-
-    const [call] = state.booking.calls;
-    // Without this condition the SELECT/UPDATE gap is a real window.
-    expect((call.where as AnyRecord).status).toBe("pending_payment");
-    expect((call.where as AnyRecord).paymentExpiresAt).toBeDefined();
-  });
-
-  it("leaves a booking alone when the payment landed first", async () => {
-    state.expiryCandidates.bookings = [{ id: "booking-1" }];
-    // The conditional update matches nothing: the row is no longer pending_payment.
-    state.booking.updateManyResult = { count: 0 };
-
-    const expired = await expireAbandonedPayments(new Date("2026-08-02T12:00:00.000Z"));
-
-    expect(expired).toBe(0);
-    // And critically, the succeeded attempt is not flipped to expired.
-    expect(state.attemptWrites.updateMany).toHaveLength(0);
-  });
-
-  it("expires the attempt only for a booking it actually cancelled", async () => {
-    state.expiryCandidates.bookings = [{ id: "booking-1" }];
-    await expireAbandonedPayments(new Date("2026-08-02T12:00:00.000Z"));
-
-    const [attemptWrite] = state.attemptWrites.updateMany;
-    expect((attemptWrite.data as AnyRecord).status).toBe("expired");
-    // Only attempts that were still open — never a succeeded one.
-    expect((attemptWrite.where as AnyRecord).status).toEqual({
-      in: ["pending", "requires_action"],
-    });
   });
 });
 

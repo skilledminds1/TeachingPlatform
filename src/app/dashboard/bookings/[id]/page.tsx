@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { CancelBookingButton } from "@/features/bookings/components/cancel-booking-button";
+import { ConfirmVideoBookingButton } from "@/features/video/components/confirm-video-booking-button";
 import { RescheduleResponseCard } from "@/features/bookings/components/reschedule-response-card";
 import { BookingCheckoutButtons } from "@/features/payments/components/booking-checkout-buttons";
 import { RefundRequestPanel } from "@/features/payments/components/refund-request-panel";
@@ -15,7 +16,6 @@ import { isLessonCurrency } from "@/lib/currencies";
 import { routeLessonProviders } from "@/lib/payments/routing";
 import { requireAuth } from "@/server/auth/session";
 import { getBookingForUser } from "@/server/bookings/calendar";
-import { expireAbandonedPayments } from "@/server/payments/confirm";
 
 export const metadata: Metadata = { title: "Booking details" };
 
@@ -28,14 +28,13 @@ export default async function BookingDetailsPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
-  await expireAbandonedPayments().catch(() => 0);
   const [booking, user] = await Promise.all([getBookingForUser(id), requireAuth()]);
   if (!booking) notFound();
   const isTeacher = booking.teacherId === user.id;
   const otherPerson = isTeacher ? booking.student : booking.teacher;
   const upcoming =
     booking.startsAt > new Date() &&
-    (booking.status === "pending_payment" || booking.status === "confirmed");
+    (booking.status === "pending_teacher_confirmation" || booking.status === "confirmed");
   const providers = routeLessonProviders({
     currency: booking.currency,
     linkedProviders: booking.teacher.teacherPaymentAccounts.map((account) => account.provider),
@@ -86,17 +85,23 @@ export default async function BookingDetailsPage({
           </dl>
         </section>
 
-        {booking.status === "pending_payment" ? (
+        {booking.status === "pending_teacher_confirmation" ? (
           <section className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">
-            <p className="font-medium">Payment pending</p>
+            <p className="font-medium">
+              {isTeacher ? "Awaiting your answer" : "Waiting for the teacher to confirm"}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {isTeacher
-                ? "Waiting for the student to complete checkout. The lesson confirms automatically after a verified payment."
-                : `Your time is reserved${
-                    booking.paymentExpiresAt
-                      ? ` until ${formatDateTime(booking.paymentExpiresAt, user.timezone)}`
+                ? `This slot is held for you${
+                    booking.confirmationExpiresAt
+                      ? ` until ${formatDateTime(booking.confirmationExpiresAt, user.timezone)}`
                       : ""
-                  }. Pay the teacher directly — Amazing Skills takes no commission.`}
+                  }. Accepting confirms the lesson and opens the video room.`
+                : `Your time is reserved${
+                    booking.confirmationExpiresAt
+                      ? ` until ${formatDateTime(booking.confirmationExpiresAt, user.timezone)}`
+                      : ""
+                  }. Arrange payment with your teacher directly — Amazing Skills never handles this money and cannot refund it.`}
             </p>
             {query.payment === "cancelled" ? (
               <p className="mt-2 text-sm text-destructive">Checkout was cancelled. You can try again.</p>
@@ -112,6 +117,11 @@ export default async function BookingDetailsPage({
                 We could not verify the payment yet. Your payment record is unchanged; refresh
                 shortly or contact support if it remains pending.
               </p>
+            ) : null}
+            {isTeacher ? (
+              <div className="mt-4">
+                <ConfirmVideoBookingButton bookingId={booking.id} />
+              </div>
             ) : null}
             {!isTeacher ? (
               <div className="space-y-3">

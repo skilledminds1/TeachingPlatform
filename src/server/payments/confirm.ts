@@ -123,12 +123,12 @@ export async function confirmBookingPayment(input: {
     // the same time. That produced two confirmed, paid bookings for one slot, with no way
     // to refund from the platform because it never holds the funds.
     const revived = await tx.booking.updateMany({
-      where: { id: bookingId, status: "pending_payment" },
+      where: { id: bookingId, status: "pending_teacher_confirmation" },
       data: {
         status: "confirmed",
         paymentProvider: attempt.provider,
         paymentExternalId: input.providerPaymentId,
-        paymentExpiresAt: null,
+        confirmationExpiresAt: null,
       },
     });
 
@@ -282,49 +282,6 @@ export async function applyRefundToAttempt(input: {
       },
     });
   });
-}
-
-export async function expireAbandonedPayments(now = new Date()): Promise<number> {
-  const expiredBookings = await db.booking.findMany({
-    where: {
-      status: "pending_payment",
-      paymentExpiresAt: { lte: now },
-    },
-    select: { id: true },
-    take: 100,
-  });
-
-  // The candidate rows were selected in a separate query, so a payment may confirm between
-  // the SELECT and this UPDATE — exactly the case when a payment races the deadline. Every
-  // transition below is therefore conditional on the row still being unpaid; without that,
-  // a confirmed, paid booking could be flipped to "cancelled — payment window expired"
-  // while its succeeded PaymentAttempt survived, leaving money captured and no lesson.
-  let expired = 0;
-
-  for (const booking of expiredBookings) {
-    await db.$transaction(async (tx) => {
-      const cancelled = await tx.booking.updateMany({
-        where: { id: booking.id, status: "pending_payment", paymentExpiresAt: { lte: now } },
-        data: {
-          status: "cancelled",
-          cancellationReason: "Payment window expired",
-          paymentExpiresAt: null,
-        },
-      });
-      if (cancelled.count === 0) return;
-
-      await tx.paymentAttempt.updateMany({
-        where: {
-          bookingId: booking.id,
-          status: { in: ["pending", "requires_action"] },
-        },
-        data: { status: "expired" },
-      });
-      expired += 1;
-    });
-  }
-
-  return expired;
 }
 
 export function paymentWindowExpiry(from = new Date()): Date {

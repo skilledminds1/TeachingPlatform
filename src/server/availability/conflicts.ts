@@ -18,7 +18,7 @@ export async function findLessonConflictsForRange(input: {
   const bookings = await db.booking.findMany({
     where: {
       teacherId: input.teacherId,
-      status: { in: ["pending_payment", "confirmed"] },
+      status: { in: ["pending_teacher_confirmation", "confirmed"] },
       startsAt: { lt: input.end },
       endsAt: { gt: input.start },
     },

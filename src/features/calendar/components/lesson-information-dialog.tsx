@@ -159,7 +159,7 @@ export function LessonInformationDialog({
                 </span>
                 Confirmed
               </div>
-            ) : booking.status === "pending_payment" ? (
+            ) : booking.status === "pending_teacher_confirmation" ? (
               <p className="text-sm text-amber-700 dark:text-amber-400">
                 Awaiting payment confirmation
               </p>

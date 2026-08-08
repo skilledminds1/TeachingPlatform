@@ -5,19 +5,86 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { bookingIdSchema, videoSessionIdSchema } from "@/lib/validations/video";
 import { requireAuth } from "@/server/auth/session";
+import {
+  acceptBookingRequest,
+  declineBookingRequest,
+} from "@/server/bookings/confirmation";
 import { createLiveKitToken } from "@/services/livekit/tokens";
 import { fail, ok, type ActionResult } from "@/types/action";
 
+/**
+ * The teacher accepts a booking request, which is what confirms a lesson and provisions its
+ * video room. Previously this returned FORBIDDEN unconditionally, deferring to a payment
+ * capture that no configuration could reach — so nothing on the platform could ever be
+ * confirmed. See src/server/bookings/confirmation.ts.
+ */
 export async function confirmBookingAndCreateRoom(
   bookingId: string,
 ): Promise<ActionResult<{ sessionId: string }>> {
   const parsed = bookingIdSchema.safeParse(bookingId);
   if (!parsed.success) return fail("Invalid booking.", "VALIDATION_ERROR");
-  await requireAuth();
-  return fail(
-    "Lessons are confirmed automatically after a verified student payment.",
-    "FORBIDDEN",
-  );
+  const teacher = await requireAuth();
+
+  const result = await acceptBookingRequest({ bookingId: parsed.data, teacherId: teacher.id });
+  if (!result.ok) {
+    if (result.reason === "not_found") return fail("Booking not found.", "NOT_FOUND");
+    if (result.reason === "not_teacher") {
+      return fail("Only the teacher can accept this lesson.", "FORBIDDEN");
+    }
+    return fail("This lesson is no longer awaiting your answer.", "CONFLICT");
+  }
+
+  const session = await db.videoSession.findUnique({
+    where: { bookingId: result.bookingId },
+    select: { id: true },
+  });
+  revalidatePath(`/dashboard/bookings/${result.bookingId}`);
+  revalidatePath("/dashboard/bookings");
+  revalidatePath("/dashboard/teacher/bookings");
+  revalidatePath("/dashboard/teacher");
+
+  // The room is provisioned inside acceptBookingRequest, but a LiveKit outage must not undo an
+  // acceptance the teacher already made — so a missing session is reported, not treated as a
+  // failed confirmation. The session page creates it on demand.
+  if (!session) {
+    return fail(
+      "Lesson confirmed, but the video room could not be created yet. Open the lesson to retry.",
+      "INTERNAL_ERROR",
+    );
+  }
+  return ok({ sessionId: session.id });
+}
+
+export async function declineBooking(
+  bookingId: string,
+  reason: string,
+): Promise<ActionResult<{ declined: true }>> {
+  const parsed = bookingIdSchema.safeParse(bookingId);
+  if (!parsed.success) return fail("Invalid booking.", "VALIDATION_ERROR");
+  const teacher = await requireAuth();
+
+  const trimmed = reason.trim();
+  if (trimmed.length < 5 || trimmed.length > 500) {
+    return fail("Give the student a short reason (5–500 characters).", "VALIDATION_ERROR");
+  }
+
+  const result = await declineBookingRequest({
+    bookingId: parsed.data,
+    teacherId: teacher.id,
+    reason: trimmed,
+  });
+  if (!result.ok) {
+    if (result.reason === "not_found") return fail("Booking not found.", "NOT_FOUND");
+    if (result.reason === "not_teacher") {
+      return fail("Only the teacher can decline this lesson.", "FORBIDDEN");
+    }
+    return fail("This lesson is no longer awaiting your answer.", "CONFLICT");
+  }
+
+  revalidatePath(`/dashboard/bookings/${result.bookingId}`);
+  revalidatePath("/dashboard/bookings");
+  revalidatePath("/dashboard/teacher/bookings");
+  return ok({ declined: true });
 }
 
 export async function startSession(

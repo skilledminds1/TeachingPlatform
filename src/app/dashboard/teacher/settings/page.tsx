@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { getNotificationPreferences } from "@/server/notifications/preferences";
 import { LegalAcceptanceHistory } from "@/features/legal/components/legal-acceptance-history";
+import { AutoAcceptBookingsCard } from "@/features/teacher-dashboard/components/auto-accept-bookings-card";
 import { SettingsEditor } from "@/features/teacher-dashboard/components/settings-editor";
 import { env } from "@/lib/env";
 import { getLegalAcceptanceHistory } from "@/server/legal/acceptance";
@@ -25,6 +26,8 @@ export default async function TeacherSettingsPage() {
         appOrigin={env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}
         notificationPreferences={notificationPreferences}
       />
+
+      <AutoAcceptBookingsCard enabled={profile?.autoAcceptBookings ?? false} />
 
       <LegalAcceptanceHistory viewerTimeZone={user.timezone} acceptances={acceptances} />
     </div>

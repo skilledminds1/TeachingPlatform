@@ -41,7 +41,7 @@ export function BookingList({
   const upcoming = bookings.filter(
     (booking) =>
       booking.startsAt >= now &&
-      (booking.status === "pending_payment" || booking.status === "confirmed"),
+      (booking.status === "pending_teacher_confirmation" || booking.status === "confirmed"),
   );
   const history = bookings.filter((booking) => !upcoming.includes(booking)).reverse();
 

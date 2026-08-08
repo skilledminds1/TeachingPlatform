@@ -26,7 +26,10 @@ import {
   notifyRescheduleDeclined,
   notifyRescheduleProposed,
 } from "@/server/notifications/notify";
-import { paymentWindowExpiry } from "@/server/payments/confirm";
+import {
+  acceptBookingRequest,
+  confirmationWindowExpiry,
+} from "@/server/bookings/confirmation";
 import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
 import { getScopeRestriction, usersHaveBlock } from "@/server/trust/enforcement";
 import { deleteLiveKitRoom } from "@/services/livekit/rooms";
@@ -72,6 +75,7 @@ export async function createBooking(
       organizationId: true,
       hourlyRateCents: true,
       currency: true,
+      autoAcceptBookings: true,
     },
   });
   if (!profile) return fail("Teacher not found.", "NOT_FOUND");
@@ -91,7 +95,7 @@ export async function createBooking(
           const collision = await tx.booking.findFirst({
             where: {
               teacherId: profile.userId,
-              status: { in: ["pending_payment", "confirmed"] },
+              status: { in: ["pending_teacher_confirmation", "confirmed"] },
               startsAt: { lt: endsAt },
               endsAt: { gt: startsAt },
             },
@@ -132,7 +136,7 @@ export async function createBooking(
             where: {
               organizationId: profile.organizationId,
               startsAt: { gte: periodStart, lt: periodEnd },
-              status: { in: ["pending_payment", "confirmed", "completed"] },
+              status: { in: ["pending_teacher_confirmation", "confirmed", "completed"] },
             },
             select: { startsAt: true, endsAt: true },
           });
@@ -198,13 +202,13 @@ export async function createBooking(
               organizationId: profile.organizationId,
               startsAt,
               endsAt,
-              status: "pending_payment",
+              status: "pending_teacher_confirmation",
               hourlyRateCents: profile.hourlyRateCents,
               currency: profile.currency,
-              paymentExpiresAt: paymentWindowExpiry(),
+              confirmationExpiresAt: confirmationWindowExpiry(),
             },
           });
-          return { booking };
+          return { booking, autoAccept: profile.autoAcceptBookings };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
@@ -236,6 +240,15 @@ export async function createBooking(
       revalidatePath("/dashboard/teacher/bookings");
       revalidatePath(`/find-tutor/${parsed.data.teacherSlug}`);
       await notifyBookingCreated(result.booking.id).catch(() => undefined);
+      // A teacher who has opted in is committed the moment the request lands, so the student
+      // gets a confirmed lesson and a video room without waiting for a reply. Failure here is
+      // not failure of the booking: it stays pending and the teacher can still accept it.
+      if (result.autoAccept) {
+        await acceptBookingRequest({
+          bookingId: result.booking.id,
+          teacherId: result.booking.teacherId,
+        }).catch(() => undefined);
+      }
       revalidatePath("/dashboard/notifications");
       return ok({ bookingId: result.booking.id });
     } catch (error) {
@@ -279,6 +292,7 @@ export async function scheduleLessonAsTeacher(
       organizationId: true,
       hourlyRateCents: true,
       currency: true,
+      autoAcceptBookings: true,
       slug: true,
       status: true,
       deletedAt: true,
@@ -312,7 +326,7 @@ export async function scheduleLessonAsTeacher(
           const collision = await tx.booking.findFirst({
             where: {
               teacherId: profile.userId,
-              status: { in: ["pending_payment", "confirmed"] },
+              status: { in: ["pending_teacher_confirmation", "confirmed"] },
               startsAt: { lt: endsAt },
               endsAt: { gt: startsAt },
             },
@@ -352,7 +366,7 @@ export async function scheduleLessonAsTeacher(
             where: {
               organizationId: profile.organizationId,
               startsAt: { gte: periodStart, lt: periodEnd },
-              status: { in: ["pending_payment", "confirmed", "completed"] },
+              status: { in: ["pending_teacher_confirmation", "confirmed", "completed"] },
             },
             select: { startsAt: true, endsAt: true },
           });
@@ -382,13 +396,13 @@ export async function scheduleLessonAsTeacher(
               organizationId: profile.organizationId,
               startsAt,
               endsAt,
-              status: "pending_payment",
+              status: "pending_teacher_confirmation",
               hourlyRateCents: profile.hourlyRateCents,
               currency: profile.currency,
-              paymentExpiresAt: paymentWindowExpiry(),
+              confirmationExpiresAt: confirmationWindowExpiry(),
             },
           });
-          return { booking };
+          return { booking, autoAccept: profile.autoAcceptBookings };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
@@ -414,6 +428,15 @@ export async function scheduleLessonAsTeacher(
       revalidatePath("/dashboard/teacher/bookings");
       if (profile.slug) revalidatePath(`/find-tutor/${profile.slug}`);
       await notifyBookingCreated(result.booking.id).catch(() => undefined);
+      // A teacher who has opted in is committed the moment the request lands, so the student
+      // gets a confirmed lesson and a video room without waiting for a reply. Failure here is
+      // not failure of the booking: it stays pending and the teacher can still accept it.
+      if (result.autoAccept) {
+        await acceptBookingRequest({
+          bookingId: result.booking.id,
+          teacherId: result.booking.teacherId,
+        }).catch(() => undefined);
+      }
       revalidatePath("/dashboard/notifications");
       return ok({ bookingId: result.booking.id });
     } catch (error) {
@@ -467,7 +490,7 @@ export async function cancelBooking(
   if (booking.teacherId !== user.id && booking.studentId !== user.id) {
     return fail("You cannot cancel this booking.", "FORBIDDEN");
   }
-  if (!["pending_payment", "confirmed"].includes(booking.status)) {
+  if (!["pending_teacher_confirmation", "confirmed"].includes(booking.status)) {
     return fail("Only upcoming bookings can be cancelled.", "CONFLICT");
   }
   if (booking.startsAt <= new Date()) {
@@ -529,7 +552,7 @@ async function findSlotHold(input: {
       where: {
         teacherId: input.teacherId,
         id: input.excludeBookingId ? { not: input.excludeBookingId } : undefined,
-        status: { in: ["pending_payment", "confirmed"] },
+        status: { in: ["pending_teacher_confirmation", "confirmed"] },
         startsAt: { lt: input.endsAt },
         endsAt: { gt: input.startsAt },
       },
@@ -618,7 +641,7 @@ export async function proposeBookingReschedule(
       where: {
         organizationId: booking.organizationId,
         startsAt: { gte: periodStart, lt: periodEnd },
-        status: { in: ["pending_payment", "confirmed", "completed"] },
+        status: { in: ["pending_teacher_confirmation", "confirmed", "completed"] },
         ...(sameMonth ? { id: { not: booking.id } } : {}),
       },
       select: { startsAt: true, endsAt: true },
@@ -649,7 +672,7 @@ export async function proposeBookingReschedule(
         where: {
           teacherId: booking.teacherId,
           id: { not: booking.id },
-          status: { in: ["pending_payment", "confirmed"] },
+          status: { in: ["pending_teacher_confirmation", "confirmed"] },
           startsAt: { lt: endsAt },
           endsAt: { gt: startsAt },
         },
@@ -747,7 +770,7 @@ export async function acceptBookingReschedule(
             where: {
               teacherId: proposal.booking.teacherId,
               id: { not: proposal.booking.id },
-              status: { in: ["pending_payment", "confirmed"] },
+              status: { in: ["pending_teacher_confirmation", "confirmed"] },
               startsAt: { lt: proposal.proposedEndsAt },
               endsAt: { gt: proposal.proposedStartsAt },
             },

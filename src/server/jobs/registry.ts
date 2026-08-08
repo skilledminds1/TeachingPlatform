@@ -23,7 +23,7 @@
  */
 export type CronJobName =
   | "session-reminders"
-  | "expire-pending-payments"
+  | "expire-booking-requests"
   | "finalize-sessions"
   | "refresh-fx-rates"
   | "subscription-lifecycle"
@@ -44,10 +44,10 @@ export const CRON_JOBS: Record<CronJobName, CronJobDefinition> = {
     intervalMinutes: 15,
     consequence: "students and teachers stop receiving lesson reminders",
   },
-  "expire-pending-payments": {
+  "expire-booking-requests": {
     schedule: "*/10 * * * *",
     intervalMinutes: 10,
-    consequence: "abandoned checkouts hold their slot forever and never expire",
+    consequence: "unanswered booking requests hold their slot forever and never expire",
   },
   "finalize-sessions": {
     schedule: "*/15 * * * *",
