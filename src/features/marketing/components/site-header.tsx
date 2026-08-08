@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
-  { href: "/courses", label: "Courses" },
   { href: "/find-tutor", label: "Find Tutor" },
   { href: "/#how-it-works", label: "How it works" },
   { href: "/#for-teachers", label: "For teachers" },

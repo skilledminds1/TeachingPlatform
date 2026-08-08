@@ -6,7 +6,9 @@
 
 ## Summary
 
-Amazing Skills is a Preply/AmazingTalker-style marketplace for live online tutoring. Students discover teachers, book sessions, pay tutors directly, and join embedded video calls. Teachers pay the platform a subscription via PayFast; students pay teachers through PayFast or the teacher's own PayPal.
+Amazing Skills is a Preply/AmazingTalker-style marketplace for live online tutoring. Students discover teachers, book sessions, pay tutors directly, and join embedded video calls. Teachers pay the platform a subscription via PayFast; students pay teachers through the teacher's own PayPal account. Teacher subscriptions are the platform's only revenue and the only money it collects.
+
+The product is **live 1:1 lessons only** — no self-paced courses. See [Why courses are out of scope](../PROJECT.md#why-courses-are-out-of-scope).
 
 ## Problem
 
@@ -18,7 +20,7 @@ One platform for the full tutoring loop:
 
 - Discover teachers on a public marketplace
 - Book available time slots with timezone support
-- Pay the teacher directly (PayFast/PayPal)
+- Pay the teacher directly (teacher's own PayPal)
 - Join live video sessions in-browser
 - Leave reviews after completed sessions
 - Teachers subscribe to the platform via PayFast
@@ -41,7 +43,7 @@ One platform for the full tutoring loop:
 | Database | PostgreSQL (Supabase) |
 | Auth | Supabase Auth |
 | Platform billing | PayFast (subscriptions only) |
-| Teacher payments | PayFast + PayPal (student → teacher) |
+| Teacher payments | PayPal (student → teacher, teacher's own account) |
 | Video | LiveKit Cloud |
 | Deployment | Vercel |
 

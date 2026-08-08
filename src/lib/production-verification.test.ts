@@ -7,10 +7,7 @@ import {
   providerAmountToMinorUnits,
   routeLessonProviders,
 } from "@/lib/payments/routing";
-import {
-  isBookingRefundPolicyEligible,
-  isCourseRefundPolicyEligible,
-} from "@/lib/refunds/policy";
+import { isBookingRefundPolicyEligible } from "@/lib/refunds/policy";
 import { isAuthorizedBearer } from "@/lib/security/cron-auth";
 import {
   checkRateLimit,
@@ -62,25 +59,6 @@ describe("refund policy", () => {
     ).toBe(true);
     expect(
       isBookingRefundPolicyEligible(new Date("2026-07-20T11:59:59.000Z"), now),
-    ).toBe(false);
-  });
-
-  it("requires a recent purchase with less than 20 percent progress", () => {
-    expect(
-      isCourseRefundPolicyEligible({
-        purchasedAt: new Date("2026-07-13T12:00:00.000Z"),
-        completedLessons: 1,
-        totalLessons: 10,
-        now,
-      }),
-    ).toBe(true);
-    expect(
-      isCourseRefundPolicyEligible({
-        purchasedAt: new Date("2026-07-13T12:00:00.000Z"),
-        completedLessons: 2,
-        totalLessons: 10,
-        now,
-      }),
     ).toBe(false);
   });
 });

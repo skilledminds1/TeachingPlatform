@@ -22,13 +22,6 @@ export async function getAdminPaymentOperations() {
       include: {
         student: { select: { id: true, name: true, email: true } },
         teacher: { select: { id: true, name: true, email: true } },
-        booking: { select: { id: true, startsAt: true } },
-        coursePurchase: {
-          select: {
-            id: true,
-            course: { select: { title: true } },
-          },
-        },
       },
     }),
     db.paymentDispute.findMany({
@@ -40,7 +33,6 @@ export async function getAdminPaymentOperations() {
             amountCents: true,
             currency: true,
             bookingId: true,
-            coursePurchaseId: true,
           },
         },
       },
@@ -62,14 +54,6 @@ export async function getAdminPaymentOperations() {
             id: true,
             student: { select: { name: true, email: true } },
             teacher: { select: { name: true, email: true } },
-          },
-        },
-        coursePurchase: {
-          select: {
-            id: true,
-            student: { select: { name: true, email: true } },
-            teacher: { select: { name: true, email: true } },
-            course: { select: { title: true } },
           },
         },
       },

@@ -89,7 +89,7 @@ Teachers may post one public response per approved review.
 | Manage org members | | ✓ |
 | Manage org PayFast billing | | ✓ |
 
-Platform admins must not browse org course content or private messages without documented audit reason.
+Platform admins must not browse private messages or other org-private data without a documented audit reason.
 
 ---
 
@@ -98,17 +98,14 @@ Platform admins must not browse org course content or private messages without d
 `/admin/analytics` excludes seeded accounts whose email ends in
 `teachingplatform.local` and organizations whose slug starts with `demo-`.
 
-- **Teacher-processed volume** is verified lesson and course payment value. Gross,
-  refunds, and net are grouped by currency and are not Amazing Skills revenue.
+- **Teacher-processed volume** is verified lesson payment value. Gross, refunds,
+  and net are grouped by currency and are not Amazing Skills revenue — this money
+  goes to the teacher and the platform never holds it.
 - **Checkout conversion** uses payment attempts created in the selected window as
   starts. Succeeded, refunded, and partially refunded attempts count as completed
   checkouts because the original checkout succeeded.
-- **Active learner retention** uses unique learners with a confirmed/completed
-  lesson or completed course learning activity in the preceding equal-length
-  window as its denominator.
-- **Course completion** uses non-revoked enrollments started in the selected
-  window for courses with at least one lesson. Completion requires every current
-  lesson.
+- **Active learner retention** uses unique learners with a confirmed or completed
+  lesson in the preceding equal-length window as its denominator.
 - **Subscription retention** uses organizations with a paid invoice in the
   preceding equal-length window; retained organizations paid again in the
   selected window. The all-time view instead compares ever-paid organizations

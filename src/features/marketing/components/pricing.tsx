@@ -35,8 +35,9 @@ export function Pricing({ plans }: { plans: MarketingPlan[] }) {
         <div className="mx-auto max-w-2xl space-y-3 text-center">
           <h2 className="text-3xl font-semibold tracking-tight">Simple, honest pricing</h2>
           <p className="text-muted-foreground">
-            Start free, then unlock new teaching tools as your business grows. Professional and
-            Business include course selling with zero platform commission.
+            Start free, then raise your student and live-lesson limits as your practice grows.
+            Every tier keeps 100% of what students pay you — Amazing Skills charges the
+            subscription and nothing else.
           </p>
           <div className="mx-auto mt-6 flex w-fit items-center rounded-lg border border-border bg-card p-1">
             <Button

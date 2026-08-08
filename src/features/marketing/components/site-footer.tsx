@@ -8,7 +8,6 @@ const footerColumns = [
     key: 'platform',
     links: [
       { href: '/find-tutor', key: 'findTutors' },
-      { href: '/courses', key: 'courses' },
       { href: '/register?role=teacher', key: 'becomeTeacher' },
       { href: '/#pricing', key: 'pricing' },
       { href: '/#faq', key: 'faq' },
@@ -46,8 +45,8 @@ export async function SiteFooter() {
           <div className="space-y-3">
             <p className="text-lg font-semibold tracking-tight">Amazing Skills</p>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-              The online tutoring platform connecting students with expert teachers for live video
-              lessons and self-paced courses.
+              The online tutoring platform connecting students with expert teachers for live
+              1-on-1 video lessons.
             </p>
             {/*
               GLO-01: in the footer because it is on every page and it is where people look

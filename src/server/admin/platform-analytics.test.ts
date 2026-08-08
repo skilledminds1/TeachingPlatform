@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  platformAnalyticsCsv,
   summarizePlatformAnalytics,
   type PlatformAnalyticsFixture,
 } from "./platform-analytics";
@@ -15,7 +16,6 @@ function fixture(
     refundRequests: [],
     disputes: [],
     learnerActivity: [],
-    courseEnrollments: [],
     organizations: [],
     subscriptionInvoices: [],
     ...overrides,
@@ -27,7 +27,6 @@ function payment(
 ): PlatformAnalyticsFixture["payments"][number] {
   return {
     id: "payment-1",
-    kind: "lesson",
     status: "succeeded",
     amountCents: 10_000,
     refundedCents: 0,
@@ -71,19 +70,17 @@ describe("summarizePlatformAnalytics", () => {
     const data = summarizePlatformAnalytics(
       fixture({
         payments: [
-          payment({ id: "lesson-success" }),
-          payment({ id: "lesson-failed", status: "failed" }),
-          payment({ id: "course-success", kind: "course", status: "refunded" }),
-          payment({ id: "course-pending", kind: "course", status: "pending" }),
-          payment({ id: "course-failed", kind: "course", status: "failed" }),
+          // Refunded counts as succeeded: checkout itself completed before the refund.
+          payment({ id: "refunded", status: "refunded" }),
+          payment({ id: "pending", status: "pending" }),
+          payment({ id: "failed", status: "failed" }),
         ],
       }),
       "30d",
       NOW,
     );
 
-    expect(data.conversion.lesson).toEqual({ starts: 2, succeeded: 1, rate: 50 });
-    expect(data.conversion.course).toEqual({ starts: 3, succeeded: 1, rate: 33.3 });
+    expect(data.conversion.lesson).toEqual({ starts: 3, succeeded: 1, rate: 33.3 });
   });
 
   it("excludes demo users and demo organizations from every tested metric", () => {
@@ -101,28 +98,20 @@ describe("summarizePlatformAnalytics", () => {
           }),
           payment({ id: "demo-org", organizationSlug: "demo-school" }),
         ],
-        courseEnrollments: [
+        learnerActivity: [
           {
-            id: "real",
-            studentId: "student",
-            enrolledAt: new Date("2026-07-10T12:00:00.000Z"),
-            revokedAt: null,
-            lessonCount: 2,
-            completedLessonCount: 2,
+            studentId: "real",
+            occurredAt: new Date("2026-07-10T12:00:00.000Z"),
             studentEmail: "student@example.com",
             teacherEmail: "teacher@example.com",
             organizationSlug: "real-school",
           },
           {
-            id: "demo",
             studentId: "demo",
-            enrolledAt: new Date("2026-07-10T12:00:00.000Z"),
-            revokedAt: null,
-            lessonCount: 1,
-            completedLessonCount: 1,
-            studentEmail: "student@example.com",
+            occurredAt: new Date("2026-07-10T12:00:00.000Z"),
+            studentEmail: "student@demo.teachingplatform.local",
             teacherEmail: "teacher@example.com",
-            organizationSlug: "demo-school",
+            organizationSlug: "real-school",
           },
         ],
       }),
@@ -132,7 +121,7 @@ describe("summarizePlatformAnalytics", () => {
 
     expect(data.teacherVolume.successfulTransactions).toBe(1);
     expect(data.conversion.lesson.starts).toBe(1);
-    expect(data.learners.completionEligible).toBe(1);
+    expect(data.learners.active).toBe(1);
   });
 
   it("keeps currencies in distinct buckets", () => {
@@ -189,5 +178,25 @@ describe("summarizePlatformAnalytics", () => {
       { currency: "USD", amountCents: 1_000 },
       { currency: "ZAR", amountCents: 25_000 },
     ]);
+  });
+});
+
+describe("platformAnalyticsCsv", () => {
+  it("emits the header and a uniform column count on every row", () => {
+    const csv = platformAnalyticsCsv(
+      summarizePlatformAnalytics(
+        fixture({ payments: [payment({ amountCents: 10_000, refundedCents: 2_500 })] }),
+        "30d",
+        NOW,
+      ),
+    );
+    const lines = csv.trimEnd().split("\r\n");
+
+    expect(lines[0]).toBe(
+      "section,metric,currency,gross_cents,refunded_cents,net_or_value,denominator,rate_percent",
+    );
+    expect(lines.every((line) => line.split(",").length === 8)).toBe(true);
+    expect(lines).toContain("teacher_processed_volume,lesson,USD,10000,2500,7500,1,");
+    expect(csv.endsWith("\r\n")).toBe(true);
   });
 });

@@ -66,7 +66,7 @@ export function StudentSettingsForm({
             onChange={(event) => setName(event.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            This name appears in lessons, messages, and course activity.
+            This name appears in lessons, messages, and reviews.
           </p>
         </div>
 

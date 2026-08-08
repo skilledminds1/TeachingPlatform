@@ -127,13 +127,13 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 
 ## Phase 7 — Teacher Payments
 
-**Goal:** Students pay teachers via linked PayFast/PayPal.
+**Goal:** Students pay teachers via the teacher's own linked PayPal account.
 
 | Task | Status |
 |------|--------|
 | PayPal OAuth linking foundation | Done (credentials required) |
 | Student checkout at booking | Pending |
-| PayFast/PayPal webhooks for confirmation | Done (provider approval required) |
+| PayPal webhook for confirmation | Done (provider approval required) |
 | Teacher earnings summary | Pending |
 
 **Exit criteria:** Student pays teacher directly; booking confirmed; platform never holds funds.
@@ -195,17 +195,19 @@ Nine phases delivering a Preply-style tutoring marketplace. Sequential phases; i
 |------|----------|-----------|
 | 2026-07 | Preply/AmazingTalker model over LMS-first | User priority: live tutoring marketplace |
 | 2026-07 | PayFast for platform subscriptions only | SA market; platform revenue separation |
-| 2026-07 | PayFast + PayPal for student→teacher payments | Platform does not handle teacher payouts |
+| 2026-07 | Teacher's own PayPal for student→teacher payments | Platform does not handle teacher payouts |
 | 2026-07 | LiveKit Cloud for embedded video | Secure JWT access and flexible 1-on-1 UI |
 | 2026-07 | `isPlatformAdmin` on User model | Simplest secure admin provisioning |
 | 2026-07 | 9-phase roadmap | Matches TODO.md and PROJECT.md |
+| 2026-08 | Self-paced courses cut entirely, code and schema deleted | Hosting course content makes the platform the deemed supplier of an electronically supplied service, and so the seller of record for EU/UK VAT, regardless of commission. See [Why courses are out of scope](../PROJECT.md#why-courses-are-out-of-scope) |
 
 ---
 
 ## Post-v1 Backlog
 
-- Light course/lesson support (optional LMS)
 - Homework and quizzes
 - Group video classes
 - Mobile PWA
 - i18n
+
+Courses are **not** on this list and are not coming back without re-opening the VAT decision above.

@@ -38,18 +38,18 @@ Logging.
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { CreateCourseSchema } from "@/lib/validations/course";
+import { CreateBookingSchema } from "@/lib/validations/bookings";
 import { requireUser } from "@/server/auth";
-import { createCourse as createCourseDb } from "@/server/courses/create-course";
+import { createBooking as createBookingDb } from "@/server/bookings/create-booking";
 
-export async function createCourse(input: unknown) {
+export async function createBooking(input: unknown) {
   const user = await requireUser();
-  const data = CreateCourseSchema.parse(input);
+  const data = CreateBookingSchema.parse(input);
 
-  const course = await createCourseDb(user.id, data);
+  const booking = await createBookingDb(user.id, data);
 
-  revalidatePath("/courses");
-  return { success: true, data: course };
+  revalidatePath("/dashboard/bookings");
+  return { success: true, data: booking };
 }
 ```
 
@@ -65,12 +65,12 @@ export async function createCourse(input: unknown) {
 ## Server Modules
 
 ```typescript
-// src/server/courses/create-course.ts
-export async function createCourse(userId: string, data: CreateCourseInput): Promise<Course> {
+// src/server/bookings/create-booking.ts
+export async function createBooking(userId: string, data: CreateBookingInput): Promise<Booking> {
   const membership = await requireOrgMembership(userId, data.organizationId);
   requireRole(membership, ["admin", "instructor"]);
 
-  return db.course.create({ data: { ...data, organizationId: membership.organizationId } });
+  return db.booking.create({ data: { ...data, organizationId: membership.organizationId } });
 }
 ```
 
@@ -149,11 +149,11 @@ Use only when Server Actions are not suitable:
 ### RESTful Conventions
 
 ```
-GET    /api/v1/courses          → list
-GET    /api/v1/courses/:id      → get one
-POST   /api/v1/courses          → create
-PATCH  /api/v1/courses/:id      → update
-DELETE /api/v1/courses/:id      → delete
+GET    /api/v1/bookings          → list
+GET    /api/v1/bookings/:id      → get one
+POST   /api/v1/bookings          → create
+PATCH  /api/v1/bookings/:id      → update
+DELETE /api/v1/bookings/:id      → delete
 ```
 
 - Use nouns for resources, HTTP verbs for actions
@@ -196,8 +196,8 @@ Log all API activity server-side:
 
 ```typescript
 // What to log
-console.info("[API] POST /api/v1/courses", { userId, organizationId, status: 201 });
-console.error("[API] createCourse failed", { userId, error: error.message });
+console.info("[API] POST /api/v1/bookings", { userId, organizationId, status: 201 });
+console.error("[API] createBooking failed", { userId, error: error.message });
 ```
 
 | Event | Level | Include |
@@ -216,23 +216,23 @@ console.error("[API] createCourse failed", { userId, error: error.message });
 - Export schema and inferred type together
 
 ```typescript
-export const CreateCourseSchema = z.object({
+export const CreateBookingSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(5000).optional(),
   organizationId: z.string().uuid(),
 });
-export type CreateCourseInput = z.infer<typeof CreateCourseSchema>;
+export type CreateBookingInput = z.infer<typeof CreateBookingSchema>;
 ```
 
 ## File Naming
 
 ```
-src/actions/courses.ts              → createCourse, updateCourse, deleteCourse
-src/server/courses/
-  create-course.ts
-  get-courses-for-user.ts
-  update-course.ts
-src/lib/validations/course.ts       → Zod schemas
+src/actions/bookings.ts             → createBooking, cancelBooking, proposeReschedule
+src/server/availability/
+  slots.ts
+  schedule.ts
+  conflicts.ts
+src/lib/validations/bookings.ts     → Zod schemas
 src/types/api.ts                    → ActionSuccess, ActionError, ErrorCode
 src/app/api/v1/webhooks/payfast/route.ts
 src/app/api/v1/webhooks/paypal/route.ts

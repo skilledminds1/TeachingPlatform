@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button";
  * The branded screen every error boundary renders (QLT-05).
  *
  * Before this, only /admin and the teacher analytics page had a boundary. Anything thrown
- * during a server-component render on /find-tutor, /courses, /dashboard or checkout fell
- * through to Next's unstyled production error page — a bare digest string on exactly the
- * pages where a stranger is deciding whether to trust this platform with money.
+ * during a server-component render on /find-tutor, a teacher profile, /dashboard or checkout
+ * fell through to Next's unstyled production error page — a bare digest string on exactly
+ * the pages where a stranger is deciding whether to trust this platform with money.
  *
  * It is one component rather than five copies so the copy, the retry and the capture cannot
  * drift apart. Boundaries below only supply the wording that differs.

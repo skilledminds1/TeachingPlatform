@@ -52,7 +52,7 @@ export function isGrowthBlocked(state: LifecycleState, now = new Date()): boolea
 export function growthBlockMessage(state: LifecycleState, now = new Date()): string | null {
   if (!isGrowthBlocked(state, now)) return null;
   if (state.subscriptionStatus === "past_due") {
-    return "New bookings and publishing are paused because payment is at least 7 days overdue. Existing lessons and course access remain available while you recover billing.";
+    return "New bookings and publishing are paused because payment is at least 7 days overdue. Existing lessons remain available while you recover billing.";
   }
   return "This subscription is no longer active. Choose a plan to resume growth actions.";
 }

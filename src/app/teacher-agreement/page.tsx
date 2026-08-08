@@ -8,7 +8,7 @@ export default function TeacherAgreementPage() {
   return (
     <LegalDocumentPage
       title="Teacher Agreement"
-      introduction="This agreement applies to every teacher using Amazing Skills to advertise services, accept bookings, sell courses, and receive direct student payments."
+      introduction="This agreement applies to every teacher using Amazing Skills to advertise services, accept bookings, and receive direct student payments."
       sections={[
         {
           title: "1. Independent teacher relationship",
@@ -27,7 +27,7 @@ export default function TeacherAgreementPage() {
         {
           title: "3. Merchant-of-record responsibility",
           paragraphs: [
-            "Student lesson and course payments go directly to your connected payment account. You are the merchant of record and are responsible for transaction records, taxes, payment-provider compliance, chargebacks, and student refunds.",
+            "Student lesson payments go directly to your connected payment account. You are the merchant of record and are responsible for transaction records, taxes, payment-provider compliance, chargebacks, and student refunds.",
             "Amazing Skills does not receive, hold, settle, or pay out these funds and takes no commission. Your separate platform subscription does not transfer financial responsibility for student transactions to Amazing Skills.",
           ],
         },
@@ -39,10 +39,9 @@ export default function TeacherAgreementPage() {
           ],
         },
         {
-          title: "5. Course content and intellectual property",
+          title: "5. Content and intellectual property",
           paragraphs: [
-            "You must own or hold sufficient rights to every uploaded video, image, file, assessment, name, and other course resource. You grant Amazing Skills a non-exclusive license to host, process, display, deliver, promote, back up, and technically adapt content for platform operation.",
-            "You remain responsible for course accuracy, promised updates, student support, lawful advertising, and honoring access and refund representations.",
+            "You must own or hold sufficient rights to every video, image, file, name, and other resource you upload, including your profile and introduction video. You grant Amazing Skills a non-exclusive license to host, process, display, deliver, promote, back up, and technically adapt content for platform operation.",
           ],
         },
         {

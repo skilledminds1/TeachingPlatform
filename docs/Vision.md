@@ -12,7 +12,7 @@ Amazing Skills becomes the default place to find a tutor, book a live video sess
 
 **We are a live tutoring marketplace** — discovery, booking, video calls, and direct teacher payments.
 
-**We are not an LMS-first product.** Courses, homework, and quizzes are optional future additions, not the core value proposition.
+**We are not a content platform.** There are no self-paced courses, and there will not be: hosting and gating course video would make Amazing Skills the deemed supplier of an electronically supplied service, and so the seller of record for EU and UK VAT. See [Why courses are out of scope](../PROJECT.md#why-courses-are-out-of-scope). Homework and quizzes remain optional future additions; neither sells hosted content.
 
 ## Core Principles
 
@@ -22,15 +22,15 @@ Help tutors get discovered, booked, and paid. Every feature answers: *Does this 
 
 ### 2. Live Learning Is the Product
 
-Video calls are central — not a bolt-on to a course catalog. Booking → payment → video session is the core loop.
+Video calls are the whole product. Booking → payment → video session → review is the core loop, and the only loop.
 
 ### 3. Platform Stays Out of Teacher Payouts
 
-Students pay teachers directly via PayFast or the teacher's PayPal. The platform only collects subscriptions via PayFast.
+Students pay teachers directly through the teacher's own PayPal account. The platform only collects teacher subscriptions via PayFast, and never handles money between a student and a teacher.
 
 ### 4. Simplicity Over Complexity
 
-Ship the marketplace loop first. Avoid LMS bloat until the core tutoring flow is proven.
+Ship the marketplace loop and keep it the only loop. Every additional product surface is a new legal and support surface too.
 
 ### 5. Privacy & Trust
 
@@ -45,14 +45,13 @@ Approved profiles, moderated reviews, reliable sessions. Student and teacher dat
 | Reliable video | Session join success rate > 98% |
 | Sustainable revenue | MRR from PayFast subscriptions |
 
-## Non-Goals (v1)
+## Non-Goals
 
-- Full LMS / course builder as primary feature
-- Platform-handled teacher payouts or escrow
-- Enterprise SSO / SAML
-- Native mobile apps (responsive web first)
-- AI-generated course content
-- Commission on session payments
+- Self-paced courses, a course builder, or any hosted sellable content — **permanently**
+- Platform-handled teacher payouts or escrow — **permanently**
+- Commission on lesson payments — **permanently**
+- Enterprise SSO / SAML (v1)
+- Native mobile apps (v1 — responsive web first)
 
 ## Success Metrics
 

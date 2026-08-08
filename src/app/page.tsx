@@ -14,13 +14,13 @@ import { Testimonials } from "@/features/marketing/components/testimonials";
 import { getMarketingPlans } from "@/server/billing/pricing";
 
 export const metadata: Metadata = {
-  title: "Amazing Skills — Live Tutoring & Self-Paced Courses",
+  title: "Amazing Skills — Live 1-on-1 Online Tutoring",
   description:
-    "Book live 1-on-1 lessons with verified tutors or learn at your own pace with expert-built courses. Direct payments, honest reviews, and certificates — all in one platform.",
+    "Book live 1-on-1 video lessons with verified tutors, in your browser. You pay your teacher directly — Amazing Skills takes no cut of your lesson.",
   openGraph: {
-    title: "Amazing Skills — Live Tutoring & Self-Paced Courses",
+    title: "Amazing Skills — Live 1-on-1 Online Tutoring",
     description:
-      "Book live 1-on-1 lessons with verified tutors or learn at your own pace with expert-built courses. Direct payments, no platform markup.",
+      "Book live 1-on-1 video lessons with verified tutors. Pay your teacher directly, with no platform markup.",
     type: "website",
   },
 };

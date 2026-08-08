@@ -17,7 +17,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- Course creation form with validation
+- Booking cancellation form with validation
 
 ### Changed
 - Dashboard layout spacing increased
@@ -27,6 +27,32 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ```
 
 ## [Unreleased]
+
+### Removed — self-paced courses (2026-08-08)
+
+The courses product is deleted, not deferred and not flagged off. Amazing Skills is a live 1:1
+video tutoring marketplace only. Entries further down this file that describe course features are
+kept as the historical record of what once shipped; they are superseded by this entry.
+
+- Course catalogue at `/courses`, course sales pages, teacher course authoring studio, student
+  course library, and the certificate viewer at `/certificates`
+- Course purchase and enrollment via teacher PayPal, course sales, coupons, and coupon redemptions
+- Course reviews and their rating aggregates, course Q&A, free preview lessons and preview media
+  access, course lesson progress, and course certificates
+- Admin course approval, rejection, takedown, and course-review moderation. **Teacher-review
+  moderation is unaffected** and remains at `/admin/reviews`
+- Course refunds and the course refund-policy path; booking refunds are unchanged
+- Fifteen course models, five course enums, `Plan.courseLimit`, and the course relation fields on
+  `User`, `Organization`, `Subject`, `PaymentAttempt` and `RefundRequest`
+- The Free plan's one-course allowance and the unlimited-course allowance from Starter upward
+
+**Why, so nobody re-adds it:** a pre-recorded course is an *electronically supplied service*. Under
+EU Implementing Regulation 282/2011 Article 9a — and the identical HMRC test — hosting and gating
+the video counts as authorising delivery, which makes the platform the deemed supplier and so the
+seller of record for EU and UK VAT, regardless of commission. Live 1:1 tuition is human-delivered
+and Article 9a does not reach it. Confirmed alongside this: the platform's only revenue is teacher
+subscription fees, and it never handles money between a student and a teacher. See
+[Why courses are out of scope](PROJECT.md#why-courses-are-out-of-scope).
 
 ### Added
 

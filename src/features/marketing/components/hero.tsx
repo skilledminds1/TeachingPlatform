@@ -8,6 +8,7 @@ import {
   Sparkles,
   Star,
   Video,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -16,7 +17,7 @@ import { Button } from "@/components/ui/button";
 const trustPoints = [
   { icon: ShieldCheck, label: "Verified teachers" },
   { icon: Video, label: "Live 1-on-1 lessons" },
-  { icon: BookOpen, label: "Self-paced courses" },
+  { icon: Wallet, label: "Pay your teacher directly" },
   { icon: Star, label: "Reviewed by real students" },
 ] as const;
 
@@ -124,15 +125,15 @@ export function Hero() {
         <div className="animate-hero-fade-up mx-auto max-w-3xl space-y-6 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/12 px-3.5 py-1.5 text-sm font-medium text-foreground shadow-sm shadow-primary/10">
             <Sparkles className="size-3.5 text-primary" aria-hidden />
-            Live tutoring and self-paced courses in one place
+            Live 1-on-1 tutoring, straight from your browser
           </div>
 
           <h1 className="font-heading text-5xl font-bold tracking-tight text-balance md:text-7xl">
-            One platform.
+            Learn live.
             <br />
             <span className="relative inline-block">
               <span className="bg-linear-to-r from-primary via-violet-500 to-sky-500 bg-clip-text text-transparent">
-                Every way to learn.
+                One tutor at a time.
               </span>
               <svg
                 aria-hidden
@@ -152,9 +153,9 @@ export function Hero() {
           </h1>
 
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground md:text-xl">
-            Book live 1-on-1 lessons with verified tutors, or learn at your own pace with
-            self-paced courses — built by the same expert teachers. Pay teachers directly,
-            with no platform markup.
+            Book a live 1-on-1 video lesson with a verified tutor in your subject, at a time
+            that suits you. You pay your teacher directly — Amazing Skills takes no cut of
+            your lesson.
           </p>
 
           <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
@@ -169,9 +170,9 @@ export function Hero() {
               size="lg"
               variant="outline"
               className="transition-transform duration-200 hover:-translate-y-0.5"
-              render={<Link href="/courses" />}
+              render={<Link href="/#how-it-works" />}
             >
-              Browse courses
+              See how it works
             </Button>
           </div>
 
@@ -181,7 +182,7 @@ export function Hero() {
               href="/register?role=teacher"
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              Teach live lessons and sell courses
+              Start teaching live lessons
             </Link>
           </p>
         </div>

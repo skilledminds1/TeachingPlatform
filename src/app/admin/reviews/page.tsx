@@ -5,19 +5,11 @@ import { EmptyState } from "@/features/admin/components/empty-state";
 import { ReviewModerationActions } from "@/features/admin/components/review-moderation-actions";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { formatDate, formatStatus } from "@/lib/format";
-import {
-  getCourseReviewModerationQueue,
-  getReviewModerationQueue,
-} from "@/server/admin/dashboard";
+import { getReviewModerationQueue } from "@/server/admin/dashboard";
 
 export default async function AdminReviewsPage() {
-  const [reviews, courseReviews] = await Promise.all([
-    getReviewModerationQueue(),
-    getCourseReviewModerationQueue(),
-  ]);
-  const pendingCount = [...reviews, ...courseReviews].filter(
-    (review) => review.status === "pending",
-  ).length;
+  const reviews = await getReviewModerationQueue();
+  const pendingCount = reviews.filter((review) => review.status === "pending").length;
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
@@ -25,37 +17,6 @@ export default async function AdminReviewsPage() {
         title="Review moderation"
         description={`${pendingCount} review${pendingCount === 1 ? "" : "s"} waiting for moderation`}
       />
-
-      <section className="space-y-4">
-        <h2 className="text-xl font-semibold">Course reviews</h2>
-        {courseReviews.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No course reviews yet.</p>
-        ) : (
-          courseReviews.map((review) => (
-            <article key={review.id} className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-2">
-                  <p className="font-medium">
-                    {"★".repeat(review.rating)} · {review.course.title}
-                  </p>
-                  <p className="text-sm">{review.comment}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {review.student.name} · teacher {review.teacher.name} · {formatDate(review.createdAt)}
-                  </p>
-                  <StatusBadge tone={statusTone(review.status)}>
-                    {formatStatus(review.status)}
-                  </StatusBadge>
-                </div>
-                <ReviewModerationActions
-                  reviewId={review.id}
-                  currentStatus={review.status}
-                  kind="course"
-                />
-              </div>
-            </article>
-          ))
-        )}
-      </section>
 
       {reviews.length === 0 ? (
         <div className="rounded-xl border border-border bg-card shadow-sm">

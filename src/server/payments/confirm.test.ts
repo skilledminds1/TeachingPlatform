@@ -13,13 +13,12 @@ type AnyRecord = Record<string, unknown>;
 
 const state = {
   booking: { updateManyResult: { count: 1 }, calls: [] as AnyRecord[] },
-  coursePurchase: { updateManyResult: { count: 1 }, calls: [] as AnyRecord[] },
   refundRequest: { calls: [] as AnyRecord[] },
   paymentEvent: { created: [] as AnyRecord[], failNext: false },
   attempt: null as AnyRecord | null,
   // QLT-01: the refund and expiry paths write through these, so the tests need to see them.
   attemptWrites: { update: [] as AnyRecord[], updateMany: [] as AnyRecord[] },
-  expiryCandidates: { bookings: [] as AnyRecord[], purchases: [] as AnyRecord[] },
+  expiryCandidates: { bookings: [] as AnyRecord[] },
 };
 
 const tx = {
@@ -40,28 +39,6 @@ const tx = {
       return state.booking.updateManyResult;
     }),
     findMany: vi.fn(async () => []),
-  },
-  coursePurchase: {
-    updateMany: vi.fn(async (args: AnyRecord) => {
-      state.coursePurchase.calls.push(args);
-      return state.coursePurchase.updateManyResult;
-    }),
-  },
-  courseEnrollment: {
-    upsert: vi.fn(async () => ({})),
-    updateMany: vi.fn(async () => ({})),
-    // QLT-07: recomputeCourseAggregates runs inside this transaction whenever an enrollment
-    // is granted or revoked, so the mock has to answer the reads it makes.
-    findMany: vi.fn(async () => []),
-    count: vi.fn(async () => 0),
-  },
-  courseReview: {
-    aggregate: vi.fn(async () => ({ _avg: { rating: null }, _count: { _all: 0 } })),
-  },
-  course: { update: vi.fn(async () => ({})) },
-  courseCouponRedemption: {
-    createMany: vi.fn(async () => ({})),
-    deleteMany: vi.fn(async () => ({})),
   },
   refundRequest: {
     createMany: vi.fn(async (args: AnyRecord) => {
@@ -86,7 +63,6 @@ vi.mock("@/lib/db", () => ({
   db: {
     $transaction: async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx),
     booking: { findMany: vi.fn(async () => state.expiryCandidates.bookings) },
-    coursePurchase: { findMany: vi.fn(async () => state.expiryCandidates.purchases) },
   },
 }));
 vi.mock("@/lib/env", () => ({ env: { LESSON_PAYMENT_TIMEOUT_MINUTES: 30 } }));
@@ -99,7 +75,6 @@ vi.mock("@/server/video/sessions", () => ({
 const notifyPaymentFailedMock = vi.fn(async () => undefined);
 vi.mock("@/server/notifications/notify", () => ({
   notifyBookingConfirmed: vi.fn(async () => undefined),
-  notifyCoursePurchased: vi.fn(async () => undefined),
   notifyPaymentFailed: (...args: unknown[]) => notifyPaymentFailedMock(...(args as [])),
 }));
 vi.mock("@/server/integrations/google-calendar", () => ({
@@ -108,7 +83,6 @@ vi.mock("@/server/integrations/google-calendar", () => ({
 
 const {
   confirmBookingPayment,
-  confirmCoursePayment,
   applyRefundToAttempt,
   expireAbandonedPayments,
   markAttemptFailed,
@@ -130,7 +104,6 @@ function bookingAttempt(bookingStatus: string) {
   return {
     id: "attempt-1",
     bookingId: "booking-1",
-    coursePurchaseId: null,
     provider: "stripe",
     status: "pending",
     amountCents: 5000,
@@ -148,15 +121,12 @@ function bookingAttempt(bookingStatus: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   state.booking.calls = [];
-  state.coursePurchase.calls = [];
   state.refundRequest.calls = [];
   state.paymentEvent.created = [];
   state.booking.updateManyResult = { count: 1 };
-  state.coursePurchase.updateManyResult = { count: 1 };
   state.attemptWrites.update = [];
   state.attemptWrites.updateMany = [];
   state.expiryCandidates.bookings = [];
-  state.expiryCandidates.purchases = [];
 });
 
 describe("confirmBookingPayment", () => {
@@ -244,55 +214,6 @@ describe("confirmBookingPayment", () => {
   });
 });
 
-describe("confirmCoursePayment", () => {
-  function purchaseAttempt(purchaseStatus: string) {
-    return {
-      id: "attempt-1",
-      bookingId: null,
-      coursePurchaseId: "purchase-1",
-      provider: "stripe",
-      status: "pending",
-      amountCents: 5000,
-      currency: "USD",
-      teacherMerchantId: "acct_teacher",
-      coursePurchase: {
-        id: "purchase-1",
-        status: purchaseStatus,
-        amountCents: 5000,
-        currency: "USD",
-        courseId: "course-1",
-        studentId: "student-1",
-        courseCouponId: null,
-      },
-    };
-  }
-
-  it("completes a pending purchase and grants enrollment", async () => {
-    state.attempt = purchaseAttempt("pending");
-    const result = await confirmCoursePayment(CONFIRMATION);
-
-    expect(result.confirmed).toBe(true);
-    expect(tx.courseEnrollment.upsert).toHaveBeenCalled();
-  });
-
-  it("does not revive a refunded purchase or re-grant access", async () => {
-    state.attempt = purchaseAttempt("refunded");
-    state.coursePurchase.updateManyResult = { count: 0 };
-
-    const result = await confirmCoursePayment(CONFIRMATION);
-
-    expect(result.confirmed).toBe(false);
-    expect(tx.courseEnrollment.upsert).not.toHaveBeenCalled();
-  });
-
-  it("scopes the completing update to pending purchases", async () => {
-    state.attempt = purchaseAttempt("pending");
-    await confirmCoursePayment(CONFIRMATION);
-
-    expect((state.coursePurchase.calls[0].where as AnyRecord).status).toBe("pending");
-  });
-});
-
 /**
  * QLT-01. The confirm paths already had coverage; these are the parts of the state machine
  * that did not — refund accumulation, and the expiry job racing a payment.
@@ -307,7 +228,6 @@ function refundAttempt(overrides: AnyRecord = {}) {
   return {
     id: "attempt-1",
     bookingId: "booking-1",
-    coursePurchaseId: null,
     provider: "stripe",
     status: "succeeded",
     amountCents: 5000,
@@ -419,16 +339,6 @@ describe("expireAbandonedPayments", () => {
 
     expect(expired).toBe(0);
     // And critically, the succeeded attempt is not flipped to expired.
-    expect(state.attemptWrites.updateMany).toHaveLength(0);
-  });
-
-  it("leaves a course purchase alone when its payment landed first", async () => {
-    state.expiryCandidates.purchases = [{ id: "purchase-1" }];
-    state.coursePurchase.updateManyResult = { count: 0 };
-
-    const expired = await expireAbandonedPayments(new Date("2026-08-02T12:00:00.000Z"));
-
-    expect(expired).toBe(0);
     expect(state.attemptWrites.updateMany).toHaveLength(0);
   });
 

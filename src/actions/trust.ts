@@ -26,7 +26,7 @@ const reportSchema = z.object({
   subjectId: uuid.optional(),
   category: z.enum(["harassment", "fraud", "unsafe_conduct", "privacy", "other"]),
   description: explanation,
-  targetType: z.enum(["user", "booking", "course", "message"]).optional(),
+  targetType: z.enum(["user", "booking", "message"]).optional(),
   targetId: uuid.optional(),
 });
 

@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 const SHARED_SCREEN = "src/features/errors/components/error-screen.tsx";
 
 const BOUNDARIES = [
-  { file: "src/app/error.tsx", covers: "everything public — /find-tutor, /courses, teacher and course pages" },
+  { file: "src/app/error.tsx", covers: "everything public — /find-tutor and teacher profile pages" },
   { file: "src/app/dashboard/error.tsx", covers: "the signed-in dashboard" },
   { file: "src/app/subscribe/error.tsx", covers: "checkout" },
   { file: "src/app/admin/error.tsx", covers: "admin" },

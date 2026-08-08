@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     template: "%s | Amazing Skills",
   },
   description:
-    "Discover expert tutors, book live video sessions, and buy self-paced courses. Built for teachers and students.",
+    "Discover expert tutors and book live video lessons. Built for teachers and students.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
 };
 

@@ -13,7 +13,8 @@ export default function RefundPolicyPage() {
         {
           title: "1. Teachers receive student payments directly",
           paragraphs: [
-            "Lesson and course payments are made from the student to the teacher through the teacher’s connected payment account. The teacher is the merchant of record. Amazing Skills does not receive, hold, settle, or pay out those funds and takes no commission.",
+            "Lesson payments are made from the student to the teacher through the teacher’s connected payment account. The teacher is the merchant of record. Amazing Skills does not receive, hold, settle, or pay out those funds and takes no commission.",
+            "Because the platform never holds the money, every refund is issued by the teacher from that same payment account. Amazing Skills has nothing to refund from and cannot return a payment on a teacher’s behalf.",
             "PayFast payments for teacher platform subscriptions are separate transactions between the subscribing organization and Amazing Skills.",
           ],
         },
@@ -25,35 +26,28 @@ export default function RefundPolicyPage() {
           ],
         },
         {
-          title: "3. Standard course refund expectation",
-          paragraphs: [
-            "A paid self-paced course should be refunded by the teacher when the student requests it within 7 days of purchase and has completed less than 20% of the course.",
-            "Outside that window or progress threshold, the teacher may consider the circumstances and applicable consumer law. Free enrollments do not have a refundable payment.",
-          ],
-        },
-        {
-          title: "4. Request and teacher response",
+          title: "3. Request and teacher response",
           paragraphs: [
             "Students should submit the platform refund request with a clear reason. Teachers should respond promptly, explain approval or decline, issue approved refunds through their own payment account, and record the provider reference.",
             "A platform status or teacher-entered reference is a record of the parties’ communication. Provider webhooks may separately reconcile confirmed refund activity.",
           ],
         },
         {
-          title: "5. Amazing Skills mediation",
+          title: "4. Amazing Skills mediation",
           paragraphs: [
             "If the parties disagree, the student may request admin mediation. Amazing Skills may create a shared case conversation, review evidence, request responses, and record an outcome.",
             "Amazing Skills cannot debit the teacher, reverse a teacher transaction, reimburse the student from platform funds, or guarantee that a refund will be paid. Mediation does not make Amazing Skills financially responsible for the underlying transaction.",
           ],
         },
         {
-          title: "6. Teacher accountability",
+          title: "5. Teacher accountability",
           paragraphs: [
             "A teacher who repeatedly ignores valid requests, misrepresents payment activity, or fails to meet marketplace obligations may be warned, suspended, delisted, or removed after review and an opportunity to respond.",
             "Account action is a marketplace remedy, not a substitute for payment-provider disputes, chargeback rights, courts, regulators, or other remedies available under applicable law.",
           ],
         },
         {
-          title: "7. Non-waivable rights",
+          title: "6. Non-waivable rights",
           paragraphs: [
             "Nothing in this policy removes consumer, payment-provider, or statutory rights that cannot legally be waived. Where mandatory law gives a student greater protection, that law prevails.",
           ],

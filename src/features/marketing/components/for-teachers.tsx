@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 const benefits = [
   {
     icon: Banknote,
-    title: "Two income streams, 0% commission",
+    title: "Keep 100% of every lesson",
     description:
-      "Earn from live lessons and course sales. Students pay you directly — we never touch your earnings, you only pay a flat subscription.",
+      "Students pay you directly through your own payment account. We never touch your earnings — you pay one flat monthly subscription and nothing else.",
   },
   {
     icon: CalendarRange,
@@ -20,13 +20,13 @@ const benefits = [
     icon: BadgeCheck,
     title: "A profile that sells for you",
     description:
-      "Verified badge, moderated reviews, and marketplace search put your lessons and courses in front of new students.",
+      "Verified badge, moderated reviews, and marketplace search put your lessons in front of new students.",
   },
   {
     icon: TrendingUp,
-    title: "Teach once, earn on repeat",
+    title: "Room to grow",
     description:
-      "Record a course once and sell it forever with quizzes, assignments, and certificates — then grow from solo to academy.",
+      "Start solo and add team teachers, shared branding, and a single billing account when your practice turns into an academy.",
   },
 ] as const;
 
@@ -39,9 +39,9 @@ export function ForTeachers() {
             Built for teachers who mean business
           </h2>
           <p className="text-lg text-muted-foreground">
-            Stop juggling WhatsApp, spreadsheets, and bank transfers. Teach live lessons,
-            sell self-paced courses, and run your entire teaching business from one
-            professional platform.
+            Stop juggling WhatsApp, spreadsheets, and bank transfers. Get discovered, take
+            bookings, teach live, and run your entire tutoring business from one professional
+            platform.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button size="lg" render={<Link href="/register?role=teacher" />}>

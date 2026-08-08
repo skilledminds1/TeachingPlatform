@@ -16,15 +16,12 @@ export function Cta() {
               Ready to learn — or teach?
             </h2>
             <p className="mx-auto max-w-xl text-muted-foreground">
-              Book a live lesson, start a self-paced course, or open your own teaching
-              business. Create a free account in under a minute.
+              Book a live lesson with a verified tutor, or open your own teaching business.
+              Create a free account in under a minute.
             </p>
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Button size="lg" render={<Link href="/find-tutor" />}>
                 Find a tutor
-              </Button>
-              <Button size="lg" variant="outline" render={<Link href="/courses" />}>
-                Browse courses
               </Button>
               <Button size="lg" variant="outline" render={<Link href="/register?role=teacher" />}>
                 Become a teacher

@@ -16,7 +16,7 @@ export default function PrivacyPage() {
           bullets: [
             "Account details, role, profile photo, timezone, and contact information.",
             "Teacher biographies, rates, subjects, qualifications, introduction media, availability, and payment-account connection status.",
-            "Bookings, course enrollments, progress, certificates, messages, reviews, reports, refund requests, and moderation records.",
+            "Bookings, messages, reviews, reports, refund requests, and moderation records.",
             "Subscription and transaction references. Student-to-teacher payment card or wallet credentials are handled by the payment provider, not stored by Amazing Skills.",
             "Security logs, device/browser data, approximate network information, and versioned legal acceptance evidence.",
           ],
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
         {
           title: "2. Why we process information",
           paragraphs: [
-            "We process information to provide contracts and requested services, operate the marketplace, confirm payments, deliver lessons and courses, prevent fraud and abuse, comply with law, protect users, and improve reliable platform operation.",
+            "We process information to provide contracts and requested services, operate the marketplace, confirm payments, deliver lessons, prevent fraud and abuse, comply with law, protect users, and improve reliable platform operation.",
             "Optional marketing, transcription, analytics, or product-improvement processing is kept separate from mandatory account and transaction processing and is based on an appropriate legal ground or consent where required.",
           ],
         },

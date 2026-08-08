@@ -75,7 +75,6 @@ export async function getOrganizationEntitlements(organizationId: string) {
           slug: true,
           studentLimit: true,
           monthlyLiveLessonMinutes: true,
-          courseLimit: true,
           features: true,
           monthlyPriceCents: true,
           annualPriceCents: true,
@@ -190,45 +189,6 @@ export async function getStudentUsage(organizationId: string) {
   return {
     activeStudents,
     limit,
-    atLimit,
-    plan: entitlements.plan,
-    recommendedPlan,
-  };
-}
-
-export async function getCourseUsage(organizationId: string) {
-  const [entitlements, courseCount] = await Promise.all([
-    getOrganizationEntitlements(organizationId),
-    db.course.count({
-      where: {
-        organizationId,
-        deletedAt: null,
-      },
-    }),
-  ]);
-
-  const limit = entitlements.plan.courseLimit;
-  const atLimit = limit !== null && courseCount >= limit;
-  const recommendedPlan = atLimit
-    ? await db.plan.findFirst({
-        where: {
-          OR: [{ courseLimit: { gt: courseCount } }, { courseLimit: null }],
-        },
-        orderBy: { monthlyPriceCents: "asc" },
-        select: {
-          name: true,
-          slug: true,
-          courseLimit: true,
-          monthlyPriceCents: true,
-          currency: true,
-        },
-      })
-    : null;
-
-  return {
-    courseCount,
-    limit,
-    remaining: limit === null ? null : Math.max(0, limit - courseCount),
     atLimit,
     plan: entitlements.plan,
     recommendedPlan,

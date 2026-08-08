@@ -127,9 +127,9 @@ Every authenticated page uses the shared shell with generous spacing:
 
 ```tsx
 <PageHeader
-  title="Courses"
-  description="Manage your courses"
-  action={<Button>Create Course</Button>}
+  title="Bookings"
+  description="Manage your bookings"
+  action={<Button>Create Booking</Button>}
 />
 <div className="space-y-8 p-6 md:p-8">
   {/* page content */}
@@ -143,9 +143,9 @@ Always provide an empty state with a clear action:
 ```tsx
 <EmptyState
   icon={BookOpen}
-  title="No courses yet"
-  description="Create your first course to get started."
-  action={<Button>Create Course</Button>}
+  title="No bookings yet"
+  description="Create your first booking to get started."
+  action={<Button>Create Booking</Button>}
 />
 ```
 

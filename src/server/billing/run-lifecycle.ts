@@ -268,7 +268,7 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
             organization.id,
             "billing.grace_expired",
             "Subscription moved to read-only Free",
-            "Payment was not recovered within 14 days. Existing learning remains accessible, but new growth actions are paused until checkout.",
+            "Payment was not recovered within 14 days. Lessons already booked go ahead as normal, but new growth actions are paused until checkout.",
           );
           continue;
         }
@@ -285,7 +285,7 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
               `billing.payment_failed.day_${day}`,
               day === 0 ? "Subscription payment failed" : `Payment still overdue (${day} days)`,
               day >= 6
-                ? "Please recover payment now. New bookings and publishing pause after day 7; existing lessons and learning access remain available."
+                ? "Please recover payment now. New bookings pause after day 7; lessons already booked go ahead as normal."
                 : "Please update or retry billing. Your paid access remains available during the 14-day grace period.",
             );
             summary.noticesSent += 1;

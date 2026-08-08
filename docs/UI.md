@@ -2,7 +2,7 @@
 
 ## Design System
 
-Minimal, modern, Apple/Linear/Notion inspired. **Dark mode first.** Professional SaaS appearance for a tutoring marketplace.
+Minimal, modern, Apple/Linear/Notion inspired. **Dark mode first.** Professional SaaS appearance for a live tutoring marketplace — every surface serves discover → book → join → review. There is no catalogue, library, or content-consumption UI.
 
 See [.cursor/ui.md](../.cursor/ui.md) for implementation rules.
 
@@ -28,8 +28,8 @@ Main — page content with generous spacing (p-6 md:p-8)
 | Page | Route | Role |
 |------|-------|------|
 | Landing | `/` | Public |
-| Marketplace | `/teachers` | Public |
-| Teacher profile | `/teachers/[slug]` | Public |
+| Marketplace | `/find-tutor` | Public |
+| Teacher profile | `/find-tutor/[slug]` | Public |
 | Sign in / up | `/login`, `/register` | Public |
 | Dashboard | `/dashboard` | All |
 | Availability | `/availability` | Instructor |

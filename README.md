@@ -1,6 +1,7 @@
 # Amazing Skills
 
-Online tutoring marketplace — discover teachers, book live video sessions, and learn online.
+Online tutoring marketplace — discover a teacher, book a slot, join a live video lesson, leave a
+review. Live 1:1 tutoring only; there are no self-paced courses.
 
 ## Stack
 
@@ -10,7 +11,9 @@ Online tutoring marketplace — discover teachers, book live video sessions, and
 - **React Hook Form** + **Zod**
 - **TanStack Query**
 - **Prisma** + **Supabase** (coming in Phase 1)
-- **PayFast** (subscriptions + ZAR teacher payments) · **PayPal** (global teacher payments)
+- **PayFast** (teacher subscriptions to the platform — the only money the platform collects)
+- **PayPal** (student → teacher lesson payments, paid into the teacher's own account)
+- **LiveKit Cloud** (live video lessons)
 
 ## Getting started
 

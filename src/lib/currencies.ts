@@ -1,6 +1,6 @@
 /**
- * Currencies a teacher may settle lesson and course payments in, and the minor-unit
- * arithmetic that goes with them.
+ * Currencies a teacher may settle lesson payments in, and the minor-unit arithmetic that
+ * goes with them.
  *
  * INT-08: ZAR used to head this list, marked `providers: ["paypal"]`. PayPal does not
  * support ZAR as a transaction currency at all, so any South African teacher who priced in

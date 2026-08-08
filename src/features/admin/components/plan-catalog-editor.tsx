@@ -21,7 +21,6 @@ type PlanCatalogItem = {
   currency: string;
   studentLimit: number | null;
   monthlyLiveLessonMinutes: number | null;
-  courseLimit: number | null;
   features: string[];
   marketplaceListing: boolean;
   videoSessions: boolean;
@@ -74,9 +73,6 @@ function PlanEditorCard({ plan }: { plan: PlanCatalogItem }) {
       ? ""
       : String(plan.monthlyLiveLessonMinutes / 60),
   );
-  const [courseLimit, setCourseLimit] = useState(
-    plan.courseLimit === null ? "" : String(plan.courseLimit),
-  );
   const [features, setFeatures] = useState<PlanFeature[]>(
     plan.features.filter((feature): feature is PlanFeature =>
       (planFeatures as readonly string[]).includes(feature),
@@ -118,7 +114,6 @@ function PlanEditorCard({ plan }: { plan: PlanCatalogItem }) {
           const hours = optionalInt(liveHours);
           return hours === null ? null : hours * 60;
         })(),
-        courseLimit: optionalInt(courseLimit),
         features,
         marketplaceListing,
         videoSessions,
@@ -201,13 +196,6 @@ function PlanEditorCard({ plan }: { plan: PlanCatalogItem }) {
         <div className="space-y-1.5">
           <Label>Live hours / month (blank = unlimited)</Label>
           <Input value={liveHours} onChange={(event) => setLiveHours(event.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Course limit (blank = unlimited)</Label>
-          <Input
-            value={courseLimit}
-            onChange={(event) => setCourseLimit(event.target.value)}
-          />
         </div>
         <div className="space-y-1.5">
           <Label>Sort order</Label>

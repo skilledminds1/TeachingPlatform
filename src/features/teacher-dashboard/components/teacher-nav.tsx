@@ -19,7 +19,6 @@ const items = [
   { href: "/dashboard/cases", label: "Cases" },
   { href: "/dashboard/safety", label: "Safety" },
   { href: "/dashboard/classroom", label: "Classroom" },
-  { href: "/dashboard/teacher/courses", label: "My Courses" },
   { href: "/dashboard/teacher/profile", label: "My profile" },
   { href: "/dashboard/teacher/settings", label: "Settings" },
 ] as const;

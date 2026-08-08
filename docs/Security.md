@@ -40,12 +40,12 @@ Roles are per-organization except platform admin.
 - Idempotent webhook processing
 - Never log payment card data
 
-### PayFast / PayPal (student → teacher)
+### PayPal (student → teacher)
 
 - OAuth tokens encrypted at rest
 - Teacher payment account IDs never exposed to client
 - Webhook signatures verified for booking confirmation
-- Platform does not store student payment methods
+- Platform does not store student payment methods, and never holds or disburses lesson funds
 
 ## Platform Admin
 
@@ -97,7 +97,7 @@ LIVEKIT_API_SECRET
 - [ ] Middleware protects all routes
 - [ ] Platform admin flag not client-writable
 - [ ] PayFast ITN signature verified
-- [ ] PayFast/PayPal lesson-payment webhooks verified
+- [ ] PayPal lesson-payment webhook verified
 - [ ] RLS policies on Supabase tables
 - [ ] No secrets in client bundle
 - [ ] Rate limiting on auth endpoints

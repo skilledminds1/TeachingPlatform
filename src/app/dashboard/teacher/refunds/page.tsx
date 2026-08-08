@@ -16,9 +16,6 @@ export default async function TeacherRefundsPage() {
     include: {
       student: { select: { name: true } },
       booking: { select: { startsAt: true } },
-      coursePurchase: {
-        select: { course: { select: { title: true } } },
-      },
     },
   });
 
@@ -39,7 +36,7 @@ export default async function TeacherRefundsPage() {
       <section className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm">
         <p className="font-medium">You are responsible for student refunds</p>
         <p className="mt-1 text-muted-foreground">
-          Amazing Skills does not receive or hold lesson and course payments. Respond promptly,
+          Amazing Skills does not receive or hold lesson payments. Respond promptly,
           explain your decision, and issue approved refunds directly through your payment method.
           Unresolved disputes may be reviewed by the platform and can affect marketplace access.
         </p>
@@ -62,7 +59,7 @@ export default async function TeacherRefundsPage() {
               studentName: request.student.name,
               targetLabel: request.booking
                 ? `Live lesson · ${formatDateTime(request.booking.startsAt, teacher.timezone)}`
-                : request.coursePurchase?.course.title ?? "Course purchase",
+                : "Live lesson",
             }}
           />
         ))}

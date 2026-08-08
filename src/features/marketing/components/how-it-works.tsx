@@ -1,4 +1,4 @@
-import { BookOpen, Calendar, GraduationCap, PlayCircle, Search, Video } from "lucide-react";
+import { Calendar, Search, Video } from "lucide-react";
 
 const livePath = [
   {
@@ -20,30 +20,6 @@ const livePath = [
     title: "Learn live",
     description:
       "Join a high-quality video session right in your browser — no downloads required.",
-  },
-] as const;
-
-const coursePath = [
-  {
-    icon: BookOpen,
-    step: "01",
-    title: "Browse courses",
-    description:
-      "Explore self-paced courses with video lessons and downloadable materials from verified teachers.",
-  },
-  {
-    icon: PlayCircle,
-    step: "02",
-    title: "Learn at your pace",
-    description:
-      "Buy once, keep forever. Work through modules and lessons whenever it suits you.",
-  },
-  {
-    icon: GraduationCap,
-    step: "03",
-    title: "Earn certificates",
-    description:
-      "Complete a course and receive a verifiable certificate to showcase your progress.",
   },
 ] as const;
 
@@ -87,29 +63,11 @@ export function HowItWorks() {
         <div className="space-y-3 text-center">
           <h2 className="text-3xl font-semibold tracking-tight">How it works</h2>
           <p className="text-muted-foreground">
-            Two ways to learn — live with a tutor, or at your own pace
+            Three steps from finding a tutor to your first lesson
           </p>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Video className="size-4" aria-hidden />
-            </span>
-            <h3 className="text-xl font-semibold tracking-tight">Live 1-on-1 lessons</h3>
-          </div>
-          <StepList steps={livePath} />
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <BookOpen className="size-4" aria-hidden />
-            </span>
-            <h3 className="text-xl font-semibold tracking-tight">Self-paced courses</h3>
-          </div>
-          <StepList steps={coursePath} />
-        </div>
+        <StepList steps={livePath} />
       </div>
     </section>
   );

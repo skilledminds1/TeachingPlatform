@@ -6,7 +6,6 @@ import { providerAmountToMinorUnits } from "@/lib/payments/routing";
 import {
   applyRefundToAttempt,
   confirmBookingPayment,
-  confirmCoursePayment,
   markAttemptFailed,
 } from "@/server/payments/confirm";
 import { notifyPaymentDispute } from "@/server/notifications/notify";
@@ -92,7 +91,7 @@ export async function POST(request: NextRequest) {
     if (attemptId && teacherMerchantId && amount && currency && capture?.id) {
       const attempt = await db.paymentAttempt.findUnique({
         where: { id: attemptId },
-        select: { bookingId: true, coursePurchaseId: true },
+        select: { bookingId: true },
       });
       const confirmation = {
         attemptId,
@@ -107,8 +106,6 @@ export async function POST(request: NextRequest) {
       };
       if (attempt?.bookingId) {
         await confirmBookingPayment(confirmation);
-      } else if (attempt?.coursePurchaseId) {
-        await confirmCoursePayment(confirmation);
       }
     }
   }

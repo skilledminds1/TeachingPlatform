@@ -74,7 +74,6 @@ export default async function AdminSubscriptionsPage() {
             currency: plan.currency,
             studentLimit: plan.studentLimit,
             monthlyLiveLessonMinutes: plan.monthlyLiveLessonMinutes,
-            courseLimit: plan.courseLimit,
             features: plan.features,
             marketplaceListing: plan.marketplaceListing,
             videoSessions: plan.videoSessions,

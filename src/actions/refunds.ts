@@ -4,11 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
-import { applyRefundEffects } from "@/server/payments/confirm";
-import {
-  isBookingRefundPolicyEligible,
-  isCourseRefundPolicyEligible,
-} from "@/lib/refunds/policy";
+import { isBookingRefundPolicyEligible } from "@/lib/refunds/policy";
 import { requireAuth, requireTeacher } from "@/server/auth/session";
 import { notifyModerationCaseUpdated, notifyRefundUpdated } from "@/server/notifications/notify";
 import { fail, ok, type ActionResult } from "@/types/action";
@@ -94,98 +90,7 @@ export async function requestBookingRefund(
     select: { id: true },
   });
 
-  revalidateRefundViews(booking.id, null);
-  await notifyRefundUpdated(request.id).catch(() => undefined);
-  return ok({ refundRequestId: request.id });
-}
-
-export async function requestCourseRefund(
-  input: unknown,
-): Promise<ActionResult<{ refundRequestId: string }>> {
-  const parsed = targetSchema.safeParse(input);
-  if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Invalid refund request.", "VALIDATION_ERROR");
-  }
-
-  const student = await requireAuth();
-  const purchase = await db.coursePurchase.findFirst({
-    where: {
-      id: parsed.data.targetId,
-      studentId: student.id,
-      status: "succeeded",
-    },
-    select: {
-      id: true,
-      courseId: true,
-      studentId: true,
-      teacherId: true,
-      amountCents: true,
-      currency: true,
-      createdAt: true,
-      refundRequest: { select: { id: true } },
-      paymentAttempts: {
-        where: { status: { in: ["succeeded", "partially_refunded"] } },
-        orderBy: { succeededAt: "desc" },
-        take: 1,
-        select: {
-          id: true,
-          amountCents: true,
-          refundedCents: true,
-        },
-      },
-      course: {
-        select: {
-          modules: {
-            select: {
-              lessons: {
-                select: {
-                  progress: {
-                    where: { studentId: student.id, completedAt: { not: null } },
-                    select: { id: true },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!purchase) return fail("Paid course purchase not found.", "NOT_FOUND");
-  if (purchase.refundRequest) {
-    return fail("A refund request already exists for this course purchase.", "CONFLICT");
-  }
-  if (purchase.amountCents === 0) {
-    return fail("Free enrollments do not have refundable payments.", "CONFLICT");
-  }
-  const attempt = purchase.paymentAttempts[0];
-  if (!attempt || attempt.refundedCents >= attempt.amountCents) {
-    return fail("This course has no refundable payment.", "CONFLICT");
-  }
-
-  const lessons = purchase.course.modules.flatMap((module) => module.lessons);
-  const completed = lessons.filter((lesson) => lesson.progress.length > 0).length;
-
-  const request = await db.refundRequest.create({
-    data: {
-      coursePurchaseId: purchase.id,
-      paymentAttemptId: attempt.id,
-      studentId: purchase.studentId,
-      teacherId: purchase.teacherId,
-      requestedAmountCents: attempt.amountCents - attempt.refundedCents,
-      currency: purchase.currency,
-      reason: parsed.data.reason,
-      policyEligible: isCourseRefundPolicyEligible({
-        purchasedAt: purchase.createdAt,
-        completedLessons: completed,
-        totalLessons: lessons.length,
-      }),
-    },
-    select: { id: true },
-  });
-
-  revalidateRefundViews(null, purchase.id);
+  revalidateRefundViews(booking.id);
   await notifyRefundUpdated(request.id).catch(() => undefined);
   return ok({ refundRequestId: request.id });
 }
@@ -238,7 +143,6 @@ export async function markRefundSent(
     select: {
       id: true,
       requestedAmountCents: true,
-      coursePurchaseId: true,
       paymentAttemptId: true,
       paymentAttempt: { select: { id: true, amountCents: true, refundedCents: true } },
     },
@@ -247,9 +151,8 @@ export async function markRefundSent(
 
   // MON-09: this used to update the RefundRequest row alone, leaving PaymentAttempt reading
   // as fully paid and unrefunded while the request read "refunded" — two ledgers that
-  // permanently disagreed — and leaving the student enrolled in a course they had been
-  // refunded for. Because the platform never holds funds, this manual path is the EXPECTED
-  // route for most refunds, not an edge case.
+  // permanently disagreed. Because the platform never holds funds, this manual path is the
+  // EXPECTED route for most refunds, not an edge case.
   await db.$transaction(async (tx) => {
     await tx.refundRequest.update({
       where: { id: request.id },
@@ -261,13 +164,12 @@ export async function markRefundSent(
       },
     });
 
-    let fullyRefunded = true;
     if (request.paymentAttempt) {
       const refundedCents = Math.min(
         request.paymentAttempt.amountCents,
         request.paymentAttempt.refundedCents + request.requestedAmountCents,
       );
-      fullyRefunded = refundedCents >= request.paymentAttempt.amountCents;
+      const fullyRefunded = refundedCents >= request.paymentAttempt.amountCents;
       await tx.paymentAttempt.update({
         where: { id: request.paymentAttempt.id },
         data: {
@@ -276,11 +178,6 @@ export async function markRefundSent(
         },
       });
     }
-
-    await applyRefundEffects(tx, {
-      coursePurchaseId: request.coursePurchaseId,
-      fullyRefunded,
-    });
   });
 
   revalidateRefundViews();
@@ -353,10 +250,9 @@ export async function escalateRefundRequest(
   return ok({ updated: true, caseId: result.caseId });
 }
 
-function revalidateRefundViews(bookingId?: string | null, purchaseId?: string | null) {
+function revalidateRefundViews(bookingId?: string | null) {
   revalidatePath("/admin/payments");
   revalidatePath("/dashboard/refunds");
   revalidatePath("/dashboard/teacher/refunds");
   if (bookingId) revalidatePath(`/dashboard/bookings/${bookingId}`);
-  if (purchaseId) revalidatePath(`/dashboard/courses/purchases/${purchaseId}`);
 }

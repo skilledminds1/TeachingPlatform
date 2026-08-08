@@ -9,7 +9,7 @@ describe("safeRedirectPath", () => {
     expect(safeRedirectPath("/dashboard", ORIGIN)).toBe("/dashboard");
     expect(safeRedirectPath("/dashboard?tab=bookings", ORIGIN)).toBe("/dashboard?tab=bookings");
     expect(safeRedirectPath("/dashboard#notes", ORIGIN)).toBe("/dashboard#notes");
-    expect(safeRedirectPath("/courses/intro-to-maths", ORIGIN)).toBe("/courses/intro-to-maths");
+    expect(safeRedirectPath("/find-tutor/ana-lopez", ORIGIN)).toBe("/find-tutor/ana-lopez");
   });
 
   it("allows an absolute URL that is genuinely same-origin, reduced to a path", () => {

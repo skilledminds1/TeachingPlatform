@@ -57,7 +57,7 @@ export default async function StudentDashboardPage() {
               Welcome, {user.name}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Track your lessons, teachers, and courses in one place.
+              Track your lessons, teachers, and bookings in one place.
             </p>
           </div>
         </div>
@@ -252,18 +252,6 @@ export default async function StudentDashboardPage() {
               </p>
               <Button className="relative mt-5 w-full" render={<Link href="/find-tutor" />}>
                 Find a tutor
-              </Button>
-            </section>
-            <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-              <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <GraduationCap className="size-5" aria-hidden />
-              </div>
-              <h2 className="mt-4 font-heading font-semibold">Explore courses</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Browse self-paced courses created and sold by teachers.
-              </p>
-              <Button className="mt-5 w-full" variant="outline" render={<Link href="/courses" />}>
-                Browse courses
               </Button>
             </section>
           </div>

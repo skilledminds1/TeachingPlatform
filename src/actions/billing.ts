@@ -283,7 +283,6 @@ export async function schedulePlanChange(
         _count: {
           select: {
             studentRelationships: { where: { status: "active" } },
-            courses: { where: { deletedAt: null } },
           },
         },
       },
@@ -304,9 +303,6 @@ export async function schedulePlanChange(
     blockers.push(
       `${organization._count.studentRelationships} active students exceeds the ${target.studentLimit}-student limit`,
     );
-  }
-  if (target.courseLimit !== null && organization._count.courses > target.courseLimit) {
-    blockers.push(`${organization._count.courses} courses exceeds the ${target.courseLimit}-course limit`);
   }
   if (
     target.monthlyLiveLessonMinutes !== null &&
@@ -334,7 +330,7 @@ export async function schedulePlanChange(
   });
   return ok({
     effectiveAt: organization.currentPeriodEnd,
-    warning: `At period end, ${target.name} limits apply to new students, lessons, and courses. Existing learning records remain available.`,
+    warning: `At period end, ${target.name} limits apply to new students and lessons. Existing bookings and lesson history remain available.`,
   });
 }
 

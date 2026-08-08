@@ -67,15 +67,15 @@ Middleware handles auth presence. Server actions and server modules handle fine-
 
 ```typescript
 // ❌ BAD — trusting client org ID
-export async function createCourse(data: { organizationId: string; title: string }) {
-  return db.course.create({ data });
+export async function createBooking(data: { organizationId: string; title: string }) {
+  return db.booking.create({ data });
 }
 
 // ✅ GOOD — org derived from authenticated membership
-export async function createCourse(userId: string, data: CreateCourseInput) {
+export async function createBooking(userId: string, data: CreateBookingInput) {
   const membership = await requireOrgMembership(userId, data.organizationId);
   requireRole(membership, ["admin", "instructor"]);
-  return db.course.create({ data: { ...data, organizationId: membership.organizationId } });
+  return db.booking.create({ data: { ...data, organizationId: membership.organizationId } });
 }
 ```
 
@@ -141,8 +141,8 @@ Validate server-side before storing in Supabase Storage:
 | Type | Max Size | Allowed MIME types |
 |------|----------|--------------------|
 | Avatar | 2 MB | `image/jpeg`, `image/png`, `image/webp` |
-| Course cover | 5 MB | `image/jpeg`, `image/png`, `image/webp` |
-| Assignment | 25 MB | `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/zip` |
+| Teacher credential | 3 MB | `application/pdf`, `image/jpeg`, `image/png`, `image/webp` |
+| Teacher intro video | 80 MB | `video/mp4`, `video/webm` |
 
 - Verify MIME type server-side — do not trust file extension or client-reported type
 - Generate storage paths server-side — never use client-provided paths
@@ -193,9 +193,9 @@ Store secrets in environment variables only — never in code or git.
 ## Data Access
 
 - Scope ALL queries to the user's organization
-- Students can only access courses they are enrolled in
-- Instructors can only manage courses in their organization
-- Never return another user's grades, submissions, or personal data
+- Students can only access bookings they are a party to
+- Instructors can only manage bookings, availability and profiles in their organization
+- Never return another user's bookings, messages, or personal data
 
 ## Output Safety
 

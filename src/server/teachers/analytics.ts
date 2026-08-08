@@ -32,7 +32,6 @@ type MoneyBucket = {
 type TrendPoint = {
   key: string;
   label: string;
-  enrollments: number;
   completedLessons: number;
   netCentsByCurrency: Record<string, number>;
 };
@@ -89,7 +88,6 @@ function buildTrendScaffold(
   return bucketKeysInZone(range, start, end, timeZone).map((key) => ({
     key,
     label: bucketLabelInZone(key),
-    enrollments: 0,
     completedLessons: 0,
     netCentsByCurrency: {},
   }));
@@ -112,19 +110,13 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
   );
   const teacherId = user.id;
 
-  const [
-    paymentAttempts,
-    bookings,
-    relationships,
-    enrollments,
-    courses,
-    certificates,
-    lessonCompletions,
-  ] = await Promise.all([
+  const [paymentAttempts, bookings, relationships] = await Promise.all([
     db.paymentAttempt.findMany({
+      // Every payment a teacher earns from is a lesson payment, so the booking's teacher is
+      // the only ownership link there is.
       where: {
         status: { in: [...PAYMENT_STATUSES] },
-        OR: [{ booking: { teacherId } }, { coursePurchase: { teacherId } }],
+        booking: { teacherId },
       },
       select: {
         amountCents: true,
@@ -132,10 +124,6 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
         currency: true,
         succeededAt: true,
         createdAt: true,
-        bookingId: true,
-        coursePurchaseId: true,
-        booking: { select: { teacherId: true } },
-        coursePurchase: { select: { teacherId: true, courseId: true } },
       },
       orderBy: { succeededAt: "desc" },
     }),
@@ -153,63 +141,7 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
       where: { teacherId },
       select: {
         studentId: true,
-        status: true,
         createdAt: true,
-      },
-    }),
-    db.courseEnrollment.findMany({
-      where: { course: { teacherId } },
-      select: {
-        id: true,
-        courseId: true,
-        studentId: true,
-        enrolledAt: true,
-        revokedAt: true,
-      },
-    }),
-    db.course.findMany({
-      where: { teacherId, deletedAt: null },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        status: true,
-        priceCents: true,
-        currency: true,
-        publishedAt: true,
-        modules: {
-          select: {
-            lessons: { select: { id: true } },
-          },
-        },
-        _count: {
-          select: {
-            enrollments: { where: { revokedAt: null } },
-            purchases: { where: { status: "succeeded" } },
-            certificates: true,
-          },
-        },
-      },
-      orderBy: { updatedAt: "desc" },
-    }),
-    db.courseCertificate.findMany({
-      where: { teacherId },
-      select: { id: true, courseId: true, issuedAt: true },
-    }),
-    db.courseLessonProgress.findMany({
-      where: {
-        completedAt: { not: null },
-        lesson: { module: { course: { teacherId } } },
-      },
-      select: {
-        lessonId: true,
-        studentId: true,
-        completedAt: true,
-        lesson: {
-          select: {
-            module: { select: { courseId: true } },
-          },
-        },
       },
     }),
   ]);
@@ -225,35 +157,10 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
       : [];
 
   const earningsByCurrency = new Map<string, MoneyBucket>();
-  const lessonEarningsByCurrency = new Map<string, MoneyBucket>();
-  const courseEarningsByCurrency = new Map<string, MoneyBucket>();
   const previousNetByCurrency = new Map<string, number>();
-  const courseRevenue = new Map<string, Map<string, MoneyBucket>>();
 
   for (const attempt of currentPayments) {
-    const isLesson = Boolean(attempt.bookingId);
     accumulateMoney(earningsByCurrency, attempt.currency, attempt.amountCents, attempt.refundedCents);
-    if (isLesson) {
-      accumulateMoney(
-        lessonEarningsByCurrency,
-        attempt.currency,
-        attempt.amountCents,
-        attempt.refundedCents,
-      );
-    } else {
-      accumulateMoney(
-        courseEarningsByCurrency,
-        attempt.currency,
-        attempt.amountCents,
-        attempt.refundedCents,
-      );
-      const courseId = attempt.coursePurchase?.courseId;
-      if (courseId) {
-        const byCurrency = courseRevenue.get(courseId) ?? new Map<string, MoneyBucket>();
-        accumulateMoney(byCurrency, attempt.currency, attempt.amountCents, attempt.refundedCents);
-        courseRevenue.set(courseId, byCurrency);
-      }
-    }
   }
 
   for (const attempt of previousPayments) {
@@ -285,23 +192,12 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
   const completedLessons = bookingStatusCounts.completed;
   const previousCompletedLessons = previousBookings.filter((b) => b.status === "completed").length;
 
-  const activeEnrollments = enrollments.filter((item) => !item.revokedAt);
-  const periodEnrollments = enrollments.filter((item) => inWindow(item.enrolledAt, start, end));
-  const previousEnrollments =
-    previousStart && previousEnd
-      ? enrollments.filter((item) => inWindow(item.enrolledAt, previousStart, previousEnd))
-      : [];
-
   const studentIds = new Set<string>();
   for (const relationship of relationships) studentIds.add(relationship.studentId);
-  for (const enrollment of activeEnrollments) studentIds.add(enrollment.studentId);
 
   const newStudentIds = new Set<string>();
   for (const relationship of relationships) {
     if (inWindow(relationship.createdAt, start, end)) newStudentIds.add(relationship.studentId);
-  }
-  for (const enrollment of periodEnrollments) {
-    if (inWindow(enrollment.enrolledAt, start, end)) newStudentIds.add(enrollment.studentId);
   }
 
   const previousNewStudentIds = new Set<string>();
@@ -311,24 +207,11 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
         previousNewStudentIds.add(relationship.studentId);
       }
     }
-    for (const enrollment of enrollments) {
-      if (inWindow(enrollment.enrolledAt, previousStart, previousEnd)) {
-        previousNewStudentIds.add(enrollment.studentId);
-      }
-    }
   }
-
-  const certificatesInPeriod = certificates.filter((item) => inWindow(item.issuedAt, start, end));
 
   const trend = buildTrendScaffold(range, start, end, timeZone);
   const trendIndex = new Map(trend.map((point, index) => [point.key, index]));
   const trendRange = range === "all" ? "365d" : range;
-
-  for (const enrollment of periodEnrollments) {
-    const key = bucketKeyInZone(enrollment.enrolledAt, trendRange, timeZone);
-    const index = trendIndex.get(key);
-    if (index !== undefined) trend[index].enrollments += 1;
-  }
 
   for (const booking of currentBookings) {
     if (booking.status !== "completed") continue;
@@ -348,80 +231,19 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
   }
 
   // Prefer a single primary currency for the trend bar (highest net in period).
-  const primaryCurrency =
-    moneyList(earningsByCurrency)[0]?.currency ??
-    courses.find((course) => course.currency)?.currency ??
-    "USD";
+  const primaryCurrency = moneyList(earningsByCurrency)[0]?.currency ?? "USD";
 
   const trendSeries = trend.map((point) => ({
     key: point.key,
     label: point.label,
-    enrollments: point.enrollments,
     completedLessons: point.completedLessons,
     netCents: point.netCentsByCurrency[primaryCurrency] ?? 0,
     netLabel: formatCurrency(point.netCentsByCurrency[primaryCurrency] ?? 0, primaryCurrency),
   }));
 
-  const completionsByCourseStudent = new Map<string, Set<string>>();
-  for (const progress of lessonCompletions) {
-    if (!progress.completedAt) continue;
-    const courseId = progress.lesson.module.courseId;
-    const key = `${courseId}:${progress.studentId}`;
-    const set = completionsByCourseStudent.get(key) ?? new Set<string>();
-    set.add(progress.lessonId);
-    completionsByCourseStudent.set(key, set);
-  }
-
-  const courseRows = courses.map((course) => {
-    const lessonIds = course.modules.flatMap((module) => module.lessons.map((lesson) => lesson.id));
-    const lessonCount = lessonIds.length;
-    const courseEnrollments = activeEnrollments.filter((item) => item.courseId === course.id);
-    let completedStudents = 0;
-    if (lessonCount > 0) {
-      for (const enrollment of courseEnrollments) {
-        const completed = completionsByCourseStudent.get(`${course.id}:${enrollment.studentId}`);
-        if (completed && lessonIds.every((id) => completed.has(id))) {
-          completedStudents += 1;
-        }
-      }
-    }
-    const revenue = moneyList(courseRevenue.get(course.id) ?? new Map());
-    const periodEnrollmentCount = periodEnrollments.filter((item) => item.courseId === course.id).length;
-    const periodCertificateCount = certificatesInPeriod.filter((item) => item.courseId === course.id)
-      .length;
-
-    return {
-      id: course.id,
-      title: course.title,
-      slug: course.slug,
-      status: course.status,
-      priceLabel:
-        course.priceCents === 0 ? "Free" : formatCurrency(course.priceCents, course.currency),
-      activeEnrollments: course._count.enrollments,
-      succeededPurchases: course._count.purchases,
-      certificates: course._count.certificates,
-      periodEnrollments: periodEnrollmentCount,
-      periodCertificates: periodCertificateCount,
-      completionRate: percent(completedStudents, courseEnrollments.length),
-      completedStudents,
-      revenue,
-      primaryNetCents: revenue[0]?.netCents ?? 0,
-    };
-  });
-
-  courseRows.sort(
-    (a, b) =>
-      b.periodEnrollments - a.periodEnrollments ||
-      b.primaryNetCents - a.primaryNetCents ||
-      b.activeEnrollments - a.activeEnrollments,
-  );
-
   const earnings = moneyList(earningsByCurrency);
   const previousNetTotal = [...previousNetByCurrency.values()].reduce((sum, value) => sum + value, 0);
   const currentNetTotal = earnings.reduce((sum, item) => sum + item.netCents, 0);
-
-  const tutoringStudentCount = new Set(relationships.map((item) => item.studentId)).size;
-  const courseStudentCount = new Set(activeEnrollments.map((item) => item.studentId)).size;
 
   return {
     range,
@@ -433,29 +255,13 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
       uniqueStudents: studentIds.size,
       newStudents: newStudentIds.size,
       newStudentsDelta: days ? deltaPercent(newStudentIds.size, previousNewStudentIds.size) : null,
-      enrollments: periodEnrollments.length,
-      enrollmentsDelta: days
-        ? deltaPercent(periodEnrollments.length, previousEnrollments.length)
-        : null,
       completedLessons,
       completedLessonsDelta: days
         ? deltaPercent(completedLessons, previousCompletedLessons)
         : null,
-      certificatesIssued: certificatesInPeriod.length,
-      activeCourses: courses.filter((course) => course.status === "published").length,
-      totalCourses: courses.length,
-    },
-    students: {
-      unique: studentIds.size,
-      tutoring: tutoringStudentCount,
-      course: courseStudentCount,
-      newInPeriod: newStudentIds.size,
-      activeRelationships: relationships.filter((item) => item.status === "active").length,
     },
     earnings: {
       byCurrency: earnings,
-      lessons: moneyList(lessonEarningsByCurrency),
-      courses: moneyList(courseEarningsByCurrency),
       paymentCount: currentPayments.length,
       netDelta:
         days && earnings.length <= 1
@@ -475,6 +281,5 @@ export async function getTeacherAnalytics(range: AnalyticsRange = "30d") {
       ),
     },
     trend: trendSeries,
-    courses: courseRows.slice(0, 12),
   };
 }

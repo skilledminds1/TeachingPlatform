@@ -6,8 +6,9 @@ import { logger } from "@/lib/observability/logger";
  *
  * The marketplace needs a teacher's rating BEFORE it decides which page they are on —
  * minRating filters on it and "sort by rating" orders by it — so the aggregate cannot be
- * computed from the rows that came back. Same reasoning, and the same staleness trade, as
- * the course catalog in QLT-07.
+ * computed from the rows that came back. The staleness trade is accepted deliberately: a
+ * rating can lag a moderation decision by the length of one write, which is cheaper than
+ * making every marketplace page aggregate the whole review table.
  *
  * Called wherever a review changes: when one is submitted, and when it is moderated. The
  * second is the decisive one, since only approved reviews count. The backfill in the QLT-08

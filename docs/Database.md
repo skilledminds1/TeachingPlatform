@@ -148,7 +148,7 @@ Weekly recurring slots + one-off blocks.
 
 | Plan | Fields |
 |------|--------|
-| Plan | name, slug, monthlyPriceCents, annualPriceCents, currency, nullable studentLimit, monthlyLiveLessonMinutes, courseLimit, features |
+| Plan | name, slug, monthlyPriceCents, annualPriceCents, currency, nullable studentLimit, monthlyLiveLessonMinutes, features |
 | Organization billing | planId, billingInterval, payfastToken, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd |
 | BillingEvent | organizationId, providerEventId, eventType, payload; unique event ID makes webhooks idempotent |
 
@@ -178,9 +178,25 @@ Weekly recurring slots + one-off blocks.
 | metadata | Json? | |
 | createdAt | DateTime | |
 
+## Removed Entities
+
+Fifteen course models were dropped from the schema: `Course`, `CourseModule`, `CourseLesson`,
+`CourseLessonAsset`, `CourseLessonProgress`, `CourseEnrollment`, `CoursePurchase`,
+`CourseCertificate`, `CourseReview`, `CourseQuestion`, `CourseAnswer`, `CourseSale`,
+`CourseSaleCourse`, `CourseCoupon`, `CourseCouponRedemption`.
+
+Gone with them: the five course enums (`CourseStatus`, `CourseLevel`, `CourseLessonAssetKind`,
+`CoursePurchaseStatus`, `CourseDiscountType`), `Plan.courseLimit`, and the course relation fields on
+`User`, `Organization`, `Subject`, `PaymentAttempt` and `RefundRequest`.
+
+This is not a deferral. Hosting course content would make the platform the *deemed supplier* — and
+so the seller of record for EU and UK VAT — of an electronically supplied service. See
+[Why courses are out of scope](../PROJECT.md#why-courses-are-out-of-scope) before adding any table
+that stores sellable, gated content.
+
 ## Future Entities (Post-v1)
 
-Course, Module, Lesson, Assignment, Quiz — only if LMS features are added later.
+Assignment, Quiz — neither hosts sellable content, so neither carries the deemed-supplier problem.
 
 ## Prisma Conventions
 

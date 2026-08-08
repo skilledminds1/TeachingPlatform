@@ -1,4 +1,3 @@
-import { recomputeCourseAggregates } from "@/server/courses/aggregates";
 import { randomUUID } from "node:crypto";
 
 import type { PaymentAttempt, PaymentProvider, Prisma } from "@prisma/client";
@@ -7,11 +6,7 @@ import { db, type DbTransactionClient } from "@/lib/db";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/observability/logger";
 import { ensureVideoSessionForBooking } from "@/server/video/sessions";
-import {
-  notifyBookingConfirmed,
-  notifyCoursePurchased,
-  notifyPaymentFailed,
-} from "@/server/notifications/notify";
+import { notifyBookingConfirmed, notifyPaymentFailed } from "@/server/notifications/notify";
 
 type Tx = DbTransactionClient;
 
@@ -195,156 +190,6 @@ export async function confirmBookingPayment(input: {
   });
 }
 
-export async function confirmCoursePayment(input: {
-  attemptId: string;
-  providerPaymentId: string;
-  providerEventId: string;
-  eventType: string;
-  payload: Prisma.InputJsonValue;
-  amountCents: number;
-  currency: string;
-  teacherMerchantId: string;
-}): Promise<{ confirmed: boolean; coursePurchaseId?: string }> {
-  return db.$transaction(async (tx) => {
-    const attempt = await tx.paymentAttempt.findUnique({
-      where: { id: input.attemptId },
-      include: { coursePurchase: true },
-    });
-    if (!attempt || !attempt.coursePurchaseId || !attempt.coursePurchase) {
-      return { confirmed: false };
-    }
-    const purchase = attempt.coursePurchase;
-
-    if (
-      attempt.amountCents !== input.amountCents ||
-      purchase.amountCents !== input.amountCents ||
-      attempt.currency.toUpperCase() !== input.currency.toUpperCase() ||
-      purchase.currency.toUpperCase() !== input.currency.toUpperCase() ||
-      attempt.teacherMerchantId !== input.teacherMerchantId
-    ) {
-      await recordPaymentEvent({
-        tx,
-        provider: attempt.provider,
-        providerEventId: `${input.providerEventId}:mismatch`,
-        eventType: "validation_failed",
-        payload: input.payload,
-        paymentAttemptId: attempt.id,
-      });
-      return { confirmed: false };
-    }
-
-    const event = await recordPaymentEvent({
-      tx,
-      provider: attempt.provider,
-      providerEventId: input.providerEventId,
-      eventType: input.eventType,
-      payload: input.payload,
-      paymentAttemptId: attempt.id,
-    });
-    if (!event.created && attempt.status === "succeeded") {
-      return { confirmed: true, coursePurchaseId: purchase.id };
-    }
-    if (attempt.status === "succeeded" && purchase.status === "succeeded") {
-      return { confirmed: true, coursePurchaseId: purchase.id };
-    }
-
-    await tx.paymentAttempt.update({
-      where: { id: attempt.id },
-      data: {
-        status: "succeeded",
-        providerPaymentId: input.providerPaymentId,
-        succeededAt: new Date(),
-        failureCode: null,
-        failureMessage: null,
-      },
-    });
-    await tx.paymentAttempt.updateMany({
-      where: {
-        coursePurchaseId: purchase.id,
-        id: { not: attempt.id },
-        status: { in: ["pending", "requires_action"] },
-      },
-      data: { status: "expired" },
-    });
-    // As with bookings, only a purchase still awaiting payment may be completed — an
-    // unconditional update silently revived cancelled or refunded purchases and re-granted
-    // course access.
-    const completed = await tx.coursePurchase.updateMany({
-      where: { id: purchase.id, status: "pending" },
-      data: {
-        status: "succeeded",
-        paymentProvider: attempt.provider,
-        paymentExternalId: input.providerPaymentId,
-        paymentExpiresAt: null,
-      },
-    });
-
-    if (completed.count === 0) {
-      await recordPaymentEvent({
-        tx,
-        provider: attempt.provider,
-        providerEventId: `${input.providerEventId}:orphaned`,
-        eventType: "paid_after_purchase_closed",
-        payload: input.payload,
-        paymentAttemptId: attempt.id,
-      });
-      logger.error("payment_confirmed_for_closed_purchase", {
-        coursePurchaseId: purchase.id,
-        attemptId: attempt.id,
-        purchaseStatus: purchase.status,
-      });
-      return { confirmed: false, coursePurchaseId: purchase.id };
-    }
-    if (purchase.courseCouponId) {
-      // MON-26: the redemption is now reserved when checkout starts, so the limit accounts
-      // for in-flight purchases. This remains as a backstop for purchases created before
-      // that change (and for the free/100%-off path), hence skipDuplicates.
-      await tx.courseCouponRedemption.createMany({
-        data: [
-          {
-            couponId: purchase.courseCouponId,
-            purchaseId: purchase.id,
-            studentId: purchase.studentId,
-          },
-        ],
-        skipDuplicates: true,
-      });
-    }
-    await tx.courseEnrollment.upsert({
-      where: {
-        courseId_studentId: {
-          courseId: purchase.courseId,
-          studentId: purchase.studentId,
-        },
-      },
-      create: {
-        courseId: purchase.courseId,
-        studentId: purchase.studentId,
-        purchaseId: purchase.id,
-      },
-      update: {
-        purchaseId: purchase.id,
-        revokedAt: null,
-        enrolledAt: new Date(),
-      },
-    });
-    // QLT-07: enrollmentCount drives the catalog's popular sort.
-    await recomputeCourseAggregates(purchase.courseId, tx);
-
-    return { confirmed: true, coursePurchaseId: purchase.id };
-  }).then(async (result) => {
-    if (result.confirmed && result.coursePurchaseId) {
-      await notifyCoursePurchased(result.coursePurchaseId).catch((error) => {
-        logger.warn("course_purchase_notification_failed", {
-          error,
-          coursePurchaseId: result.coursePurchaseId,
-        });
-      });
-    }
-    return result;
-  });
-}
-
 export async function markAttemptFailed(input: {
   attemptId: string;
   providerEventId: string;
@@ -436,83 +281,18 @@ export async function applyRefundToAttempt(input: {
         resolvedAt: refundedCents >= attempt.amountCents ? new Date() : null,
       },
     });
-    await applyRefundEffects(tx, {
-      coursePurchaseId: attempt.coursePurchaseId,
-      fullyRefunded: status === "refunded",
-    });
   });
-}
-
-/**
- * Apply the downstream consequences of a refund: revoke course access and any certificate
- * issued off the back of it.
- *
- * MON-09: this used to live only inside the provider-webhook path, so a refund the teacher
- * made outside the platform — an EFT, or a refund issued from their own provider dashboard —
- * left the student fully enrolled with the purchase still reading "succeeded". That is the
- * wrong way round for this product: the platform never holds funds, so refunds handled
- * directly between teacher and student are the EXPECTED route, not the exception. Shared by
- * both paths so they cannot diverge again.
- */
-export async function applyRefundEffects(
-  tx: Tx,
-  input: { coursePurchaseId: string | null; fullyRefunded: boolean },
-): Promise<void> {
-  if (!input.fullyRefunded || !input.coursePurchaseId) return;
-
-  const now = new Date();
-  await tx.coursePurchase.updateMany({
-    where: { id: input.coursePurchaseId },
-    data: { status: "refunded", paymentExpiresAt: null },
-  });
-  await tx.courseEnrollment.updateMany({
-    where: { purchaseId: input.coursePurchaseId, revokedAt: null },
-    data: { revokedAt: now },
-  });
-  // MON-35: a certificate outlived the enrollment it was earned through, so the public
-  // verification page kept vouching for a student whose purchase had been refunded.
-  const enrollments = await tx.courseEnrollment.findMany({
-    where: { purchaseId: input.coursePurchaseId },
-    select: { courseId: true, studentId: true },
-  });
-  for (const enrollment of enrollments) {
-    await tx.courseCertificate.updateMany({
-      where: {
-        courseId: enrollment.courseId,
-        studentId: enrollment.studentId,
-        revokedAt: null,
-      },
-      data: { revokedAt: now, revocationReason: "Purchase refunded" },
-    });
-  }
-
-  // QLT-07 + QLT-12: a refunded enrollment must stop counting immediately, or the catalog
-  // keeps advertising a sale the buyer reversed. Driven off the enrollments actually
-  // revoked above rather than an assumed single course.
-  for (const courseId of new Set(enrollments.map((item) => item.courseId))) {
-    await recomputeCourseAggregates(courseId, tx);
-  }
 }
 
 export async function expireAbandonedPayments(now = new Date()): Promise<number> {
-  const [expiredBookings, expiredCoursePurchases] = await Promise.all([
-    db.booking.findMany({
-      where: {
-        status: "pending_payment",
-        paymentExpiresAt: { lte: now },
-      },
-      select: { id: true },
-      take: 100,
-    }),
-    db.coursePurchase.findMany({
-      where: {
-        status: "pending",
-        paymentExpiresAt: { lte: now },
-      },
-      select: { id: true },
-      take: 100,
-    }),
-  ]);
+  const expiredBookings = await db.booking.findMany({
+    where: {
+      status: "pending_payment",
+      paymentExpiresAt: { lte: now },
+    },
+    select: { id: true },
+    take: 100,
+  });
 
   // The candidate rows were selected in a separate query, so a payment may confirm between
   // the SELECT and this UPDATE — exactly the case when a payment races the deadline. Every
@@ -539,28 +319,6 @@ export async function expireAbandonedPayments(now = new Date()): Promise<number>
           status: { in: ["pending", "requires_action"] },
         },
         data: { status: "expired" },
-      });
-      expired += 1;
-    });
-  }
-
-  for (const purchase of expiredCoursePurchases) {
-    await db.$transaction(async (tx) => {
-      const cancelled = await tx.coursePurchase.updateMany({
-        where: { id: purchase.id, status: "pending", paymentExpiresAt: { lte: now } },
-        data: { status: "cancelled", paymentExpiresAt: null },
-      });
-      if (cancelled.count === 0) return;
-
-      await tx.paymentAttempt.updateMany({
-        where: {
-          coursePurchaseId: purchase.id,
-          status: { in: ["pending", "requires_action"] },
-        },
-        data: { status: "expired" },
-      });
-      await tx.courseCouponRedemption.deleteMany({
-        where: { purchaseId: purchase.id },
       });
       expired += 1;
     });

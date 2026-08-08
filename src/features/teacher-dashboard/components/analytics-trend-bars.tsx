@@ -8,11 +8,10 @@ export function AnalyticsTrendBars({
   points: Array<{
     key: string;
     label: string;
-    enrollments: number;
     completedLessons: number;
     netCents: number;
   }>;
-  metric: "netCents" | "enrollments" | "completedLessons";
+  metric: "netCents" | "completedLessons";
   currency: string;
 }) {
   const max = Math.max(1, ...points.map((point) => point[metric]));

@@ -40,11 +40,7 @@ export default async function AdminPaymentsPage() {
               {data.refundRequests.map((request) => (
                 <tr key={request.id}>
                   <td className="px-4 py-3">
-                    <p className="font-medium">
-                      {request.booking
-                        ? "Live lesson"
-                        : request.coursePurchase?.course.title ?? "Course purchase"}
-                    </p>
+                    <p className="font-medium">Live lesson</p>
                     <p className="max-w-xs truncate text-xs text-muted-foreground">
                       {request.reason}
                     </p>
@@ -129,7 +125,6 @@ export default async function AdminPaymentsPage() {
           <table className="w-full min-w-[850px] text-start text-sm">
             <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Student</th>
                 <th className="px-4 py-3 font-medium">Teacher</th>
                 <th className="px-4 py-3 font-medium">Amount</th>
@@ -138,29 +133,23 @@ export default async function AdminPaymentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {data.recentPayments.map((payment) => {
-                const target = payment.booking ?? payment.coursePurchase;
-                return (
-                  <tr key={payment.id}>
-                    <td className="px-4 py-3 font-medium">
-                      {payment.booking ? "Live lesson" : payment.coursePurchase?.course.title ?? "Course"}
-                    </td>
-                    <td className="px-4 py-3">{target?.student.name ?? "—"}</td>
-                    <td className="px-4 py-3">{target?.teacher.name ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      {formatCurrency(payment.amountCents, payment.currency)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge tone={statusTone(payment.status)}>
-                        {formatStatus(payment.status)}
-                      </StatusBadge>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDateTime(payment.createdAt, admin.timezone)}
-                    </td>
-                  </tr>
-                );
-              })}
+              {data.recentPayments.map((payment) => (
+                <tr key={payment.id}>
+                  <td className="px-4 py-3">{payment.booking?.student.name ?? "—"}</td>
+                  <td className="px-4 py-3">{payment.booking?.teacher.name ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    {formatCurrency(payment.amountCents, payment.currency)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge tone={statusTone(payment.status)}>
+                      {formatStatus(payment.status)}
+                    </StatusBadge>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {formatDateTime(payment.createdAt, admin.timezone)}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

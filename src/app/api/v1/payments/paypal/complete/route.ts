@@ -4,10 +4,7 @@ import { db } from "@/lib/db";
 import { isLessonProviderEnabled } from "@/lib/payments/provider-flags";
 import { providerAmountToMinorUnits } from "@/lib/payments/routing";
 import { requireAuth } from "@/server/auth/session";
-import {
-  confirmBookingPayment,
-  confirmCoursePayment,
-} from "@/server/payments/confirm";
+import { confirmBookingPayment } from "@/server/payments/confirm";
 import {
   capturePayPalOrder,
   getPayPalOrder,
@@ -24,8 +21,8 @@ export async function GET(request: NextRequest) {
   //
   // KNOWN DEFECT TO FIX BEFORE ENABLING (MON-01): the only state check before capturing is
   // `attempt.status === "succeeded"`. Attempts that are expired or failed fall straight
-  // through to capture, and neither attempt.expiresAt nor the parent booking/purchase status
-  // is consulted. Two ways that takes money it should not: a student who opened checkout
+  // through to capture, and neither attempt.expiresAt nor the parent booking status is
+  // consulted. Two ways that takes money it should not: a student who opened checkout
   // twice can approve both orders and be charged twice for one lesson (startLessonCheckout
   // mints a fresh attempt and order per minute, and siblings are only marked expired in the
   // database, never voided at PayPal); and after the payment window closes or either party
@@ -50,16 +47,11 @@ export async function GET(request: NextRequest) {
       id: true,
       status: true,
       booking: { select: { id: true, studentId: true } },
-      coursePurchase: { select: { id: true, studentId: true } },
     },
   });
 
-  const targetPath = attempt?.booking
-    ? `/dashboard/bookings/${attempt.booking.id}`
-    : attempt?.coursePurchase
-      ? `/dashboard/courses/purchases/${attempt.coursePurchase.id}`
-      : null;
-  const ownerId = attempt?.booking?.studentId ?? attempt?.coursePurchase?.studentId;
+  const targetPath = attempt?.booking ? `/dashboard/bookings/${attempt.booking.id}` : null;
+  const ownerId = attempt?.booking?.studentId;
 
   if (!attempt || !targetPath || ownerId !== user.id) {
     return NextResponse.redirect(new URL("/dashboard?payment=invalid", request.url));
@@ -102,9 +94,7 @@ export async function GET(request: NextRequest) {
       teacherMerchantId: order.payeeMerchantId,
     };
 
-    const result = attempt.booking
-      ? await confirmBookingPayment(confirmation)
-      : await confirmCoursePayment(confirmation);
+    const result = await confirmBookingPayment(confirmation);
 
     return paymentRedirect(
       request,

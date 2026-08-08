@@ -2,7 +2,6 @@
   "nav": {
     "brand": "Amazing Skills",
     "findTutor": "Find Tutor",
-    "courses": "Courses",
     "howItWorks": "How it works",
     "forTeachers": "For teachers",
     "pricing": "Pricing",
@@ -18,7 +17,6 @@
     "account": "Account",
     "legal": "Legal",
     "findTutors": "Find tutors",
-    "courses": "Courses",
     "becomeTeacher": "Become a teacher",
     "pricing": "Pricing",
     "faq": "FAQ",
@@ -67,17 +65,6 @@
     "sortPriceDesc": "Price: high to low",
     "sortNewest": "Newest teachers",
     "clear": "Clear"
-  },
-  "coursesPage": {
-    "title": "Browse courses",
-    "subtitle": "Self-paced courses with downloadable materials from verified teachers.",
-    "filtersHeading": "Filter courses",
-    "resultsHeading": "Courses",
-    "courseCount": "{count, plural, =0 {No courses available} one {# course available} other {# courses available}}",
-    "emptyTitle": "No courses match these filters",
-    "emptyBody": "Try clearing a filter or searching for a different subject. New courses appear when teachers publish them.",
-    "backToCourses": "Back to courses",
-    "tutors": "Tutors"
   },
   "language": {
     "label": "Language",

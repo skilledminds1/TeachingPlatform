@@ -3,8 +3,8 @@
  *
  * SEC-12: `script-src` previously carried `'unsafe-inline'` in production, which removes the
  * main benefit of having a policy at all — any injected markup that reaches the DOM
- * executes. That matters here because the app renders a lot of user-authored text (course
- * descriptions up to 100 KB, review comments, case messages) on pages served to other users.
+ * executes. That matters here because the app renders a lot of user-authored text (teacher
+ * bios, review comments, case messages) on pages served to other users.
  *
  * The policy is built per request so a fresh nonce can be embedded, which means it is set in
  * middleware rather than in next.config.ts. Next.js detects a nonce in the request's CSP

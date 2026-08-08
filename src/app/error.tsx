@@ -3,9 +3,9 @@
 import { ErrorScreen } from "@/features/errors/components/error-screen";
 
 /**
- * QLT-05: the root boundary. Everything without a closer one lands here — /find-tutor,
- * /courses, the public teacher and course pages — which previously showed Next's unstyled
- * production error screen to signed-out strangers.
+ * QLT-05: the root boundary. Everything without a closer one lands here — /find-tutor and
+ * the public teacher pages — which previously showed Next's unstyled production error screen
+ * to signed-out strangers.
  */
 export default function RootError({
   error,

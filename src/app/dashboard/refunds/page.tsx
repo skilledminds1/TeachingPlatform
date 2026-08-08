@@ -19,12 +19,6 @@ export default async function StudentRefundsPage() {
     include: {
       teacher: { select: { name: true } },
       booking: { select: { id: true, startsAt: true } },
-      coursePurchase: {
-        select: {
-          id: true,
-          course: { select: { title: true } },
-        },
-      },
     },
   });
 
@@ -47,7 +41,7 @@ export default async function StudentRefundsPage() {
         <section className="rounded-xl border border-border bg-card p-5 text-sm shadow-sm">
           <p className="font-medium">How refunds work</p>
           <p className="mt-1 text-muted-foreground">
-            Teachers receive lesson and course payments directly and are responsible for refunds.
+            Teachers receive lesson payments directly and are responsible for refunds.
             Amazing Skills can mediate a disagreement and take action against a teacher account,
             but does not hold the funds and cannot issue or guarantee a refund.
           </p>
@@ -55,11 +49,14 @@ export default async function StudentRefundsPage() {
 
         <section className="space-y-4">
           {requests.map((request) => {
+            // bookingId is nullable on RefundRequest, so a request can in principle have
+            // nothing left to link back to. Mediation, when it exists, is the better
+            // destination anyway because it carries the full conversation.
             const href = request.moderationCaseId
               ? `/dashboard/cases/${request.moderationCaseId}`
               : request.booking
                 ? `/dashboard/bookings/${request.booking.id}`
-                : `/dashboard/courses/purchases/${request.coursePurchase?.id}`;
+                : null;
             return (
               <article
                 key={request.id}
@@ -70,7 +67,7 @@ export default async function StudentRefundsPage() {
                     <p className="font-medium">
                       {request.booking
                         ? `Live lesson · ${formatDateTime(request.booking.startsAt, student.timezone)}`
-                        : request.coursePurchase?.course.title ?? "Course purchase"}
+                        : "Live lesson"}
                     </p>
                     <StatusBadge tone={statusTone(request.status)}>
                       {formatStatus(request.status)}
@@ -81,9 +78,11 @@ export default async function StudentRefundsPage() {
                     {formatCurrency(request.requestedAmountCents, request.currency)}
                   </p>
                 </div>
-                <Button variant="outline" render={<Link href={href} />}>
-                  {request.moderationCaseId ? "Open mediation" : "View request"}
-                </Button>
+                {href ? (
+                  <Button variant="outline" render={<Link href={href} />}>
+                    {request.moderationCaseId ? "Open mediation" : "View request"}
+                  </Button>
+                ) : null}
               </article>
             );
           })}

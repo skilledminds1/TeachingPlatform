@@ -47,27 +47,27 @@ Comment only complex logic.
 Never duplicate interfaces. Define each shape once and derive variants:
 
 ```typescript
-// src/lib/validations/course.ts — single source of truth
-export const CreateCourseSchema = z.object({
+// src/lib/validations/bookings.ts — single source of truth
+export const CreateBookingSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(5000).optional(),
   organizationId: z.string().uuid(),
 });
-export type CreateCourseInput = z.infer<typeof CreateCourseSchema>;
+export type CreateBookingInput = z.infer<typeof CreateBookingSchema>;
 
 // Derive — do not redefine
-type UpdateCourseInput = Partial<Pick<CreateCourseInput, "title" | "description">>;
+type UpdateBookingInput = Partial<Pick<CreateBookingInput, "title" | "description">>;
 ```
 
 ```typescript
 // ❌ BAD
-export async function getCourse(id) {
-  return db.course.findUnique({ where: { id } });
+export async function getBooking(id) {
+  return db.booking.findUnique({ where: { id } });
 }
 
 // ✅ GOOD
-export async function getCourse(id: string): Promise<Course | null> {
-  return db.course.findUnique({ where: { id } });
+export async function getBooking(id: string): Promise<Booking | null> {
+  return db.booking.findUnique({ where: { id } });
 }
 ```
 
@@ -114,10 +114,10 @@ All forms use `useForm` with `zodResolver`. Schemas live in `src/lib/validations
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CreateCourseSchema, type CreateCourseInput } from "@/lib/validations/course";
+import { CreateBookingSchema, type CreateBookingInput } from "@/lib/validations/bookings";
 
-const form = useForm<CreateCourseInput>({
-  resolver: zodResolver(CreateCourseSchema),
+const form = useForm<CreateBookingInput>({
+  resolver: zodResolver(CreateBookingSchema),
   defaultValues: { title: "", organizationId: "" },
 });
 ```
@@ -134,11 +134,11 @@ Use shadcn/ui `Form` components to wire fields to React Hook Form.
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { courseKeys } from "@/features/courses/queries";
+import { bookingKeys } from "@/features/bookings/queries";
 
 const { data, isLoading, error } = useQuery({
-  queryKey: courseKeys.list(orgId),
-  queryFn: () => fetchCourses(orgId),
+  queryKey: bookingKeys.list(orgId),
+  queryFn: () => fetchBookings(orgId),
 });
 ```
 
@@ -148,13 +148,13 @@ Always handle `isLoading`, `error`, and empty data states.
 
 | Kind | Convention | Example |
 |------|------------|---------|
-| Files (components) | PascalCase | `CourseCard.tsx` |
+| Files (components) | PascalCase | `BookingCard.tsx` |
 | Files (utilities) | kebab-case | `format-date.ts` |
-| Components | PascalCase | `CourseCard` |
+| Components | PascalCase | `BookingCard` |
 | Hooks | camelCase, `use` prefix | `useEnrollment` |
-| Server actions | camelCase verbs | `createCourse` |
+| Server actions | camelCase verbs | `createBooking` |
 | Constants | SCREAMING_SNAKE | `MAX_FILE_SIZE` |
-| DB models | PascalCase singular | `Course`, `Organization` |
+| DB models | PascalCase singular | `Booking`, `Organization` |
 
 ## React & Next.js
 
@@ -168,14 +168,14 @@ Always handle `isLoading`, `error`, and empty data states.
 ```tsx
 // ❌ BAD — business logic in page
 export default async function Page() {
-  const courses = await prisma.course.findMany();
-  return <div>{courses.map(...)}</div>;
+  const bookings = await prisma.booking.findMany();
+  return <div>{bookings.map(...)}</div>;
 }
 
 // ✅ GOOD — delegate to feature + server module
 export default async function Page() {
-  const courses = await getCoursesForUser(userId);
-  return <CourseList courses={courses} />;
+  const bookings = await getBookingsForUser(userId);
+  return <BookingList bookings={bookings} />;
 }
 ```
 
@@ -187,7 +187,7 @@ Extract when logic is used in 2+ components or a component exceeds 300 lines:
 
 ```
 src/hooks/use-debounce.ts           # shared across features
-src/features/courses/hooks/use-course-form.ts  # feature-specific
+src/features/bookings/hooks/use-booking-form.ts  # feature-specific
 ```
 
 ### Reusable Services
@@ -207,8 +207,8 @@ Order: external → internal aliases (`@/`) → relative → types.
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { createCourse } from "@/actions/courses";
-import type { Course } from "@/types/course";
+import { createBooking } from "@/actions/bookings";
+import type { Booking } from "@/types/booking";
 ```
 
 Use the `@/` path alias for all internal imports.
@@ -218,15 +218,15 @@ Use the `@/` path alias for all internal imports.
 ```typescript
 // ❌ BAD
 try {
-  await createCourse(data);
+  await createBooking(data);
 } catch (e) {}
 
 // ✅ GOOD
 try {
-  await createCourse(data);
+  await createBooking(data);
 } catch (error) {
-  console.error("Failed to create course", error);
-  return { success: false, error: "Unable to create course" };
+  console.error("Failed to create booking", error);
+  return { success: false, error: "Unable to create booking" };
 }
 ```
 

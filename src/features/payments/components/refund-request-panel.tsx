@@ -4,11 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import {
-  escalateRefundRequest,
-  requestBookingRefund,
-  requestCourseRefund,
-} from "@/actions/refunds";
+import { escalateRefundRequest, requestBookingRefund } from "@/actions/refunds";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
@@ -26,11 +22,9 @@ type RefundSummary = {
 };
 
 export function RefundRequestPanel({
-  targetType,
   targetId,
   request,
 }: {
-  targetType: "booking" | "course";
   targetId: string;
   request: RefundSummary | null;
 }) {
@@ -124,10 +118,7 @@ export function RefundRequestPanel({
           disabled={isPending || reason.trim().length < 20}
           onClick={() => {
             startTransition(async () => {
-              const action = targetType === "booking"
-                ? requestBookingRefund
-                : requestCourseRefund;
-              const result = await action({ targetId, reason });
+              const result = await requestBookingRefund({ targetId, reason });
               if (!result.success) {
                 toast.error(result.error);
                 return;

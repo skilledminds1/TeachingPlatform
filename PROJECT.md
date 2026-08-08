@@ -10,14 +10,14 @@
 
 **Long-term goal:** Amazing Skills becomes the go-to marketplace where students discover tutors, book live video sessions, and pay teachers directly — while teachers grow their practice through profiles, reviews, and a professional booking workflow.
 
-**What we are:** An **online video tutoring marketplace** — not a traditional LMS.
+**What we are:** An **online video tutoring marketplace** — live 1:1 lessons only.
 
-**What we are not:** A course-heavy learning management system. Courses and assignments are optional, secondary features for a later phase.
+**What we are not:** A content platform. There is no course catalogue, no self-paced content, no enrollments and no certificates. That is a deliberate, tax-driven decision — see [Why courses are out of scope](#why-courses-are-out-of-scope) before proposing otherwise.
 
 **Core beliefs:**
 
 1. **Teacher-first** — Help tutors get discovered, booked, and paid with minimal friction.
-2. **Live learning** — Video calls are the core product, not an add-on.
+2. **Live learning** — Video calls are the whole product, not an add-on.
 3. **Platform stays out of teacher payouts** — Students pay teachers directly; the platform only collects subscriptions.
 4. **Trust by default** — Approved profiles, moderated reviews, reliable video sessions.
 5. **Quality over speed** — Production-ready code only; no placeholders.
@@ -60,14 +60,24 @@ Modelled after **Preply** and **AmazingTalker**:
 
 ## Business Model
 
-Amazing Skills operates as a **B2B2C marketplace SaaS**:
+Amazing Skills operates as a **subscription SaaS for teachers**. Teacher subscription fees are the platform's **only** revenue and the **only** money the platform ever collects.
 
 | Money flow | Who pays whom | Processor | Platform role |
 |------------|---------------|-----------|---------------|
-| **Subscription** | Teacher → Platform | **PayFast** | Platform revenue — only money the platform collects |
-| **Session payment** | Student → Teacher | **PayFast or teacher's PayPal** | Platform does NOT handle, hold, or disburse these funds |
+| **Subscription** | Teacher → Platform | **PayFast** | Platform revenue — the only money the platform collects |
+| **Lesson payment** | Student → Teacher | **Teacher's own PayPal** | None. The platform never holds, routes, splits, or disburses these funds |
 
-The platform **never** touches student-to-teacher payments. Teachers link PayFast or their own PayPal account in settings. Students pay the teacher directly at booking time through the teacher's connected payment method.
+The platform **never** handles money between a student and a teacher. Teachers link their own PayPal account in settings; the student pays that account directly at booking time, and the **teacher is the seller of record for the lesson**. The platform's only involvement is opening a checkout against the teacher's account and recording the provider's payment confirmation so the booking can be confirmed. Commission on lesson payments is **zero** — permanently, not as a launch promotion.
+
+### Why courses are out of scope
+
+Self-paced courses were built and then removed in full. The reason is tax law, not product taste, and it does not expire with scale or revenue.
+
+A pre-recorded course is an **electronically supplied service**. Under EU Implementing Regulation 282/2011 Article 9a — and the identical HMRC test — a platform is *presumed to be the supplier* unless it does none of three things: authorise the charge, authorise delivery, or set the general terms. Hosting and gating course video **is** authorising delivery. So the moment Amazing Skills hosts course content it becomes the deemed supplier, and therefore the seller of record for EU and UK VAT, **whether or not it takes a cent of the sale**. Taking zero commission buys nothing.
+
+Live 1:1 tuition is human-delivered. It is not an electronically supplied service, and Article 9a does not reach it — which is precisely why the lesson rail can stay zero-touch and the teacher can remain the seller.
+
+**Do not re-add courses — or any hosted, gated, pre-recorded content — without re-opening this decision first.** Doing so makes the platform a VAT-registered seller of record in the EU and UK and changes what this business is.
 
 ---
 
@@ -77,12 +87,12 @@ Subscriptions are billed at the **organization or solo-teacher account level** v
 
 ### Plans
 
-| Plan | Monthly | Annual | Active students | Live lessons | Courses |
-|------|---------|--------|-----------------|--------------|---------|
-| **Free** | $0 | Free | 1 | 2 hrs/month | 1 |
-| **Starter** | $9 | $90 | 5 | 20 hrs/month | Unlimited |
-| **Professional** | $19 | $190 | 15 | 75 hrs/month | Unlimited |
-| **Business** | $39 | $390 | Unlimited | Unlimited (fair use) | Unlimited |
+| Plan | Monthly | Annual | Active students | Live lessons |
+|------|---------|--------|-----------------|--------------|
+| **Free** | $0 | Free | 1 | 2 hrs/month |
+| **Starter** | $9 | $90 | 5 | 20 hrs/month |
+| **Professional** | $19 | $190 | 15 | 75 hrs/month |
+| **Business** | $39 | $390 | Unlimited | Unlimited (fair use) |
 
 ### What Each Plan Unlocks
 
@@ -90,9 +100,8 @@ Subscriptions are billed at the **organization or solo-teacher account level** v
 |------------|------|-----|---------|------------|
 | Marketplace profile | ✓ | ✓ | ✓ | ✓ |
 | Bookings & messaging | ✓ | ✓ | ✓ | ✓ |
-| Link PayFast/PayPal | ✓ | ✓ | ✓ | ✓ |
+| Link own PayPal account | ✓ | ✓ | ✓ | ✓ |
 | Homework & student notes | ✗ | ✓ | ✓ | ✓ |
-| Courses | 1 | Unlimited | Unlimited | Unlimited |
 | Quizzes & groups | ✗ | ✗ | ✓ | ✓ |
 | Team teachers & branding | ✗ | ✗ | ✗ | ✓ |
 | Student limit | 1 | 5 | 15 | Unlimited |
@@ -118,18 +127,18 @@ Subscriptions are billed at the **organization or solo-teacher account level** v
 - Webhook ITN verification on every subscription event
 - Invoices generated automatically for subscription charges
 
-### Teacher session payments (PayFast / PayPal — NOT platform)
+### Teacher lesson payments (teacher's own PayPal — NOT platform)
 
-- Teachers connect **PayFast** or their own PayPal account in profile settings
+- Teachers connect **their own PayPal account** in profile settings
 - Students pay the teacher **directly** at booking checkout
-- Platform facilitates the checkout redirect/API call but **never holds funds**
-- Platform takes **zero commission** on session payments in v1
-- Refunds are handled between teacher and student via their payment provider
+- Platform opens the checkout against the teacher's account but **never holds, routes, or disburses funds**
+- Platform takes **zero commission** on lesson payments
+- Refunds are handled between teacher and student via the teacher's payment provider
 
 ### Principles
 
-1. **Transparency** — Teachers see subscription cost and direct session earnings separately.
-2. **Separation** — Platform billing and teacher payouts are completely separate systems.
+1. **Transparency** — Teachers see subscription cost and direct lesson earnings separately.
+2. **Separation** — Platform billing and teacher earnings are completely separate systems.
 3. **No escrow** — Platform does not hold student payments.
 4. **Secure linking** — PayPal OAuth and PayFast merchant details are never exposed to clients.
 
@@ -139,11 +148,11 @@ Subscriptions are billed at the **organization or solo-teacher account level** v
 Subscription (Teacher → Platform via PayFast)
   Teacher selects plan → PayFast checkout → ITN webhook → Plan activated
 
-Session (Student → Teacher via PayFast/PayPal)
-  Student selects slot → Checkout via teacher's linked account → Payment to teacher
-  Platform records booking as confirmed on payment webhook from PayFast/PayPal
+Lesson (Student → Teacher via the teacher's PayPal)
+  Student selects slot → Checkout against the teacher's linked account → Payment to teacher
+  Platform records the booking as confirmed on the PayPal webhook
 
-Platform revenue = subscriptions only. Session payments bypass the platform ledger.
+Platform revenue = subscriptions only. Lesson payments bypass the platform ledger entirely.
 ```
 
 ---
@@ -156,7 +165,7 @@ Platform revenue = subscriptions only. Session payments bypass the platform ledg
 Teacher completes profile → Submits for review → Platform admin approves/rejects → Live on marketplace
 ```
 
-**Requirements:** Pro plan+, verified email, complete profile (bio 100+ words, photo, subjects, hourly rate, PayFast or PayPal linked).
+**Requirements:** Pro plan+, verified email, complete profile (bio 100+ words, photo, subjects, hourly rate, PayPal linked).
 
 **SLA:** 48 business hours.
 
@@ -168,7 +177,7 @@ Teacher completes profile → Submits for review → Platform admin approves/rej
 ### 3. Booking Confirmation
 
 ```
-Student selects slot → Pays teacher (PayFast/PayPal) → Booking confirmed → Video room created
+Student selects slot → Pays teacher (teacher's PayPal) → Booking confirmed → Video room created
 ```
 
 | Scenario | Behavior |
@@ -209,7 +218,7 @@ Roles are **contextual per organization**, except Platform Admin which is global
 ### Instructor (Teacher)
 
 - Manage profile, availability, hourly rate
-- Link PayFast/PayPal for session payments
+- Link their own PayPal account for lesson payments
 - Conduct video sessions; view bookings and earnings summary
 - Message students
 
@@ -225,9 +234,9 @@ Roles are **contextual per organization**, except Platform Admin which is global
 |--------|:-:|:-:|:-:|:-:|
 | Approve marketplace profiles | ✓ | | | |
 | Manage org PayFast subscription | | ✓ | | |
-| Link PayFast/PayPal | | | ✓ | |
+| Link own PayPal account | | | ✓ | |
 | Set availability & rates | | | ✓ | |
-| Book & pay for session | | | | ✓ |
+| Book & pay teacher for a lesson | | | | ✓ |
 | Join video session | | | ✓ | ✓ |
 | Moderate reviews | ✓ | | | |
 
@@ -245,9 +254,9 @@ See [TODO.md](TODO.md) for checklist.
 | **4** | Bookings — availability, calendar, timezone |
 | **5** | Video sessions — embedded live calls (LiveKit Cloud) |
 | **6** | Subscriptions — PayFast billing, plan limits |
-| **7** | Teacher payments — PayFast/PayPal linking, student checkout |
+| **7** | Teacher payments — teacher PayPal linking, student checkout |
 | **8** | Communication — messaging, notifications, emails |
-| **9** | Analytics & AI — reports, insights (courses optional later) |
+| **9** | Analytics & AI — reports, insights |
 
 ---
 
@@ -290,7 +299,7 @@ Flow: Booking confirmed → server creates LiveKit room → authorized participa
 | Realtime | Supabase Realtime (chat, notifications) |
 | Storage | Supabase Storage (avatars) |
 | Platform billing | **PayFast** (subscriptions only) |
-| Teacher payments | **PayFast + PayPal** (student → teacher) |
+| Teacher payments | **PayPal** (student → teacher, teacher's own account) |
 | Video | **LiveKit Cloud** |
 | Email | Resend |
 | Deployment | Vercel |

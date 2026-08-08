@@ -169,76 +169,6 @@ export async function notifyTeacherProfileRejected(profileId: string) {
   });
 }
 
-export async function notifyCourseApproved(courseId: string) {
-  const course = await db.course.findUnique({
-    where: { id: courseId },
-    select: {
-      title: true,
-      slug: true,
-      teacher: { select: { id: true, name: true, email: true } },
-    },
-  });
-  if (!course) return;
-
-  const href = `/courses/${course.slug}`;
-  await createNotification({
-    userId: course.teacher.id,
-    type: "course.approved",
-    title: "Your course is approved",
-    body: `${course.title} is now published and available to students.`,
-    href,
-    metadata: { courseId },
-    email: {
-      to: course.teacher.email,
-      subject: `${course.title} is now published`,
-      template: {
-        heading: "Your course is published",
-        paragraphs: [
-          `Hi ${course.teacher.name},`,
-          `Your course ${course.title} has been approved and published.`,
-        ],
-        action: { label: "View your course", href: `${env.NEXT_PUBLIC_APP_URL}${href}` },
-      },
-    },
-  });
-}
-
-export async function notifyCourseRejected(courseId: string) {
-  const course = await db.course.findUnique({
-    where: { id: courseId },
-    select: {
-      title: true,
-      rejectionReason: true,
-      teacher: { select: { id: true, name: true, email: true } },
-    },
-  });
-  if (!course) return;
-
-  const href = `/dashboard/teacher/courses/${courseId}`;
-  const reason = course.rejectionReason ?? "Review the course details and submit it again.";
-  await createNotification({
-    userId: course.teacher.id,
-    type: "course.rejected",
-    title: "Course changes requested",
-    body: `${course.title}: ${reason}`,
-    href,
-    metadata: { courseId, reason },
-    email: {
-      to: course.teacher.email,
-      subject: `Changes requested for ${course.title}`,
-      template: {
-        heading: "Course changes requested",
-        paragraphs: [
-          `Hi ${course.teacher.name},`,
-          `Changes were requested for ${course.title}.`,
-          reason,
-        ],
-        action: { label: "Edit your course", href: `${env.NEXT_PUBLIC_APP_URL}${href}` },
-      },
-    },
-  });
-}
-
 export async function notifyBookingConfirmed(bookingId: string) {
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
@@ -531,55 +461,6 @@ export async function notifyBookingCancelled(bookingId: string) {
   );
 }
 
-export async function notifyCoursePurchased(purchaseId: string) {
-  const purchase = await db.coursePurchase.findUnique({
-    where: { id: purchaseId },
-    include: {
-      course: { select: { title: true, slug: true } },
-      student: { select: { id: true, name: true, email: true } },
-      teacher: { select: { id: true, name: true, email: true } },
-    },
-  });
-  if (!purchase || purchase.status !== "succeeded") return;
-  const recipients = [
-    {
-      person: purchase.student,
-      title: "Course purchase confirmed",
-      body: `You now have access to ${purchase.course.title}.`,
-      href: `/dashboard/courses/${purchase.courseId}`,
-    },
-    {
-      person: purchase.teacher,
-      title: "New course sale",
-      body: `${purchase.student.name} purchased ${purchase.course.title}.`,
-      href: "/dashboard/teacher/courses",
-    },
-  ];
-  await Promise.all(
-    recipients.map(({ person, title, body, href }) =>
-      createNotification({
-        userId: person.id,
-        type: "course.purchased",
-        title,
-        body,
-        href,
-        metadata: { purchaseId, courseId: purchase.courseId },
-        email: {
-          to: person.email,
-          subject: title,
-          category: "payment",
-          idempotencyKey: buildEmailIdempotencyKey("course.purchased", purchaseId, person.id),
-          template: {
-            heading: title,
-            paragraphs: [body],
-            action: { label: "View details", href: `${env.NEXT_PUBLIC_APP_URL}${href}` },
-          },
-        },
-      }),
-    ),
-  );
-}
-
 export async function notifyRefundUpdated(refundRequestId: string) {
   const request = await db.refundRequest.findUnique({
     where: { id: refundRequestId },
@@ -627,20 +508,13 @@ export async function notifyPaymentFailed(paymentAttemptId: string) {
           teacher: { select: { id: true, email: true } },
         },
       },
-      coursePurchase: {
-        include: {
-          student: { select: { id: true, email: true } },
-          teacher: { select: { id: true, email: true } },
-        },
-      },
     },
   });
   if (!attempt) return;
-  const people = attempt.booking
-    ? [attempt.booking.student, attempt.booking.teacher]
-    : attempt.coursePurchase
-      ? [attempt.coursePurchase.student, attempt.coursePurchase.teacher]
-      : [];
+  // PaymentAttempt.bookingId is still nullable, so an attempt is not guaranteed to resolve to a
+  // booking. With no booking there is no student or teacher to address, so notify nobody rather
+  // than throwing on a half-linked attempt.
+  const people = attempt.booking ? [attempt.booking.student, attempt.booking.teacher] : [];
   await Promise.all(
     people.map((person) =>
       createNotification({
@@ -683,20 +557,12 @@ export async function notifyPaymentDispute(
           teacher: { select: { id: true, email: true } },
         },
       },
-      coursePurchase: {
-        include: {
-          student: { select: { id: true, email: true } },
-          teacher: { select: { id: true, email: true } },
-        },
-      },
     },
   });
   if (!attempt) return;
-  const people = attempt.booking
-    ? [attempt.booking.student, attempt.booking.teacher]
-    : attempt.coursePurchase
-      ? [attempt.coursePurchase.student, attempt.coursePurchase.teacher]
-      : [];
+  // As in notifyPaymentFailed: bookingId is nullable, and an attempt with no booking has no
+  // participants to notify.
+  const people = attempt.booking ? [attempt.booking.student, attempt.booking.teacher] : [];
   await Promise.all(
     people.map((person) =>
       createNotification({

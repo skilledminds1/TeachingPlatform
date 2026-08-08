@@ -72,7 +72,7 @@ export function SafetyReportForm({ subjectId }: { subjectId?: string }) {
         required
         minLength={20}
         maxLength={4000}
-        placeholder="Describe what happened, when it happened, and any relevant booking or course."
+        placeholder="Describe what happened, when it happened, and any relevant booking."
       />
       <FeedbackMessage value={feedback} />
       <Button type="submit" disabled={pending}>{pending ? "Submitting…" : "Submit report"}</Button>

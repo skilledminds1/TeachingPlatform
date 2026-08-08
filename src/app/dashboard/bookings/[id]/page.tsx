@@ -173,11 +173,7 @@ export default async function BookingDetailsPage({
         {!isTeacher &&
         booking.paymentExternalId &&
         ["confirmed", "cancelled", "completed", "no_show"].includes(booking.status) ? (
-          <RefundRequestPanel
-            targetType="booking"
-            targetId={booking.id}
-            request={booking.refundRequest}
-          />
+          <RefundRequestPanel targetId={booking.id} request={booking.refundRequest} />
         ) : null}
 
         {booking.status === "completed" && !isTeacher && !booking.review ? (

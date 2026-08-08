@@ -52,7 +52,7 @@ export default async function SafetyPage() {
           <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
             <h2 className="text-lg font-semibold">Blocked users</h2>
             <p className="mb-4 mt-1 text-sm text-muted-foreground">
-              Blocking prevents new direct conversations and new bookings. Existing paid course and lesson access remains available.
+              Blocking prevents new direct conversations and new bookings. Lessons you have already paid for remain available.
             </p>
             <div className="space-y-3">
               {blocks.map((block) => (

@@ -13,8 +13,6 @@ const items = [
   { href: "/dashboard", label: "Home", exact: true },
   { href: "/dashboard/classroom", label: "Classroom" },
   { href: "/dashboard/messages", label: "Messages" },
-  { href: "/courses", label: "Courses" },
-  { href: "/dashboard/courses", label: "My Learning" },
   { href: "/dashboard/refunds", label: "Refunds" },
   { href: "/dashboard/cases", label: "Cases" },
   { href: "/dashboard/safety", label: "Safety" },

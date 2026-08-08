@@ -6,28 +6,35 @@
 
 ## The architecture this backlog builds toward
 
-Three physically separate money rails. No shared provider account, no shared code path.
-The moment lesson money routes through the course or subscription provider "for convenience,"
+Two physically separate money rails. No shared provider account, no shared code path.
+The moment lesson money routes through the subscription provider "for convenience,"
 the platform becomes a payment facilitator and the whole model collapses.
 
-| | Live lessons | Courses | Teacher subscriptions |
-|---|---|---|---|
-| **Seller of record** | The teacher | Amazing Skills (as publisher) | Merchant of record |
-| **Who touches the money** | Teacher only | MoR, split to teacher + platform | MoR, then platform |
-| **Platform cut** | **0%** | **10%** | 100% (own revenue) |
-| **Tax at checkout** | Teacher's Stripe Tax | MoR's liability | MoR's liability |
-| **Provider** | Teacher's own Stripe (BYOK restricted key) | FastSpring (to confirm) | Paddle or Polar.sh (to confirm) |
+| | Live lessons | Teacher subscriptions |
+|---|---|---|
+| **Seller of record** | The teacher | Merchant of record |
+| **Who touches the money** | Teacher only | MoR, then platform |
+| **Platform cut** | **0%** | 100% (own revenue) |
+| **Tax at checkout** | Teacher's Stripe Tax | MoR's liability |
+| **Provider** | Teacher's own Stripe (BYOK restricted key) | Paddle or Polar.sh (to confirm) |
 
-**Why lessons can stay zero-touch but courses cannot.** A pre-recorded course is an
-*electronically supplied service*. Under EU Implementing Regulation 282/2011 Article 9a and the
-identical HMRC test, a platform is presumed to be the supplier unless it does none of three
-things: authorise the charge, authorise delivery, or set the general terms. Hosting and gating
-the course video *is* authorising delivery. So the platform is the deemed supplier in the EU and
-UK **whether or not it takes a cent** — meaning the compliance cost arrives with the course
-product itself, not with the commission. Declining the 10% buys nothing. Live 1:1 tuition is
-human-delivered, is not an electronically supplied service, and Article 9a does not reach it.
+**Why courses were cut, and why lessons can stay zero-touch.** There was a third rail here: a
+course product on which the platform would have been the seller of record, taking 10% through a
+merchant of record. It is gone — the product is deleted, not flagged off — and the reasoning is
+worth keeping, because it is the same reasoning that keeps the lesson rail safe. A pre-recorded
+course is an *electronically supplied service*. Under EU Implementing Regulation 282/2011
+Article 9a and the identical HMRC test, a platform is presumed to be the supplier unless it does
+none of three things: authorise the charge, authorise delivery, or set the general terms.
+Hosting and gating the course video *is* authorising delivery. So the platform would have been
+the deemed supplier in the EU and UK **whether or not it took a cent** — the compliance cost
+arrived with the course product itself, not with the commission, and declining the 10% would
+have bought nothing. That is what made the rail not worth keeping: it carried the whole legal
+stack, a publisher-contract rewrite and a 2–6 week MoR underwriting cycle, to earn about $3.33
+on a $40 sale. Live 1:1 tuition is human-delivered, is not an electronically supplied service,
+and Article 9a does not reach it — which is why the surviving lesson rail can leave the teacher
+as merchant of record and the platform out of the money path entirely.
 
-## Send these five emails before writing P2 code
+## Send these emails before writing P2 code
 
 They cost nothing and they gate weeks of work. Do not delay P0/P1 while waiting.
 
@@ -37,10 +44,9 @@ They cost nothing and they gate weeks of work. Do not delay P0/P1 while waiting.
 2. **Paddle and Polar compliance** (both, same day) — will you onboard a tutoring marketplace that
    bills only its own SaaS subscription, with no student funds flowing through you? Paddle demands
    three months of processing statements and has documented rejections of pre-revenue businesses.
-3. **FastSpring** — will you underwrite an education publisher reselling licensed third-party
-   courses; can split partners scale without a support ticket each; SA seller rate card?
-4. **Tazapay** — the one split-settlement provider with a plausible path to yes for an SA platform.
-   If yes, it is strictly better than the split-rail design.
+3. ~~**FastSpring**~~ — **CUT.** Underwrote the course rail; there is no course product to sell.
+4. ~~**Tazapay**~~ — **CUT.** Split settlement only mattered while the platform took a cut of a
+   student payment. The platform takes 0% on lessons, and nothing else touches student money.
 5. **LiveKit** — media-edge PoP list for Africa and South America.
 
 ---
@@ -49,7 +55,7 @@ They cost nothing and they gate weeks of work. Do not delay P0/P1 while waiting.
 
 Market-independent. Nothing here depends on a payment decision. Start immediately.
 
-<sub>17 tasks · 2 critical · 7 high · 5 medium · 3 low</sub>
+<sub>15 tasks · 2 critical · 6 high · 4 medium · 3 low</sub> · 2 cut with the courses product
 
 ### 🔴 `SEC-01` Enable RLS and revoke anon/authenticated privileges on every application table
 
@@ -102,6 +108,9 @@ Market-independent. Nothing here depends on a payment decision. Start immediatel
 
 ### 🟠 `SEC-08` Restrict lesson videoUrl to an https embed-host allowlist and unblock legitimate embeds
 
+> **CUT with the courses product.** The videoUrl field, both viewers and the public sales page it
+> was injected into are deleted; teacher introduction videos are uploaded, not embedded by URL.
+
 - [x] **Effort:** S · <½ day · **Area:** xss
 - **Files:** `src/lib/validations/courses.ts`, `src/features/courses/components/curriculum-preview.tsx`, `src/features/courses/components/enrolled-course-viewer.tsx`, `next.config.ts`
 - **What:** createLessonSchema.videoUrl is z.url() with no scheme or host restriction, and zod 4.4.3 accepts javascript: and data: URLs. The value is injected unfiltered as an iframe src in the enrolled viewer and — critically — on the unauthenticated public sales page for preview lessons, while script-src still allows 'unsafe-inline'. Replace with a refinement requiring https: plus an allowlisted embed host (youtube-nocookie.com, player.vimeo.com, loom.com), normalise pasted watch URLs into embed URLs, and add those hosts to frame-src in next.config.ts, which currently blocks every legitimate embed host so the feature does not even render.
@@ -115,6 +124,10 @@ Market-independent. Nothing here depends on a payment decision. Start immediatel
 - **Done when:** A validly signed ITN naming a Business planId with a Starter amount does not activate Business and logs validation_failed; legitimate ITNs continue to activate normally.
 
 ### 🟡 `SEC-09` Validate lesson file uploads with a MIME allowlist and magic-byte check
+
+> **CUT with the courses product.** uploadLessonFile and the course-files bucket it wrote to are
+> gone. The surviving upload paths — avatars, credentials, intro videos — already check both the
+> declared MIME type and the binary signature, which is the standard this item was measured against.
 
 - [x] **Effort:** S · <½ day · **Area:** uploads
 - **Files:** `src/actions/courses.ts`, `src/lib/validations/courses.ts`, `src/server/courses/media.ts`
@@ -176,7 +189,7 @@ Market-independent. Nothing here depends on a payment decision. Start immediatel
 
 These are live defects in the current PayPal + PayFast paths. Fix them even though both rails are being replaced: the code is running today, and the state-machine fixes carry straight over to the new providers.
 
-<sub>36 tasks · 5 critical · 13 high · 16 medium · 2 low</sub>
+<sub>30 tasks · 5 critical · 12 high · 11 medium · 2 low</sub> · 6 cut with the courses product
 
 ### 🔴 `MON-01` Guard PayPal capture on attempt and booking state to stop double charges
 
@@ -215,6 +228,10 @@ These are live defects in the current PayPal + PayFast paths. Fix them even thou
 
 ### 🟠 `MON-03` Make expiry-job state transitions conditional in both the booking and course branches
 
+> **Course half CUT.** expireAbandonedPayments handles bookings only now — the purchase,
+> enrollment and coupon-redemption branch is deleted. The booking half stands as shipped: the
+> conditional updateMany that closes the confirm-versus-expire race is the whole of it.
+
 - [x] **Effort:** S · <½ day · **Area:** lesson-payments
 - **Files:** `src/server/payments/confirm.ts`, `src/actions/payments.ts`
 - **What:** expireAbandonedPayments selects candidate ids and then updates by id with no status predicate, so a confirmation landing between the select and the update flips a paid, confirmed booking to cancelled with reason 'Payment window expired' while the succeeded attempt survives — money captured, lesson cancelled. The course branch is worse: it sets the purchase to cancelled and deletes the coupon redemption while confirmCoursePayment may already have granted an enrollment that is never revoked, leaving the student silently enrolled against a cancelled purchase. Use updateMany with `status: 'pending_payment'` / `status: 'pending'` in the WHERE clause and skip the rest of the transaction when zero rows are affected. Together with MON-02 this closes the race in both directions.
@@ -228,6 +245,11 @@ These are live defects in the current PayPal + PayFast paths. Fix them even thou
 - **Done when:** Closing the tab immediately after approving still results in a confirmed booking within one webhook delivery; an anonymous return no longer 401s; the reconciliation job recovers an orphaned APPROVED order.
 
 ### 🟠 `MON-09` Manual refunds: verify receipt, apply refund effects, and keep both ledgers in sync
+
+> **Course half CUT.** There is no enrollment to revoke, no certificate to invalidate and no
+> purchase row to mark refunded — the shared applyRefundEffects is gone with them. What survives
+> is the part that always mattered for lessons: markRefundSent keeps PaymentAttempt.refundedCents
+> in step with the request in one transaction, so the two ledgers cannot disagree.
 
 - [x] **Effort:** M · 1–2 days · **Area:** refunds
 - **Files:** `src/actions/refunds.ts`, `src/server/payments/confirm.ts`, `src/server/courses/certificates.ts`
@@ -294,12 +316,22 @@ These are live defects in the current PayPal + PayFast paths. Fix them even thou
 
 ### 🟠 `MON-31` course-covers storage bucket is never provisioned, making the course marketplace inert
 
+> **CUT with the courses product.** There is no cover image, no submission gate and no course
+> marketplace to be inert.
+
 - [x] **Effort:** S · <½ day · **Area:** course-commerce
 - **Files:** `src/actions/courses.ts`, `supabase/migrations/20260719234500_storage_hardening.sql`, `supabase/README.md`, `src/server/courses/media.ts`
 - **What:** uploadCourseCover writes to supabase.storage.from('course-covers') and reads back getPublicUrl, but that bucket exists nowhere: the storage-hardening migration inserts only avatars, credentials, course-media, course-files and case-evidence; supabase/README.md documents a different set; and the only createBucket calls are for course-media and the teacher intro bucket. Meanwhile canSubmitCourse hard-blocks submission with 'Add a course cover image' when coverImageUrl is null, and the upload failure is swallowed into a generic 'please try again'. On a fresh production deploy the entire course marketplace is inert and the teacher blames their image file. Provision the bucket (add it to the migration or create it lazily like ensureCourseMediaBucket), surface the real storage error distinctly, and keep covers private and signed until the course is published.
 - **Done when:** On a freshly provisioned environment a teacher can upload a cover and submit a course; a storage misconfiguration produces a distinct, actionable error rather than a generic retry prompt.
 
 ### 🟠 `MON-32` No admin takedown for published courses and sanctioned teachers stay in the catalog
+
+> **Course half CUT** — there is no catalog to take a course down from, so takedownCourse, the
+> moderation queue and the admin browse view are gone. **The other half is still open and the
+> tick above does not cover it:** `PUBLIC_TEACHER_WHERE` filters on profile status, deletedAt,
+> isDemo and the org plan, but on neither `User.accountStatus` nor an active sanction — so a
+> suspended or removed teacher stays listed in /find-tutor and remains bookable. That was always
+> the more serious half; it just happened to be written down beside a course problem.
 
 - [x] **Effort:** M · 1–2 days · **Area:** moderation
 - **Files:** `src/actions/admin.ts`, `src/server/courses/queries.ts`, `src/features/admin/components/course-moderation-actions.tsx`, `src/app/admin/courses/page.tsx`
@@ -375,6 +407,9 @@ These are live defects in the current PayPal + PayFast paths. Fix them even thou
 
 ### 🟡 `MON-26` Coupon maxRedemptions over-redeems under concurrency and the cleanup is dead code
 
+> **CUT with the courses product.** Coupons existed only against course purchases; there is no
+> discount mechanism on the lesson rail to inherit the reservation pattern.
+
 - [x] **Effort:** M · 1–2 days · **Area:** course-commerce
 - **Files:** `src/server/courses/pricing.ts`, `src/server/payments/confirm.ts`, `src/actions/payments.ts`
 - **What:** resolveCoursePrice rejects a coupon when confirmed redemptions >= maxRedemptions, but for paid purchases the CourseCouponRedemption row is written only after payment confirms, so in-flight checkouts are invisible and the limit is never re-validated at confirmation. Forty students opening a 'first 10 at 80% off' coupon in the same minute all pass the check, are all quoted the discounted price, and all complete checkout. The compensating cleanups (deleteMany by purchaseId in the checkout failure path and in expireAbandonedPayments) can never match a row because none exists yet. Reserve the redemption inside the same transaction that creates the pending CoursePurchase, so the existing cleanup actually releases it on cancel or expiry, and/or re-count and re-validate inside confirmCoursePayment before granting enrollment.
@@ -396,12 +431,18 @@ These are live defects in the current PayPal + PayFast paths. Fix them even thou
 
 ### 🟡 `MON-33` Any edit to a published course silently delists it and forces a fresh review
 
+> **CUT with the courses product.** No course, no publish state, no re-review.
+
 - [x] **Effort:** S · <½ day · **Area:** course-commerce
 - **Files:** `src/actions/courses.ts`
 - **What:** updateCourse computes substantiveChange across title, description, subjectId, priceCents, currency, level and certificateEnabled, and when the course is live resets it to `draft` — not pending_approval — so the course does not even re-enter the moderation queue automatically. A teacher fixing a typo, flipping the certificate toggle, or dropping the price for a promotion instantly removes the course from /courses and 404s its sales page, with no warning in the UI, losing days of traffic and sales before they realise they must resubmit and wait out the 48-hour review SLA. Trigger re-review only on material content changes (title, description, curriculum), never on price, currency or certificateEnabled; keep the course live and purchasable during re-review; set pending_approval automatically; and warn in the edit UI before saving.
 - **Done when:** Changing price or certificateEnabled leaves the course published; a title or curriculum change keeps it purchasable while enqueued for review, with an explicit in-UI warning before save.
 
 ### 🟡 `MON-34` Buyers are shown the teacher's private billing status and hit dead-end checkouts
+
+> **CUT with the courses product.** startCourseCheckout, which leaked the growth-block string to
+> the buyer, is deleted. Worth carrying forward as a rule rather than a task: a buyer-facing
+> error must never be a verbatim message written for the seller.
 
 - [x] **Effort:** S · <½ day · **Area:** course-commerce
 - **Files:** `src/actions/payments.ts`, `src/server/courses/queries.ts`, `src/server/billing/lifecycle.ts`
@@ -410,12 +451,20 @@ These are live defects in the current PayPal + PayFast paths. Fix them even thou
 
 ### 🟡 `MON-35` Certificates are issued on self-reported progress and survive refunds
 
+> **CUT with the courses product.** Certificates, lesson progress and the public verification
+> page are deleted. The platform issues no credential of any kind.
+
 - [x] **Effort:** M · 1–2 days · **Area:** course-commerce
 - **Files:** `src/server/courses/certificates.ts`, `src/actions/courses.ts`, `prisma/schema.prisma`, `src/app/certificates/[code]/page.tsx`, `src/lib/refunds/policy.ts`
 - **What:** Eligibility is simply that every lesson has a CourseLessonProgress row with completedAt, and those rows come from markLessonComplete — a plain 'Mark complete' button with no watched-duration, dwell-time or assessment check. A student can click through a 40-lesson course in under a minute and receive a verifiable credential. CourseCertificate has no revokedAt column, and applyRefundToAttempt revokes the enrollment but leaves the certificate valid, while the public verification page renders whatever it finds as valid with no status field. The refund-eligibility progress check reads the same self-marked rows, so the refund window is gameable from the same data. Require a real completion signal (player-reported watch percentage, minimum dwell, or a quiz pass), add revokedAt/revocationReason, revoke whenever the enrollment is revoked or the purchase refunded, and render revoked state prominently on the verification page.
 - **Done when:** Clicking through every lesson in under a minute does not issue a certificate; refunding a purchase marks the certificate revoked and the public verification page says so.
 
 ### 🟡 `MON-36` Reconcile course entitlements with the plan catalog and delete the duplicate usage helper
+
+> **CUT with the courses product.** `Plan.courseLimit` and the authoring gate are gone, so the
+> spec-versus-seed disagreement this item existed to settle no longer has two sides. The general
+> lesson stands for the remaining entitlements: plan limits belong in one place, and a limit that
+> is hit should raise the upsell rather than a bare error.
 
 - [x] **Effort:** M · 1–2 days · **Area:** entitlements
 - **Files:** `src/actions/courses.ts`, `prisma/seed.ts`, `src/server/courses/access.ts`, `src/server/billing/entitlements.ts`, `src/server/billing/pricing.ts`, `PROJECT.md`
@@ -441,11 +490,18 @@ These are live defects in the current PayPal + PayFast paths. Fix them even thou
 
 ## P2 — Payment re-architecture
 
-Three separate rails, no shared provider account, no shared money code path. Blocked on the provider confirmations in the Week 1 emails.
+Two separate rails, no shared provider account, no shared money code path. Blocked on the provider confirmations in the Week 1 emails.
 
-<sub>16 tasks · 6 critical · 8 high · 2 medium</sub>
+<sub>14 tasks · 5 critical · 7 high · 2 medium</sub> · 2 cut with the courses product
 
 ### 🔴 `PAY-01` Write the payments architecture decision record that resolves the commission/tax tension
+
+> **Course half CUT, and with it most of the tension.** Half (b) below — courses sold through a
+> merchant of record at a 10% commission — is deleted, so the ADR no longer has to reconcile
+> taking a cut with collecting tax at checkout: the platform takes no cut of any student payment.
+> What still has to be written down is half (a), the teacher-of-record lesson model and the
+> trade it accepts, plus the rejected options and the reasoning for cutting courses rather than
+> shipping them. The ADR is smaller than it was, not less necessary.
 
 - [ ] **Effort:** M · 1–2 days · **Area:** architecture
 - **Files:** `docs/PaymentsArchitecture.md`, `docs/LessonPayments.md`, `PROJECT.md`, `docs/Vision.md`
@@ -453,6 +509,11 @@ Three separate rails, no shared provider account, no shared money code path. Blo
 - **Done when:** A committed ADR the founder has signed off, naming the chosen provider per product line, the commission and tax posture of each, the payout mechanism for course earnings, and the explicit trade accepted on lesson disputes. Every other P2 task references it.
 
 ### 🔴 `PAY-02` Confirm merchant-of-record eligibility for a South African supplier, in writing
+
+> **Course half CUT.** The third question below — "do their terms permit a marketplace of
+> third-party-authored courses" — no longer needs asking, and requirements 5 and 6 no longer
+> ride on the answer. The other three still do: the MoR is what makes teacher subscriptions
+> billable in any country and settleable to a South African bank.
 
 - [ ] **Effort:** M · 1–2 days · **Area:** vendor-diligence · **Blocked by:** external: MoR provider sales and compliance response
 - **Files:** `docs/PaymentsArchitecture.md`
@@ -481,6 +542,12 @@ Three separate rails, no shared provider account, no shared money code path. Blo
 - **Done when:** A booking can be paid and confirmed end to end with no platform-side capture; an unconfirmed payment expires and releases the slot; every state transition is conditional and covered by a test, including the confirm-versus-expire race in both directions.
 
 ### 🔴 `PAY-10` Course commerce as seller of record with a 10% platform commission and tax at checkout
+
+> **CUT — this is the task the founder's decision deletes.** There is no course product to sell,
+> so there is no rail on which the platform is seller of record, no commission, and no
+> platform-collected tax on a student payment. Everything that made this the most expensive item
+> in the backlog — deemed-supplier liability, the publisher contract, the MoR underwriting cycle
+> — left with it. See the architecture note at the top for why.
 
 - [ ] **Effort:** XL · 2+ weeks · **Area:** course-commerce · **Blocked by:** PAY-02
 - **Files:** `src/actions/payments.ts`, `src/server/payments/confirm.ts`, `prisma/schema.prisma`, `src/server/courses/pricing.ts`, `src/app/courses/[slug]/page.tsx`
@@ -517,6 +584,10 @@ Three separate rails, no shared provider account, no shared money code path. Blo
 
 ### 🟠 `PAY-11` Teacher earnings ledger and payout runs for course sales
 
+> **CUT with PAY-10.** The platform never receives student money, so it never owes a teacher a
+> share of it and has nothing to pay out. No ledger, no payable balance, no payout rail, no
+> reserve period. Teachers are paid by their own students, directly, in full.
+
 - [ ] **Effort:** XL · 2+ weeks · **Area:** payouts · **Blocked by:** PAY-10
 - **Files:** `prisma/schema.prisma`, `src/server/teachers/earnings.ts`, `src/app/dashboard/teacher/payments/page.tsx`, `src/app/admin/payments/page.tsx`
 - **What:** Once the platform receives course gross it owes teachers 90%, which the codebase has no concept of today. Build a double-entry-style earnings ledger (sale, refund, chargeback, commission, payout, adjustment), a payable balance per teacher, minimum payout thresholds, scheduled payout runs through an international mass-payout rail (Wise, Payoneer or PayPal Payouts — selection recorded in PAY-01), downloadable payout statements, and a reserve or hold period covering the refund window so the platform does not pay out money it must return. Paying your own suppliers is not money transmission, but the ledger must be auditable.
@@ -524,8 +595,15 @@ Three separate rails, no shared provider account, no shared money code path. Blo
 
 ### 🟠 `PAY-12` Tax at checkout: storage, display, invoices and receipts
 
-- [ ] **Effort:** M · 1–2 days · **Area:** tax · **Blocked by:** PAY-10
-- **Files:** `prisma/schema.prisma`, `src/server/payments/confirm.ts`, `src/app/dashboard/teacher/billing/page.tsx`, `src/app/courses/[slug]/page.tsx`, `src/app/terms/page.tsx`
+> **Course half CUT; re-pointed at PAY-04.** There is no course sale to tax and no CoursePurchase
+> to store a breakdown on, so this reduces to two things — the MoR's tax breakdown on
+> SubscriptionInvoice with tax-inclusive totals shown before a teacher commits, and the plain
+> statement in the teacher agreement and lesson checkout that lesson payments carry no
+> platform-collected tax and the teacher is responsible for their own. The second half is now the
+> only place that disclosure lives, which makes it more load-bearing rather than less.
+
+- [ ] **Effort:** M · 1–2 days · **Area:** tax · **Blocked by:** PAY-04
+- **Files:** `prisma/schema.prisma`, `src/app/dashboard/teacher/billing/page.tsx`, `src/app/teacher-agreement/page.tsx`, `src/app/terms/page.tsx`
 - **What:** Requirement 6. Rely on the MoR's tax engine for subscriptions and course sales rather than building multi-jurisdiction tax logic. Store the provider's breakdown (jurisdiction, rate, amount, the tax identifier used, and the seller of record) on SubscriptionInvoice and CoursePurchase, show tax-inclusive totals before the buyer commits, and issue receipts and invoices naming the correct seller of record. Document plainly in the teacher agreement and the lesson checkout that lesson payments carry no platform-collected tax and the teacher is responsible for their own — this is the honest consequence of the teacher-of-record model and must be visible, not buried.
 - **Done when:** A buyer in the EU sees the VAT-inclusive price before paying and receives a receipt showing the tax line and the MoR as seller; the lesson checkout and teacher agreement state the teacher-of-record tax position explicitly.
 
@@ -722,7 +800,7 @@ Keep LiveKit; rebuild the UI on top of it. See the decision brief for why switch
 
 The money path has zero test coverage today. That is how the P1 bugs got in.
 
-<sub>12 tasks · 5 high · 5 medium · 2 low</sub>
+<sub>10 tasks · 5 high · 3 medium · 2 low</sub> · 2 cut with the courses product
 
 ### 🟠 `QLT-01` Integration tests for the payment state machine
 
@@ -779,6 +857,12 @@ The money path has zero test coverage today. That is how the P1 bugs got in.
 
 ### 🟡 `QLT-07` Push course-catalog pagination and rating aggregation into SQL
 
+> **CUT with the courses product.** /courses, the catalog query and the denormalised course
+> aggregates are deleted, so the unbounded-review-fetch this fixed cannot recur. The pattern it
+> established is not lost — QLT-08 applied the same take/skip plus denormalised-aggregate shape
+> to the teacher marketplace, which is now the only public listing and where the outstanding
+> p95 benchmark should be run instead.
+
 - [x] **Effort:** M · 1–2 days · **Area:** performance
 - **Outcome:** take/skip + separate count; ratingAverage/ratingCount/enrollmentCount denormalised onto Course with `recomputeCourseAggregates` as the single writer, called from all five places a review or enrollment changes; minRating and every sort moved into SQL; review lists bounded on both detail queries; sort indexes plus pg_trgm GIN indexes for the ILIKE search. Denormalisation was necessary rather than paginate-then-aggregate because minRating and sort=rating decide WHICH rows are on the page. QLT-12's app-side popularity sort is superseded — enrollmentCount already excludes revoked enrollments, so the planner can order by it. **The p95 benchmark against a seeded 5,000-course catalog was NOT run**: it means writing ~100k rows to the live database. Boundedness is proven structurally instead (take/skip present, no unbounded review include, count separate).
 - **Files:** `src/server/courses/queries.ts`, `prisma/schema.prisma`
@@ -803,6 +887,11 @@ The money path has zero test coverage today. That is how the P1 bugs got in.
 
 ### 🟡 `QLT-10` Course Q&A is republished publicly without student consent
 
+> **CUT with the courses product.** Course Q&A is deleted, so nothing a student writes is
+> published anywhere. The principle is worth keeping for any future feature that surfaces
+> student-authored text: publication is an explicit opt-in, and it stays separate from the
+> moderation flag, because un-hiding a moderated item must never publish one nobody consented to.
+
 - [x] **Effort:** S · <½ day · **Area:** privacy
 - **Outcome:** New `isPublic` column defaulting false, kept SEPARATE from `hidden` — that flag is the teacher/admin moderation control, and folding consent into it would mean restoring a moderated question also publishes one the student never agreed to share. Publication now requires `isPublic AND NOT hidden`. Students get an unticked opt-in at ask time plus publish/unpublish/delete on their own questions, scoped by `studentId` in the where clause rather than a separate guard. **Migration `20260802110000_qlt10_course_question_consent` is applied** (confirmed 2026-08-02 against the live database; `prisma migrate status` reports no pending migrations and `course_questions.is_public` exists). The note it replaces warned that applying it would retroactively unpublish existing public Q&A and remove live content from SEO-indexed pages — that concern was moot: `course_questions` holds zero rows, so there was nothing to unpublish.
 - **Files:** `src/server/courses/queries.ts`, `src/actions/course-quality.ts`, `src/features/courses/components/course-community.tsx`, `src/app/courses/[slug]/page.tsx`
@@ -819,6 +908,11 @@ The money path has zero test coverage today. That is how the P1 bugs got in.
 
 ### ⚪ `QLT-12` Small correctness cleanups: enrollment social proof and the hidden booking lead time
 
+> **Half (a) CUT with the courses product** — there are no enrollment counts to filter and no
+> popular sort to fix. Half (b) stands and is the reason this item stays: `MIN_BOOKING_NOTICE_HOURS`
+> is a named, commented constant surfaced on the availability screen and the slot picker, so
+> nobody deletes the policy while "fixing" what looks like a UTC+2 offset bug.
+
 - [x] **Effort:** S · <½ day · **Area:** correctness
 - **Outcome:** Every enrollment `_count` now filters `revokedAt: null`, including the two admin ones the spec did not name — an unfiltered lifetime count had no clear consumer, and a moderator reading "50 enrolled" for a course with 40 revocations is misled exactly as a buyer is. The popular sort could not be fixed in place: Prisma cannot order by a FILTERED relation count, so it moved to the post-fetch sort beside rating and price, which QLT-07 will push into SQL together. `MIN_BOOKING_NOTICE_HOURS` is named and commented, and now drives the copy on both the availability screen and the slot picker.
 - **Files:** `src/server/courses/queries.ts`, `src/server/availability/slots.ts`
@@ -831,9 +925,15 @@ The money path has zero test coverage today. That is how the P1 bugs got in.
 
 PROJECT.md still describes a South African market and a PayFast student-payment rail that never existed in code.
 
-<sub>9 tasks · 1 critical · 5 high · 3 medium</sub>
+<sub>8 tasks · 1 critical · 5 high · 2 medium</sub> · 1 cut with the courses product
 
 ### 🔴 `PRD-05` Commission the professional tax and regulatory opinion
+
+> **Questions (c) and (d) CUT.** The platform never receives course gross, retains nothing and
+> pays no teacher abroad, so there is no merchant-of-record receipt to characterise and no
+> commission to test. Brief the practitioner on (a) and (b) only — the teacher-of-record lesson
+> model against money-transmission and third-party-payment-provider rules, and the platform's own
+> VAT position on exported services. A narrower brief is a cheaper and faster opinion.
 
 - [ ] **Effort:** M · 1–2 days · **Area:** legal · **Blocked by:** external: tax practitioner engagement
 - **Files:** `docs/PaymentsArchitecture.md`
@@ -863,7 +963,17 @@ PROJECT.md still describes a South African market and a PayFast student-payment 
 
 ### 🟠 `PRD-06` Rewrite the refund policy for the split architecture and add student trust signals
 
-- [ ] **Effort:** M · 1–2 days · **Area:** trust · **Blocked by:** PAY-10
+> **Course half CUT, and the block with it.** There is no split to describe: one rail, teacher of
+> record, teacher-issued refunds, platform mediates only. `/refund-policy` has already been cut
+> back to that — the course clause is gone and the policy now says plainly that the teacher issues
+> every refund because the platform never holds the money. **What is left is the harder half and
+> it is now unblocked:** that honest position still reads to a student as "pay a stranger directly
+> and we disclaim any ability to get your money back", and courses are no longer there to carry
+> the enforceable-refund story. The remaining work is the trust signals — teacher refund record
+> and response time on the profile, and the capped first-lesson guarantee decision — which is the
+> only answer left to the cold-start trust problem.
+
+- [ ] **Effort:** M · 1–2 days · **Area:** trust
 - **Files:** `src/app/refund-policy/page.tsx`, `src/features/marketplace/components/teacher-card.tsx`, `src/app/teachers/[slug]/page.tsx`, `src/app/dashboard/refunds/page.tsx`
 - **What:** The refund policy currently states plainly that the platform 'cannot debit the teacher, reverse a teacher transaction, reimburse the student from platform funds, or guarantee that a refund will be paid'. That is legally honest and architecturally correct for lessons, but as a student proposition it reads as 'pay a stranger directly and we disclaim any ability to get your money back' — against competitors who hold funds in escrow and release after the lesson with a platform guarantee. Under the split architecture the policy must distinguish clearly between lessons (teacher of record, teacher-issued refunds, platform mediates only, backed by the attestation and dispute controls in PAY-09) and courses (platform/MoR is the seller, so refunds are platform-issued and enforceable). Additionally surface each teacher's refund track record and response time on their profile, and evaluate a small capped platform-funded first-lesson guarantee as a marketing cost — not escrow — to break the cold-start trust barrier.
 - **Done when:** The policy accurately describes both flows and the recourse available in each; teacher profiles display a refund and response-time record; the first-lesson guarantee decision is documented either way.
@@ -883,6 +993,11 @@ PROJECT.md still describes a South African market and a PayFast student-payment 
 - **Done when:** No processor brand name appears in any legal page body; the counsel-review footer is absent from production; acceptance versioning is bumped once for the combined change rather than twice.
 
 ### 🟡 `PRD-08` Close the course marketplace commerce gaps
+
+> **CUT with the courses product.** Trailers, bundles, drip release, resume position and adaptive
+> transcoding all describe a product that no longer exists. The one idea here that was never
+> really about courses — a teacher's storefront cross-linking with their booking page — survives
+> as plain profile work: the tutor profile is now the whole storefront.
 
 - [ ] **Effort:** L · ~1 week · **Area:** course-commerce
 - **Files:** `src/actions/courses.ts`, `src/server/courses/queries.ts`, `src/app/courses/[slug]/page.tsx`, `src/app/teachers/[slug]/page.tsx`, `prisma/schema.prisma`
@@ -915,6 +1030,13 @@ P3 localised the data. The product around it is still a single-language, unindex
 
 ### 🟠 `GLO-02` Nothing is indexable: no robots.txt, no sitemap, no canonical, no structured data
 
+> **Course half CUT.** `Course` JSON-LD, the course canonical and the course half of the sitemap
+> are gone with the pages they described; `sitemap.ts` now enumerates teacher profiles and the
+> static pages only. This makes the item narrower but not smaller in value — teacher profiles are
+> now the entire indexable inventory, so the outstanding Rich Results validation should be run
+> against a profile URL after the next deploy, and there is no longer a second page type to fall
+> back on if `ProfilePage`/`Person` does not validate.
+
 - [ ] **Effort:** L · ~1 week · **Area:** discovery
 - **PARTIAL — code complete; one clause needs a public URL.** `robots.ts` and `sitemap.ts` added and both serve 200 (verified against the dev server); the sitemap carries real teacher slugs from the database. Canonicals on the profile, course, `/find-tutor` and `/courses` pages; `schema.org` `ProfilePage`/`Person` and `Course` JSON-LD with offers and ratings. Well-known paths added to the middleware's public set with a test pinning it. Three decisions worth keeping: **every sitemap URL is the canonical one** — `/teachers[/slug]` permanently redirects to `/find-tutor[/slug]`, so listing the legacy paths would have filled the sitemap with 308s, and the shared profile component needs an explicit canonical or the two routes compete as duplicates; **one visibility predicate, not four** — the sitemap is a third consumer of a rule the marketplace held in two hand-written copies, now a single exported constant (`demo-exclusion.test.ts` updated: it counted duplicate copies, which made duplication the mechanism); and **no CSP nonce on the JSON-LD** — React refuses to serialize `nonce` to the client, so setting it produced an unpatched hydration mismatch on every profile page that `suppressHydrationWarning` does not cover, and `application/ld+json` is a non-executing data block that `script-src` does not govern. Reproduced, fixed, verified on a clean console, pinned by a test. Ratings are omitted rather than zeroed when nothing is rated (Google treats 0-from-0 as invalid and penalises the domain), and prices go through `fromMinorUnits` per INT-09. **STILL OUTSTANDING:** Google's Rich Results Test needs a publicly reachable URL, and production is fourteen days stale — run it against a profile and a course URL after the next deploy, which also confirms the no-nonce decision under the real CSP. `hreflang` alternates are deliberately deferred to GLO-01, as this item's own "done when" says: there is nothing to point at until a second locale exists. The course detail page is unit-tested only — no published courses are seeded to fetch.
 - **Files:** `src/app/robots.ts`, `src/app/sitemap.ts`, `src/middleware.ts`, `src/app/teachers/[slug]/page.tsx`, `src/lib/seo/structured-data.ts`, `src/components/seo/json-ld.tsx`
@@ -933,11 +1055,14 @@ P3 localised the data. The product around it is still a single-language, unindex
 
 ## Decisions still open
 
+Questions 1 to 3 are closed. They are kept because the reasoning is the record of why the
+courses product was cut, and because anyone proposing to rebuild it should read the answer first.
+
 | # | Question | Recommended default |
 |---|---|---|
-| 1 | Do courses ship in v1, or after lessons work? | **After.** The course rail carries the whole legal stack, a publisher-contract rewrite, a 2–6 week MoR underwriting cycle, and earns ~$3.33 on a $40 sale. Launch lessons + subscriptions; keep course features dark. |
-| 2 | Accept being the *publisher* of courses (teachers become licensors on a 90% royalty)? | **Yes.** It is the only framing an MoR will underwrite, and the defence against TPPP characterisation under SARB Directive 1 of 2007. |
-| 3 | Take the 10% on courses? | **Yes.** Deemed-supplier liability attaches to hosting the content, not to the cut. |
+| 1 | ~~Do courses ship in v1, or after lessons work?~~ | **ANSWERED — neither. The courses product is cut entirely**, not deferred and not flagged off. It carried the whole legal stack, a publisher-contract rewrite and a 2–6 week MoR underwriting cycle to earn ~$3.33 on a $40 sale. The platform is live 1:1 tutoring plus teacher subscriptions. |
+| 2 | ~~Accept being the *publisher* of courses (teachers become licensors on a 90% royalty)?~~ | **ANSWERED — moot.** With no courses there is nothing to publish, no licensor relationship and no royalty. The TPPP defence it existed to provide is no longer needed: the platform is not in any student payment path at all. |
+| 3 | ~~Take the 10% on courses?~~ | **ANSWERED — moot.** The reasoning survives as the reason for the cut: deemed-supplier liability attached to hosting the content rather than to the cut, so refusing the 10% would have bought nothing and the whole rail had to go instead. |
 | 4 | Comfortable holding thousands of teachers' live Stripe keys? | **Yes, with KMS envelope encryption and payout-excluded key scopes** — but this is a real risk being accepted, not a detail. |
 | 5 | Does PayPal stay as a last-resort tier? | **Yes.** Already built. Deleting it costs teacher countries that no other combination reaches — Philippines, Vietnam, Pakistan, Bangladesh, Egypt, most of LatAm. |
 | 6 | Which regional PSPs after Stripe? | **Decide from data.** Instrument teacher signups by country for one month first. |
@@ -947,16 +1072,17 @@ P3 localised the data. The product around it is still a single-language, unindex
 
 ## Suggested sequence
 
-- **Week 1** — Send the five emails. Fix the five P4 Phase-0 classroom bugs (1–2 days, stops real losses today).
+- **Week 1** — Send the three surviving emails (Stripe, Paddle/Polar, LiveKit). Fix the five P4 Phase-0 classroom bugs (1–2 days, stops real losses today).
 - **Weeks 2–3** — Subscription MoR migration. Own revenue, smallest build, kills the FX-constant bug, retires the hand-rolled dunning logic.
 - **Weeks 4–7** — Stripe BYOK lesson rail + confirmation layer. First commit widens `LessonPaymentProvider` in `src/lib/currencies.ts:11`, currently the single string literal `"paypal"` — the *type* is the blocker, not config.
 - **Weeks 8–12** — Classroom rebuild: LiveKit webhooks, Excalidraw whiteboard, persisted chat, notes and homework.
-- **After launch, on evidence** — regional PSP #1 and #2, then courses.
+- **After launch, on evidence** — regional PSP #1 and #2.
 
 Realistically 3–4 months of solo development, with legal and provider lead times running in parallel.
 
 ## A note on effort estimates
 
 `S` / `M` / `L` / `XL` are relative sizes for one developer who knows this codebase, not calendar
-promises. The distribution across all 113 tasks is
-43×S, 54×M, 11×L, 5×XL.
+promises. The distribution across the 100 tasks that survive the courses cut is
+37×S, 50×M, 10×L, 3×XL. The 13 cut items are marked in place rather than deleted; they were
+6×S, 4×M, 1×L, 2×XL, and the two XLs — PAY-10 and PAY-11 — were the largest items in the backlog.

@@ -1,10 +1,10 @@
 import {
-  BookOpen,
   CalendarClock,
   CreditCard,
-  GraduationCap,
+  MessagesSquare,
   ShieldCheck,
   Star,
+  Video,
 } from "lucide-react";
 
 const features = [
@@ -15,10 +15,10 @@ const features = [
       "Every profile is reviewed and approved before it goes live — qualifications, rates, and payment details included.",
   },
   {
-    icon: BookOpen,
-    title: "Course marketplace",
+    icon: Video,
+    title: "Live video classroom",
     description:
-      "Self-paced courses with video lessons, quizzes, assignments, and downloadable materials — created by the same verified teachers.",
+      "Lessons run in your browser — nothing to install, on any device. Join from the booking with one click when it is time.",
   },
   {
     icon: CreditCard,
@@ -33,10 +33,10 @@ const features = [
       "Teachers set weekly availability once. Students book open slots in their own timezone — conflicts handled automatically.",
   },
   {
-    icon: GraduationCap,
-    title: "Certificates",
+    icon: MessagesSquare,
+    title: "Talk before you book",
     description:
-      "Finish a course and earn a verifiable certificate you can share with schools and employers.",
+      "Message a teacher about what you need and agree the plan first, so the first lesson starts with the teaching rather than the admin.",
   },
   {
     icon: Star,
@@ -55,8 +55,8 @@ export function Features() {
             Everything you need to teach and learn
           </h2>
           <p className="text-muted-foreground">
-            Live lessons, self-paced courses, and payments — one complete toolkit, without
-            the busywork
+            Discovery, scheduling, video, and payments — one complete toolkit, without the
+            busywork
           </p>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8">

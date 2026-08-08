@@ -1,7 +1,6 @@
 "use server";
 
 import { recomputeTeacherAggregatesSafely } from "@/server/marketplace/aggregates";
-import { recomputeCourseAggregatesSafely } from "@/server/courses/aggregates";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -9,11 +8,8 @@ import { isRestrictedJurisdiction } from "@/lib/compliance/restricted-jurisdicti
 import { db } from "@/lib/db";
 import { recordComplianceEvent } from "@/server/compliance/events";
 import { screenName } from "@/server/compliance/screening";
-import { courseIdSchema, rejectCourseSchema } from "@/lib/validations/courses";
 import { requirePlatformAdmin } from "@/server/auth/session";
 import {
-  notifyCourseApproved,
-  notifyCourseRejected,
   notifyTeacherProfileApproved,
   notifyTeacherProfileRejected,
 } from "@/server/notifications/notify";
@@ -184,160 +180,6 @@ export async function rejectTeacherProfile(
   return ok({ rejected: true });
 }
 
-export async function approveCourse(
-  input: unknown,
-): Promise<ActionResult<{ approved: true }>> {
-  const parsed = courseIdSchema.safeParse(input);
-  if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Invalid course.", "VALIDATION_ERROR");
-  }
-  const admin = await requirePlatformAdmin();
-  const course = await db.course.findFirst({
-    where: { id: parsed.data.courseId, deletedAt: null },
-    select: { id: true, slug: true, status: true },
-  });
-  if (!course) return fail("Course not found.", "NOT_FOUND");
-  if (course.status !== "pending_approval") {
-    return fail("Only courses pending approval can be approved.", "CONFLICT");
-  }
-
-  await db.$transaction([
-    db.course.update({
-      where: { id: course.id },
-      data: {
-        status: "published",
-        reviewedAt: new Date(),
-        publishedAt: new Date(),
-        rejectionReason: null,
-      },
-    }),
-    db.adminAuditLog.create({
-      data: {
-        adminUserId: admin.id,
-        action: "course.approved",
-        targetType: "Course",
-        targetId: course.id,
-        metadata: { previousStatus: course.status },
-      },
-    }),
-  ]);
-  await notifyCourseApproved(course.id).catch(() => undefined);
-  revalidatePath("/admin");
-  revalidatePath("/admin/courses");
-  revalidatePath(`/admin/courses/${course.id}`);
-  revalidatePath("/courses");
-  revalidatePath(`/courses/${course.slug}`);
-  revalidatePath("/dashboard/teacher/courses");
-  revalidatePath(`/dashboard/teacher/courses/${course.id}`);
-  return ok({ approved: true });
-}
-
-/**
- * MON-32: take a LIVE course off the marketplace.
- *
- * approveCourse and rejectCourse both refuse anything that is not `pending_approval`, so
- * once a course was published the only person who could remove it was the teacher who owns
- * it. An admin faced with infringing or unsafe content that had already passed review had
- * no lever at all.
- *
- * Existing enrollments are deliberately left intact: students paid the teacher directly and
- * the platform cannot refund them, so revoking access would take away something already
- * bought. Removing it from discovery stops the harm spreading.
- */
-export async function takedownCourse(
-  input: unknown,
-): Promise<ActionResult<{ removed: true }>> {
-  const parsed = rejectCourseSchema.safeParse(input);
-  if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Invalid course.", "VALIDATION_ERROR");
-  }
-  const admin = await requirePlatformAdmin();
-  const course = await db.course.findFirst({
-    where: { id: parsed.data.courseId, deletedAt: null },
-    select: { id: true, slug: true, status: true },
-  });
-  if (!course) return fail("Course not found.", "NOT_FOUND");
-  if (course.status !== "published") {
-    return fail("Only a published course can be taken down.", "CONFLICT");
-  }
-
-  await db.$transaction([
-    db.course.update({
-      where: { id: course.id },
-      data: {
-        status: "rejected",
-        reviewedAt: new Date(),
-        publishedAt: null,
-        rejectionReason: parsed.data.reason,
-      },
-    }),
-    db.adminAuditLog.create({
-      data: {
-        adminUserId: admin.id,
-        action: "course.takedown",
-        targetType: "Course",
-        targetId: course.id,
-        metadata: { previousStatus: course.status, reason: parsed.data.reason },
-      },
-    }),
-  ]);
-  await notifyCourseRejected(course.id).catch(() => undefined);
-  revalidatePath("/admin");
-  revalidatePath("/admin/courses");
-  revalidatePath(`/admin/courses/${course.id}`);
-  revalidatePath("/courses");
-  revalidatePath(`/courses/${course.slug}`);
-  return ok({ removed: true });
-}
-
-export async function rejectCourse(
-  input: unknown,
-): Promise<ActionResult<{ rejected: true }>> {
-  const parsed = rejectCourseSchema.safeParse(input);
-  if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Invalid course.", "VALIDATION_ERROR");
-  }
-  const admin = await requirePlatformAdmin();
-  const course = await db.course.findFirst({
-    where: { id: parsed.data.courseId, deletedAt: null },
-    select: { id: true, slug: true, status: true },
-  });
-  if (!course) return fail("Course not found.", "NOT_FOUND");
-  if (course.status !== "pending_approval") {
-    return fail("Only courses pending approval can be rejected.", "CONFLICT");
-  }
-
-  await db.$transaction([
-    db.course.update({
-      where: { id: course.id },
-      data: {
-        status: "rejected",
-        reviewedAt: new Date(),
-        publishedAt: null,
-        rejectionReason: parsed.data.reason,
-      },
-    }),
-    db.adminAuditLog.create({
-      data: {
-        adminUserId: admin.id,
-        action: "course.rejected",
-        targetType: "Course",
-        targetId: course.id,
-        metadata: { previousStatus: course.status, reason: parsed.data.reason },
-      },
-    }),
-  ]);
-  await notifyCourseRejected(course.id).catch(() => undefined);
-  revalidatePath("/admin");
-  revalidatePath("/admin/courses");
-  revalidatePath(`/admin/courses/${course.id}`);
-  revalidatePath("/courses");
-  revalidatePath(`/courses/${course.slug}`);
-  revalidatePath("/dashboard/teacher/courses");
-  revalidatePath(`/dashboard/teacher/courses/${course.id}`);
-  return ok({ rejected: true });
-}
-
 export async function moderateReview(
   reviewId: string,
   decision: "approved" | "rejected",
@@ -378,39 +220,5 @@ export async function moderateReview(
 
   revalidatePath("/admin");
   revalidatePath("/admin/reviews");
-  return ok({ status: decision });
-}
-
-export async function moderateCourseReview(
-  reviewId: string,
-  decision: "approved" | "rejected",
-): Promise<ActionResult<{ status: "approved" | "rejected" }>> {
-  const parsedId = idSchema.safeParse(reviewId);
-  if (!parsedId.success) return fail("Invalid course review.", "VALIDATION_ERROR");
-  const admin = await requirePlatformAdmin();
-  const review = await db.courseReview.findUnique({
-    where: { id: parsedId.data },
-    select: { id: true, status: true, courseId: true, course: { select: { slug: true } } },
-  });
-  if (!review) return fail("Course review not found.", "NOT_FOUND");
-  await db.$transaction([
-    db.courseReview.update({ where: { id: review.id }, data: { status: decision } }),
-    db.adminAuditLog.create({
-      data: {
-        adminUserId: admin.id,
-        action: `course_review.${decision}`,
-        targetType: "CourseReview",
-        targetId: review.id,
-        metadata: { previousStatus: review.status, courseId: review.courseId },
-      },
-    }),
-  ]);
-
-  // QLT-07: approving or rejecting is what actually moves the average the catalog
-  // filters and sorts on, so this is the decisive recompute of the four.
-  await recomputeCourseAggregatesSafely(review.courseId);
-  revalidatePath("/admin/reviews");
-  revalidatePath("/courses");
-  revalidatePath(`/courses/${review.course.slug}`);
   return ok({ status: decision });
 }

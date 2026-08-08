@@ -29,7 +29,6 @@ Create in Supabase Dashboard → Storage:
 | `avatars` | Yes | Validated server action (service role) |
 | `credentials` | **No** | Validated teacher credential uploads (PDF/JPG/PNG/WebP, max 3 MB) |
 | `teacher-intros` | Yes | Signed browser upload (MP4/WebM, max 80 MB), confirmed server-side |
-| `course-media` | **No** | Signed browser upload under `<teacher>/<course>/<lesson>/` |
 
 The teacher-onboarding upload action accepts JPG, PNG, and WebP files up to 2 MB and validates
 the binary file signature before storage. Qualification credentials accept PDF or image files up
@@ -41,19 +40,19 @@ persisting `introVideoUrl` / `introVideoPath` on the teacher profile. The bucket
 automatically on first upload when the service role can manage storage; otherwise create it in the
 Dashboard with public read, MIME types `video/mp4` and `video/webm`, and an 80 MB file size limit.
 
-Course videos and resources are stored in the private `course-media` bucket. The application creates
-the bucket when the service role can manage storage, with a 500 MB bucket limit and the MIME types
-listed in `src/lib/validations/courses.ts`. Uploads use short-lived signed upload URLs. Confirmation
-checks teacher/course/lesson path ownership, stored size and MIME metadata, and file signatures for
-MP4, WebM, PDF, JPG, PNG, and WebP. Playback and downloads always use short-lived signed URLs after
-teacher, administrator, or active-enrollment authorization; do not add public read policies.
+The `course-covers`, `course-media` and `course-files` buckets are retired. They belonged to the
+courses product, which was removed. `20260731010000_storage_hardening` still creates them and is
+already applied, so it cannot be edited; `20260808140000_drop_course_bucket_rows` deletes the rows
+afterwards when they are empty. On an environment that still holds course objects the migration
+skips them with a NOTICE, because Supabase's `storage.protect_delete()` trigger forbids deleting
+storage rows in SQL. Empty and remove those buckets with `npm run storage:remove-course-buckets`.
 
 ## RLS
 
 Row-level security policies live in `supabase/migrations/`. Application-level auth in `src/server/` is primary; RLS is defense-in-depth.
 
 Apply `20260719234500_storage_hardening.sql` after reviewing existing bucket contents. It keeps
-avatars public, makes credentials, course media/files, and case evidence private, and grants
+avatars public, makes credentials and case evidence private, and grants
 authenticated users access only to objects rooted in their own user path. Validated server actions
 use the service role and continue to bypass storage RLS. Do not add anonymous policies for sensitive
 buckets; serve downloads through short-lived signed URLs after application authorization. New

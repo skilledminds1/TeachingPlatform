@@ -8,7 +8,7 @@ export default function TermsPage() {
   return (
     <LegalDocumentPage
       title="Terms of Service"
-      introduction="These terms govern access to Amazing Skills, a marketplace and software platform connecting adult students with independent teachers for live lessons and self-paced courses."
+      introduction="These terms govern access to Amazing Skills, a marketplace and software platform connecting adult students with independent teachers for live lessons."
       sections={[
         {
           title: "1. Eligibility and accounts",
@@ -20,14 +20,14 @@ export default function TermsPage() {
         {
           title: "2. Marketplace role",
           paragraphs: [
-            "Amazing Skills provides discovery, scheduling, communication, video, course delivery, payment-connection, moderation, and related software. Teachers are independent service providers and are not employees, agents, partners, or representatives of Amazing Skills.",
+            "Amazing Skills provides discovery, scheduling, communication, video, payment-connection, moderation, and related software. Teachers are independent service providers and are not employees, agents, partners, or representatives of Amazing Skills.",
             "The teaching contract is between the student and teacher. Amazing Skills does not guarantee a teacher’s availability, teaching outcome, qualification beyond the scope of platform verification, or suitability for a particular purpose.",
           ],
         },
         {
           title: "3. Payments and subscriptions",
           paragraphs: [
-            "Students pay teachers directly through the teacher’s connected payment method. Amazing Skills does not receive, hold, settle, or pay out lesson or course funds and charges no commission on those transactions.",
+            "Students pay teachers directly through the teacher’s connected payment method. Amazing Skills does not receive, hold, settle, or pay out lesson funds and charges no commission on those transactions.",
             "Teacher platform subscriptions are separate payments made to Amazing Skills through PayFast. Subscription prices, billing intervals, renewals, cancellation timing, and plan limits are shown before checkout.",
           ],
         },
@@ -46,10 +46,9 @@ export default function TermsPage() {
           ],
         },
         {
-          title: "6. Teacher content and student use",
+          title: "6. Teacher content",
           paragraphs: [
             "Teachers retain ownership of original teaching content but grant Amazing Skills the rights needed to host, display, deliver, promote, back up, and technically process that content while it is offered through the platform.",
-            "Course purchases grant students a personal, non-transferable right to access the course while it remains lawfully available. Students may not copy, resell, redistribute, scrape, or publicly share protected course materials.",
           ],
         },
         {

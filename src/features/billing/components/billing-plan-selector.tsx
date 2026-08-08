@@ -29,7 +29,6 @@ type BillingPlan = {
   currency: string;
   studentLimit: number | null;
   monthlyLiveLessonMinutes: number | null;
-  courseLimit: number | null;
   features: string[];
   highlighted?: boolean;
 };
@@ -183,17 +182,16 @@ export function BillingPlanSelector({
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm">
           <p className="font-medium">Payment recovery period</p>
           <p className="mt-1">
-            Payment failed on {new Date(graceStartedAt).toLocaleDateString()}. New bookings,
-            publishing, and sales pause after day 7. Existing paid lessons and course access remain
-            available. Recover before {new Date(graceEndsAt).toLocaleDateString()} to avoid a
-            read-only Free fallback.
+            Payment failed on {new Date(graceStartedAt).toLocaleDateString()}. New bookings and
+            publishing pause after day 7. Existing paid lessons remain available. Recover before{" "}
+            {new Date(graceEndsAt).toLocaleDateString()} to avoid a read-only Free fallback.
           </p>
         </div>
       ) : null}
       {subscriptionStatus === "cancelled" ? (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm">
-          Billing was not recovered in time. Existing learning is available, but growth actions are
-          read-only until you start a paid checkout.
+          Billing was not recovered in time. Lessons already booked go ahead as normal, but growth
+          actions are read-only until you start a paid checkout.
         </div>
       ) : null}
       {cancelAtPeriodEnd && currentPeriodEnd ? (
@@ -251,8 +249,8 @@ export function BillingPlanSelector({
             {pendingPlan.name} is scheduled for {new Date(pendingChangeAt).toLocaleDateString()}.
           </p>
           <p className="mt-1 text-muted-foreground">
-            Its lower student, lesson, and course limits apply on that date. Existing learning
-            records stay available.
+            Its lower student and lesson limits apply on that date. Existing bookings and lesson
+            history stay available.
           </p>
           <Button
             className="mt-3"
@@ -350,13 +348,6 @@ export function BillingPlanSelector({
                 {plan.monthlyLiveLessonMinutes === null
                   ? "Unlimited live lessons (fair use)"
                   : `${plan.monthlyLiveLessonMinutes / 60} live lesson hours / month`}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {plan.courseLimit === 0
-                  ? "Course selling not included"
-                  : plan.courseLimit === null
-                    ? "Unlimited courses"
-                    : `Up to ${plan.courseLimit} course${plan.courseLimit === 1 ? "" : "s"}`}
               </p>
               <ul className="mt-4 flex-1 space-y-2">
                 {plan.features

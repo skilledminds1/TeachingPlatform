@@ -10,8 +10,11 @@ export type LegalSection = {
 
 export function LegalDocumentPage({
   title,
-  version = "1.0",
-  effectiveDate = "19 July 2026",
+  // Defaults track CURRENT_LEGAL_DOCUMENTS in src/lib/legal/documents.ts. Bump both together:
+  // this only paints the header, while the id over there is what decides whether a user is
+  // sent back to /legal-review to re-accept.
+  version = "2.0",
+  effectiveDate = "8 August 2026",
   introduction,
   sections,
 }: {

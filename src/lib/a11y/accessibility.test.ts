@@ -19,10 +19,13 @@ const read = (path: string): string => readFileSync(path, "utf8");
 
 const PUBLIC_PAGES = [
   "src/app/find-tutor/page.tsx",
-  "src/app/courses/page.tsx",
+  // The teacher profile. `/find-tutor/[slug]` re-exports this same component, so asserting
+  // on the source once covers both routes.
   "src/app/teachers/[slug]/page.tsx",
-  "src/app/courses/[slug]/page.tsx",
 ];
+
+/** The one page that renders the marketplace's filter panel and result set. */
+const MARKETPLACE_PAGE = "src/app/find-tutor/page.tsx";
 
 describe("the skip link", () => {
   it("is rendered on every page, before anything else in the body", () => {
@@ -96,7 +99,7 @@ describe("landmarks and heading outline on public pages", () => {
   });
 
   /**
-   * The marketplace headers were a bare div of links, so there was no navigation region to
+   * The marketplace header was a bare div of links, so there was no navigation region to
    * jump to — the only way past them was to tab through every one.
    *
    * Asserted on the presence of a LABELLED nav rather than on the label's text: GLO-01 moved
@@ -104,28 +107,25 @@ describe("landmarks and heading outline on public pages", () => {
    * every locale that translates it correctly.
    */
   it("marks the marketplace header links as labelled navigation", () => {
-    for (const page of ["src/app/find-tutor/page.tsx", "src/app/courses/page.tsx"]) {
-      expect(read(page), `${page} header is not a nav`).toMatch(/<nav\s+aria-label=[{"]/);
-    }
+    expect(read(MARKETPLACE_PAGE), "header is not a nav").toMatch(/<nav\s+aria-label=[{"]/);
   });
 
   /**
-   * Both pages were a single H1. A screen-reader user skimming by heading could not reach
-   * the filter panel or the results, and had to tab through every filter to reach the first
+   * The page was a single H1. A screen-reader user skimming by heading could not reach the
+   * filter panel or the results, and had to tab through every filter to reach the first
    * tutor. The headings are visually hidden because the design already communicates both to
    * anyone who can see it — the outline was what was missing, not the labels.
    */
   it("gives the filters and results their own headings", () => {
-    for (const page of ["src/app/find-tutor/page.tsx", "src/app/courses/page.tsx"]) {
-      const source = read(page);
-      expect(source, `${page} filters heading`).toMatch(
-        /<h2 id="filters-heading" className="sr-only">/,
-      );
-      expect(source, `${page} results heading`).toMatch(
-        /<h2 id="results-heading" className="sr-only">/,
-      );
-      expect(source).toContain('aria-labelledby="filters-heading"');
-    }
+    const source = read(MARKETPLACE_PAGE);
+
+    expect(source, "filters heading").toMatch(
+      /<h2 id="filters-heading" className="sr-only">/,
+    );
+    expect(source, "results heading").toMatch(
+      /<h2 id="results-heading" className="sr-only">/,
+    );
+    expect(source).toContain('aria-labelledby="filters-heading"');
   });
 });
 

@@ -32,7 +32,6 @@ type Subject = {
 export type PlatformAnalyticsFixture = {
   payments: Array<Subject & {
     id: string;
-    kind: "lesson" | "course";
     status: string;
     amountCents: number;
     refundedCents: number;
@@ -42,7 +41,6 @@ export type PlatformAnalyticsFixture = {
   }>;
   refundRequests: Array<Subject & {
     id: string;
-    kind: "lesson" | "course";
     status: string;
     requestedAmountCents: number;
     providerRefundedCents: number;
@@ -59,14 +57,6 @@ export type PlatformAnalyticsFixture = {
   learnerActivity: Array<Subject & {
     studentId: string;
     occurredAt: Date;
-  }>;
-  courseEnrollments: Array<Subject & {
-    id: string;
-    studentId: string;
-    enrolledAt: Date;
-    revokedAt: Date | null;
-    lessonCount: number;
-    completedLessonCount: number;
   }>;
   organizations: Array<{
     id: string;
@@ -108,8 +98,6 @@ type TrendPoint = {
   platformRevenueCentsByCurrency: Record<string, number>;
   lessonCheckoutStarts: number;
   lessonCheckoutSucceeded: number;
-  courseCheckoutStarts: number;
-  courseCheckoutSucceeded: number;
 };
 
 /**
@@ -197,8 +185,6 @@ function trendScaffold(
     platformRevenueCentsByCurrency: {},
     lessonCheckoutStarts: 0,
     lessonCheckoutSucceeded: 0,
-    courseCheckoutStarts: 0,
-    courseCheckoutSucceeded: 0,
   }));
 }
 
@@ -224,30 +210,17 @@ export function summarizePlatformAnalytics(
   );
   const successfulPayments = payments.filter((payment) => SUCCESS_STATUSES.has(payment.status));
   const volume = new Map<string, MoneyBucket>();
-  const lessonVolume = new Map<string, MoneyBucket>();
-  const courseVolume = new Map<string, MoneyBucket>();
 
   for (const payment of successfulPayments) {
     addMoney(volume, payment.currency, payment.amountCents, payment.refundedCents);
-    addMoney(
-      payment.kind === "lesson" ? lessonVolume : courseVolume,
-      payment.currency,
-      payment.amountCents,
-      payment.refundedCents,
-    );
   }
 
   for (const payment of payments) {
     const point = trendByKey.get(bucketKeyInZone(payment.createdAt, trendRange, timeZone));
     if (!point) continue;
-    if (payment.kind === "lesson") {
-      point.lessonCheckoutStarts += 1;
-      if (SUCCESS_STATUSES.has(payment.status)) point.lessonCheckoutSucceeded += 1;
-    } else {
-      point.courseCheckoutStarts += 1;
-      if (SUCCESS_STATUSES.has(payment.status)) point.courseCheckoutSucceeded += 1;
-    }
+    point.lessonCheckoutStarts += 1;
     if (SUCCESS_STATUSES.has(payment.status)) {
+      point.lessonCheckoutSucceeded += 1;
       point.teacherGrossCentsByCurrency[payment.currency] =
         (point.teacherGrossCentsByCurrency[payment.currency] ?? 0) + payment.amountCents;
       point.teacherNetCentsByCurrency[payment.currency] =
@@ -299,17 +272,6 @@ export function summarizePlatformAnalytics(
         )
       : new Set<string>();
   const retainedLearners = [...previousLearners].filter((id) => currentLearners.has(id)).length;
-
-  const eligibleEnrollments = fixture.courseEnrollments.filter(
-    (enrollment) =>
-      !isDemo(enrollment) &&
-      !enrollment.revokedAt &&
-      enrollment.lessonCount > 0 &&
-      inWindow(enrollment.enrolledAt, start, end),
-  );
-  const completedEnrollments = eligibleEnrollments.filter(
-    (enrollment) => enrollment.completedLessonCount >= enrollment.lessonCount,
-  ).length;
 
   const organizations = fixture.organizations.filter(
     (organization) => !isDemo({ organizationSlug: organization.slug }),
@@ -388,10 +350,8 @@ export function summarizePlatformAnalytics(
     subscriptionDenominator.size - retainedSubscriptions,
   );
 
-  const lessonStarts = payments.filter((payment) => payment.kind === "lesson").length;
-  const lessonSucceeded = successfulPayments.filter((payment) => payment.kind === "lesson").length;
-  const courseStarts = payments.filter((payment) => payment.kind === "course").length;
-  const courseSucceeded = successfulPayments.filter((payment) => payment.kind === "course").length;
+  const lessonStarts = payments.length;
+  const lessonSucceeded = successfulPayments.length;
   const volumeRows = moneyRows(volume);
   const primaryTeacherCurrency =
     [...volumeRows].sort((a, b) => b.netCents - a.netCents)[0]?.currency ?? "USD";
@@ -410,8 +370,6 @@ export function summarizePlatformAnalytics(
     primaryPlatformCurrency,
     teacherVolume: {
       byCurrency: volumeRows,
-      lessons: moneyRows(lessonVolume),
-      courses: moneyRows(courseVolume),
       successfulTransactions: successfulPayments.length,
       note:
         "Teacher-processed transaction volume is not Amazing Skills revenue. Gross is verified successful payment value; net subtracts recorded provider refunds. Currencies are never combined.",
@@ -442,11 +400,6 @@ export function summarizePlatformAnalytics(
         succeeded: lessonSucceeded,
         rate: percent(lessonSucceeded, lessonStarts),
       },
-      course: {
-        starts: courseStarts,
-        succeeded: courseSucceeded,
-        rate: percent(courseSucceeded, courseStarts),
-      },
       note:
         "Checkout starts are payment attempts created in the selected window. Succeeded includes succeeded, refunded, and partially refunded attempts because checkout originally completed.",
     },
@@ -455,13 +408,8 @@ export function summarizePlatformAnalytics(
       previousActive: previousLearners.size,
       retained: retainedLearners,
       retentionRate: percent(retainedLearners, previousLearners.size),
-      completionEligible: eligibleEnrollments.length,
-      completedEnrollments,
-      courseCompletionRate: percent(completedEnrollments, eligibleEnrollments.length),
       retentionNote:
-        "Active learner retention denominator is unique non-demo learners with a confirmed/completed lesson or course learning activity in the immediately preceding equal-length window.",
-      completionNote:
-        "Course completion denominator is non-revoked, non-demo enrollments started in the selected window in courses with at least one lesson; completion requires every current lesson.",
+        "Active learner retention denominator is unique non-demo learners with a confirmed or completed lesson in the immediately preceding equal-length window.",
     },
     subscriptions: {
       activePaidOrganizations: paidOrganizations.length,
@@ -504,8 +452,6 @@ export async function getPlatformAnalytics(
     refundRows,
     disputeRows,
     bookingRows,
-    enrollmentRows,
-    progressRows,
     organizations,
     invoiceRows,
   ] = await Promise.all([
@@ -526,13 +472,6 @@ export async function getPlatformAnalytics(
             organization: { select: { slug: true } },
           },
         },
-        coursePurchase: {
-          select: {
-            student: { select: { email: true } },
-            teacher: { select: { email: true } },
-            course: { select: { organization: { select: { slug: true } } } },
-          },
-        },
       },
     }),
     db.refundRequest.findMany({
@@ -549,9 +488,6 @@ export async function getPlatformAnalytics(
         student: { select: { email: true } },
         teacher: { select: { email: true } },
         booking: { select: { organization: { select: { slug: true } } } },
-        coursePurchase: {
-          select: { course: { select: { organization: { select: { slug: true } } } } },
-        },
       },
     }),
     db.paymentDispute.findMany({
@@ -573,13 +509,6 @@ export async function getPlatformAnalytics(
                 organization: { select: { slug: true } },
               },
             },
-            coursePurchase: {
-              select: {
-                student: { select: { email: true } },
-                teacher: { select: { email: true } },
-                course: { select: { organization: { select: { slug: true } } } },
-              },
-            },
           },
         },
       },
@@ -595,54 +524,6 @@ export async function getPlatformAnalytics(
         student: { select: { email: true } },
         teacher: { select: { email: true } },
         organization: { select: { slug: true } },
-      },
-    }),
-    db.courseEnrollment.findMany({
-      where: earliest
-        ? { enrolledAt: { gte: earliest, lte: now } }
-        : { enrolledAt: { lte: now } },
-      select: {
-        id: true,
-        studentId: true,
-        enrolledAt: true,
-        revokedAt: true,
-        student: { select: { email: true } },
-        course: {
-          select: {
-            teacher: { select: { email: true } },
-            organization: { select: { slug: true } },
-            modules: { select: { lessons: { select: { id: true } } } },
-          },
-        },
-      },
-    }),
-    db.courseLessonProgress.findMany({
-      where: {
-        completedAt: {
-          not: null,
-          ...(earliest ? { gte: earliest, lte: now } : { lte: now }),
-        },
-      },
-      select: {
-        studentId: true,
-        completedAt: true,
-        lessonId: true,
-        student: { select: { email: true } },
-        lesson: {
-          select: {
-            module: {
-              select: {
-                courseId: true,
-                course: {
-                  select: {
-                    teacher: { select: { email: true } },
-                    organization: { select: { slug: true } },
-                  },
-                },
-              },
-            },
-          },
-        },
       },
     }),
     db.organization.findMany({
@@ -679,42 +560,27 @@ export async function getPlatformAnalytics(
     }),
   ]);
 
-  const completedByEnrollment = new Map<string, number>();
-  for (const enrollment of enrollmentRows) {
-    const lessonIds = new Set(
-      enrollment.course.modules.flatMap((module) => module.lessons.map((lesson) => lesson.id)),
-    );
-    const count = progressRows.filter(
-      (progress) =>
-        progress.studentId === enrollment.studentId && lessonIds.has(progress.lessonId),
-    ).length;
-    completedByEnrollment.set(enrollment.id, count);
-  }
-
   const fixture: PlatformAnalyticsFixture = {
+    // A payment attempt whose booking has been deleted has no subject to attribute it to,
+    // so it cannot be demo-filtered and is dropped rather than counted blind.
     payments: paymentRows.flatMap((payment) => {
-      const target = payment.booking ?? payment.coursePurchase;
-      if (!target) return [];
+      const booking = payment.booking;
+      if (!booking) return [];
       return [{
         id: payment.id,
-        kind: payment.booking ? "lesson" as const : "course" as const,
         status: payment.status,
         amountCents: payment.amountCents,
         refundedCents: payment.refundedCents,
         currency: payment.currency,
         createdAt: payment.createdAt,
         succeededAt: payment.succeededAt,
-        studentEmail: target.student.email,
-        teacherEmail: target.teacher.email,
-        organizationSlug:
-          payment.booking?.organization.slug ??
-          payment.coursePurchase?.course.organization.slug ??
-          "",
+        studentEmail: booking.student.email,
+        teacherEmail: booking.teacher.email,
+        organizationSlug: booking.organization.slug,
       }];
     }),
     refundRequests: refundRows.map((request) => ({
       id: request.id,
-      kind: request.booking ? "lesson" as const : "course" as const,
       status: request.status,
       requestedAmountCents: request.requestedAmountCents,
       providerRefundedCents: request.providerRefundedCents,
@@ -722,61 +588,28 @@ export async function getPlatformAnalytics(
       requestedAt: request.requestedAt,
       studentEmail: request.student.email,
       teacherEmail: request.teacher.email,
-      organizationSlug:
-        request.booking?.organization.slug ??
-        request.coursePurchase?.course.organization.slug ??
-        "",
+      organizationSlug: request.booking?.organization.slug ?? "",
     })),
     disputes: disputeRows.flatMap((dispute) => {
-      const target = dispute.paymentAttempt.booking ?? dispute.paymentAttempt.coursePurchase;
-      if (!target) return [];
+      const booking = dispute.paymentAttempt.booking;
+      if (!booking) return [];
       return [{
         id: dispute.id,
         status: dispute.status,
         amountCents: dispute.amountCents ?? dispute.paymentAttempt.amountCents,
         currency: dispute.currency ?? dispute.paymentAttempt.currency,
         openedAt: dispute.openedAt,
-        studentEmail: target.student.email,
-        teacherEmail: target.teacher.email,
-        organizationSlug:
-          dispute.paymentAttempt.booking?.organization.slug ??
-          dispute.paymentAttempt.coursePurchase?.course.organization.slug ??
-          "",
-      }];
-    }),
-    learnerActivity: [
-      ...bookingRows.map((booking) => ({
-        studentId: booking.studentId,
-        occurredAt: booking.startsAt,
         studentEmail: booking.student.email,
         teacherEmail: booking.teacher.email,
         organizationSlug: booking.organization.slug,
-      })),
-      ...progressRows.flatMap((progress) =>
-        progress.completedAt
-          ? [{
-              studentId: progress.studentId,
-              occurredAt: progress.completedAt,
-              studentEmail: progress.student.email,
-              teacherEmail: progress.lesson.module.course.teacher.email,
-              organizationSlug: progress.lesson.module.course.organization.slug,
-            }]
-          : [],
-      ),
-    ],
-    courseEnrollments: enrollmentRows.map((enrollment) => ({
-      id: enrollment.id,
-      studentId: enrollment.studentId,
-      enrolledAt: enrollment.enrolledAt,
-      revokedAt: enrollment.revokedAt,
-      lessonCount: enrollment.course.modules.reduce(
-        (count, module) => count + module.lessons.length,
-        0,
-      ),
-      completedLessonCount: completedByEnrollment.get(enrollment.id) ?? 0,
-      studentEmail: enrollment.student.email,
-      teacherEmail: enrollment.course.teacher.email,
-      organizationSlug: enrollment.course.organization.slug,
+      }];
+    }),
+    learnerActivity: bookingRows.map((booking) => ({
+      studentId: booking.studentId,
+      occurredAt: booking.startsAt,
+      studentEmail: booking.student.email,
+      teacherEmail: booking.teacher.email,
+      organizationSlug: booking.organization.slug,
     })),
     organizations: organizations.map((organization) => ({
       id: organization.id,
@@ -817,21 +650,13 @@ export function platformAnalyticsCsv(
     ["section", "metric", "currency", "gross_cents", "refunded_cents", "net_or_value", "denominator", "rate_percent"],
   ];
   for (const row of data.teacherVolume.byCurrency) {
-    rows.push(["teacher_processed_volume", "all", row.currency, row.grossCents, row.refundedCents, row.netCents, row.count, ""]);
-  }
-  for (const row of data.teacherVolume.lessons) {
     rows.push(["teacher_processed_volume", "lesson", row.currency, row.grossCents, row.refundedCents, row.netCents, row.count, ""]);
-  }
-  for (const row of data.teacherVolume.courses) {
-    rows.push(["teacher_processed_volume", "course", row.currency, row.grossCents, row.refundedCents, row.netCents, row.count, ""]);
   }
   for (const row of data.refunds.reportedByCurrency) {
     rows.push(["refunds", "reported_amount", row.currency, "", "", row.amountCents, data.teacherVolume.successfulTransactions, data.refunds.refundRate]);
   }
   rows.push(["conversion", "lesson_checkout", "", "", "", data.conversion.lesson.succeeded, data.conversion.lesson.starts, data.conversion.lesson.rate]);
-  rows.push(["conversion", "course_checkout", "", "", "", data.conversion.course.succeeded, data.conversion.course.starts, data.conversion.course.rate]);
   rows.push(["learners", "active_retention", "", "", "", data.learners.retained, data.learners.previousActive, data.learners.retentionRate]);
-  rows.push(["learners", "course_completion", "", "", "", data.learners.completedEnrollments, data.learners.completionEligible, data.learners.courseCompletionRate]);
   for (const row of data.subscriptions.mrrByCurrency) {
     rows.push(["platform_subscription_revenue", "mrr", row.currency, "", "", row.amountCents, data.subscriptions.activePaidOrganizations, ""]);
   }

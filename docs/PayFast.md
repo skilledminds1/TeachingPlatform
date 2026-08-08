@@ -103,7 +103,6 @@ Central services: `src/server/billing/entitlements.ts` and `src/server/billing/s
 |-------|------|---------|--------------|----------|
 | Active students | 1 | 5 | 15 | Unlimited |
 | Live lesson hours / month | 2 | 20 | 75 | Unlimited (fair use) |
-| Courses | 1 | Unlimited | Unlimited | Unlimited |
 | Homework and notes | ✗ | ✓ | ✓ | ✓ |
 | Quizzes and groups | ✗ | ✗ | ✓ | ✓ |
 | Team and branding | ✗ | ✗ | ✗ | ✓ |

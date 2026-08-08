@@ -2,12 +2,12 @@ const faqs = [
   {
     question: "How do I pay for lessons?",
     answer:
-      "You pay your teacher directly through their linked PayPal account when you book. Amazing Skills never holds your money, and there's no platform fee added to lesson prices.",
+      "You pay your teacher directly through their own payment account when you book. Amazing Skills never holds your money, and there's no platform fee added to lesson prices.",
   },
   {
     question: "Is it free for students?",
     answer:
-      "Yes — browsing courses and tutors, messaging teachers, and booking lessons is completely free for students. You only pay the teacher's advertised lesson or course rate.",
+      "Yes — browsing tutors, messaging teachers, and booking lessons is completely free for students. You only pay the teacher's advertised lesson rate.",
   },
   {
     question: "How are teachers verified?",
@@ -17,7 +17,7 @@ const faqs = [
   {
     question: "What do teachers pay?",
     answer:
-      "Teachers can start free for live tutoring. Course creation and sales require Professional or Business, with zero commission on lesson and course earnings. Subscriptions use PayFast.",
+      "A flat monthly subscription, and nothing else. There is a free tier to start on, paid tiers raise your student and live-lesson limits, and Amazing Skills takes zero commission on what students pay you.",
   },
   {
     question: "What happens if a lesson is cancelled?",

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Full-stack TypeScript tutoring marketplace using Next.js App Router. Feature-based folders; server-side data access; separate payment systems for platform vs teacher.
+Full-stack TypeScript tutoring marketplace using Next.js App Router. Live 1:1 lessons only — the app hosts no sellable content. Feature-based folders; server-side data access; separate payment systems for platform vs teacher.
 
 ## High-Level Diagram
 
@@ -22,7 +22,7 @@ Full-stack TypeScript tutoring marketplace using Next.js App Router. Feature-bas
 ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐
 │ Prisma/PG   │  │  Supabase   │  │  External Services  │
 │ App data    │  │ Auth·Storage│  │ PayFast (subs)      │
-│             │  │  Realtime   │  │ PayFast/PayPal (tutor)│
+│             │  │  Realtime   │  │ PayPal (tutor)      │
 └─────────────┘  └─────────────┘  │ LiveKit Cloud       │
                                   └─────────────────────┘
 ```
@@ -33,8 +33,8 @@ Two completely separate payment systems:
 
 | Flow | Direction | Provider | Platform role |
 |------|-----------|----------|---------------|
-| Subscription | Teacher → Platform | PayFast | Collects revenue |
-| Session | Student → Teacher | PayFast/PayPal | Facilitates checkout only; no fund handling |
+| Subscription | Teacher → Platform | PayFast | Collects revenue — the only money the platform touches |
+| Lesson | Student → Teacher | Teacher's own PayPal | Opens the checkout and reads the webhook; never holds, routes, or disburses funds |
 
 ## Layer Responsibilities
 
@@ -55,7 +55,7 @@ Two completely separate payment systems:
 2. Client calls createBooking server action
 3. Action validates session, plan limits, slot availability
 4. Server module creates Booking (pending_payment)
-5. Redirect to PayFast or the teacher's PayPal checkout
+5. Redirect to the teacher's PayPal checkout
 6. Webhook confirms payment → Booking confirmed
 7. Server creates LiveKit room → VideoSession record
 8. Notifications sent (Phase 8)
@@ -78,10 +78,10 @@ In-app messaging and notifications (Phase 8); Realtime can be added later for li
 | Decision | Rationale |
 |----------|-----------|
 | PayFast subscriptions only | SA market; clear revenue separation |
-| PayFast/PayPal for sessions | Platform avoids money transmitter complexity |
+| Teacher's own PayPal for lessons | Platform avoids money transmitter complexity |
 | LiveKit Cloud video | Secure JWT access and flexible 1-on-1 React UI |
 | isPlatformAdmin flag | Simple secure admin provisioning |
-| Marketplace before LMS | Preply model — live tutoring first |
+| No hosted course content | Hosting and gating course video makes the platform the deemed supplier for EU/UK VAT — see [Why courses are out of scope](../PROJECT.md#why-courses-are-out-of-scope) |
 
 ## Environment Variables
 

@@ -1,7 +1,7 @@
 import { fromMinorUnits } from "@/lib/currencies";
 
 /**
- * schema.org payloads for teacher and course pages (GLO-02).
+ * schema.org payloads for teacher profile pages (GLO-02).
  *
  * Pure functions taking already-loaded data, so the shapes can be asserted in tests without
  * a database or a rendered page. Rendering — and the CSP nonce and `<` escaping that inline
@@ -19,7 +19,7 @@ import { fromMinorUnits } from "@/lib/currencies";
 /**
  * Serialize a payload for embedding in an inline `<script>`.
  *
- * The data carries user-authored text — teacher bios, course descriptions. `JSON.stringify`
+ * The data carries user-authored text — teacher bios, headlines, names. `JSON.stringify`
  * does not escape `<`, so a bio containing `</script>` closes the element early and every
  * byte after it parses as HTML: a stored-XSS vector wearing a structured-data costume.
  * `<` is valid JSON, parses back to `<`, and cannot terminate the tag.
@@ -36,18 +36,6 @@ type TeacherForJsonLd = {
   user: { name: string | null; avatarUrl: string | null };
   subjects: Array<{ subject: { name: string } }>;
   rating: { average: number; count: number };
-};
-
-type CourseForJsonLd = {
-  title: string;
-  description: string;
-  coverImageUrl: string | null;
-  effectivePriceCents: number;
-  currency: string;
-  level: string | null;
-  ratingAverage: number | null;
-  ratingCount: number | null;
-  teacher: { name: string | null };
 };
 
 function aggregateRating(average: number, count: number) {
@@ -96,43 +84,5 @@ export function teacherJsonLd(
         ? { aggregateRating: aggregateRating(teacher.rating.average, teacher.rating.count) }
         : {}),
     },
-  };
-}
-
-export function courseJsonLd(
-  course: CourseForJsonLd,
-  slug: string,
-  baseUrl: string,
-): Record<string, unknown> {
-  const url = `${baseUrl}/courses/${slug}`;
-  const rating = aggregateRating(course.ratingAverage ?? 0, course.ratingCount ?? 0);
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "Course",
-    name: course.title,
-    url,
-    description: course.description.slice(0, 500),
-    ...(course.coverImageUrl ? { image: course.coverImageUrl } : {}),
-    provider: { "@type": "Organization", name: "Amazing Skills", url: baseUrl },
-    ...(course.teacher.name
-      ? { author: { "@type": "Person", name: course.teacher.name } }
-      : {}),
-    ...(course.level ? { educationalLevel: course.level } : {}),
-    // Required by Google for a Course rich result: how it is delivered, and what it costs.
-    hasCourseInstance: {
-      "@type": "CourseInstance",
-      courseMode: "online",
-      courseWorkload: "PT1H",
-    },
-    offers: {
-      "@type": "Offer",
-      price: fromMinorUnits(course.effectivePriceCents, course.currency),
-      priceCurrency: course.currency,
-      category: "Paid",
-      availability: "https://schema.org/InStock",
-      url,
-    },
-    ...(rating ? { aggregateRating: rating } : {}),
   };
 }

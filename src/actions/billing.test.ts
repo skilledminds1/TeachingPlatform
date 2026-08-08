@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The in-place subscription-change path.
+ * The two subscription-change paths: the in-place repricing of an existing mandate, and the
+ * downgrade that is scheduled for period end.
  *
- * Scope note (QLT-02): only the *lifecycle invariants* of this action are covered — which
- * fields a change that moves no money is allowed to touch, and that local state never runs
- * ahead of the provider. The checkout form this action builds when there is no existing
- * mandate (signed field construction, the SAST billing_date, the ZAR conversion) is PayFast
- * wire format and is deliberately not tested here: it dies with the rail in PAY-05.
+ * Scope note (QLT-02): only the *lifecycle invariants* of these actions are covered — which
+ * fields a change that moves no money is allowed to touch, that local state never runs ahead
+ * of the provider, and which allowances have to fit before a downgrade may be scheduled. The
+ * checkout form built when there is no existing mandate (signed field construction, the SAST
+ * billing_date, the ZAR conversion) is PayFast wire format and is deliberately not tested
+ * here: it dies with the rail in PAY-05.
  */
 
 type AnyRecord = Record<string, unknown>;
@@ -18,6 +20,7 @@ const state = {
   orgUpdates: [] as AnyRecord[],
   providerUpdates: [] as AnyRecord[],
   providerResult: true,
+  liveLessonMinutesUsed: 0,
 };
 
 vi.mock("@/lib/db", () => ({
@@ -60,7 +63,10 @@ vi.mock("@/server/billing/pricing", () => ({
 }));
 
 vi.mock("@/server/billing/entitlements", () => ({
-  getLiveLessonUsage: vi.fn(async () => ({ used: 0, limit: null })),
+  getLiveLessonUsage: vi.fn(async () => ({
+    usedMinutes: state.liveLessonMinutesUsed,
+    limit: null,
+  })),
 }));
 
 vi.mock("@/services/payfast/signature", () => ({
@@ -75,7 +81,7 @@ vi.mock("@/services/payfast/subscriptions", () => ({
   }),
 }));
 
-const { createSubscriptionCheckout } = await import("./billing");
+const { createSubscriptionCheckout, schedulePlanChange } = await import("./billing");
 
 const PAST_DUE = {
   subscriptionStatus: "past_due",
@@ -88,6 +94,7 @@ beforeEach(() => {
   state.orgUpdates = [];
   state.providerUpdates = [];
   state.providerResult = true;
+  state.liveLessonMinutesUsed = 0;
   state.plan = { id: "plan-business", slug: "business", name: "Business", monthlyPriceCents: 2900 };
   state.organization = {
     payfastToken: "tok-1",
@@ -152,6 +159,65 @@ describe("changing plan on an existing mandate", () => {
       complimentaryPlanId: null,
       complimentaryExpiresAt: null,
       complimentaryPreviousPlanId: null,
+    });
+  });
+});
+
+const PERIOD_END = new Date("2026-08-31T00:00:00.000Z");
+
+describe("scheduling a downgrade for period end", () => {
+  // A downgrade only becomes safe once the account already fits inside the cheaper plan.
+  // Scheduling one while an allowance is still over-subscribed would silently revoke access
+  // the moment the period rolls over, so both remaining allowances are checked up front.
+  function downgradingBusinessToStarter(overrides: AnyRecord = {}) {
+    state.plan = {
+      id: "plan-starter",
+      slug: "starter",
+      name: "Starter",
+      monthlyPriceCents: 900,
+      studentLimit: 5,
+      monthlyLiveLessonMinutes: 600,
+    };
+    state.organization = {
+      currentPeriodEnd: PERIOD_END,
+      payfastToken: "tok-1",
+      plan: { id: "plan-business", name: "Business", monthlyPriceCents: 2900 },
+      _count: { studentRelationships: 2 },
+      ...overrides,
+    };
+  }
+
+  it("refuses while active students exceed the target plan's limit", async () => {
+    downgradingBusinessToStarter({ _count: { studentRelationships: 9 } });
+
+    const result = await schedulePlanChange({ planSlug: "starter", interval: "monthly" });
+
+    expect(result).toMatchObject({ success: false, code: "PLAN_LIMIT_EXCEEDED" });
+    expect(state.orgUpdates).toHaveLength(0);
+  });
+
+  it("refuses while this month's live-lesson minutes exceed the target allowance", async () => {
+    downgradingBusinessToStarter();
+    state.liveLessonMinutesUsed = 900;
+
+    const result = await schedulePlanChange({ planSlug: "starter", interval: "monthly" });
+
+    expect(result).toMatchObject({ success: false, code: "PLAN_LIMIT_EXCEEDED" });
+    expect(state.orgUpdates).toHaveLength(0);
+  });
+
+  it("schedules the change for period end once both allowances fit", async () => {
+    downgradingBusinessToStarter();
+    state.liveLessonMinutesUsed = 120;
+
+    const result = await schedulePlanChange({ planSlug: "starter", interval: "monthly" });
+
+    expect(result).toMatchObject({ success: true, data: { effectiveAt: PERIOD_END } });
+    expect(state.orgUpdates).toHaveLength(1);
+    expect((state.orgUpdates[0] as { data: AnyRecord }).data).toMatchObject({
+      pendingPlanId: "plan-starter",
+      pendingBillingInterval: "monthly",
+      pendingChangeAt: PERIOD_END,
     });
   });
 });

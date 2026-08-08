@@ -147,48 +147,6 @@ enum StudentRelationshipStatus {
   @@map("student_relationship_status")
 }
 
-enum CourseStatus {
-  draft
-  pending_approval
-  published
-  rejected
-  archived
-
-  @@map("course_status")
-}
-
-enum CourseLessonAssetKind {
-  video
-  resource
-
-  @@map("course_lesson_asset_kind")
-}
-
-enum CourseLevel {
-  beginner
-  intermediate
-  advanced
-  all_levels
-
-  @@map("course_level")
-}
-
-enum CoursePurchaseStatus {
-  pending
-  succeeded
-  refunded
-  cancelled
-
-  @@map("course_purchase_status")
-}
-
-enum CourseDiscountType {
-  percent
-  fixed
-
-  @@map("course_discount_type")
-}
-
 enum RefundRequestStatus {
   requested
   teacher_approved
@@ -384,64 +342,50 @@ model User {
   updatedAt              DateTime      @updatedAt @map("updated_at")
   deletedAt              DateTime?     @map("deleted_at")
 
-  memberships              OrganizationMember[]
-  teacherProfile           TeacherProfile?
-  teacherPaymentAccounts   TeacherPaymentAccount[]
-  availabilitySlots        Availability[]
-  availabilityExceptions   AvailabilityException[]
-  teacherBookings          Booking[]                   @relation("TeacherBookings")
-  studentBookings          Booking[]                   @relation("StudentBookings")
-  reviewsWritten           Review[]                    @relation("ReviewsWritten")
-  reviewsReceived          Review[]                    @relation("ReviewsReceived")
-  adminAuditLogs           AdminAuditLog[]
-  complianceEvents         ComplianceEvent[]
-  invitationsSent          OrganizationInvitation[]    @relation("InvitationSender")
-  teacherRelationships     StudentRelationship[]       @relation("RelationshipTeacher")
-  studentRelationships     StudentRelationship[]       @relation("RelationshipStudent")
-  conversationsAsTeacher   Conversation[]              @relation("ConversationTeacher")
-  conversationsAsStudent   Conversation[]              @relation("ConversationStudent")
-  messagesSent             Message[]                   @relation("MessageSender")
-  notifications            Notification[]
-  coursesTaught            Course[]                    @relation("CourseTeacher")
-  coursePurchases          CoursePurchase[]            @relation("CoursePurchaseStudent")
-  courseSales              CoursePurchase[]            @relation("CoursePurchaseTeacher")
-  courseEnrollments        CourseEnrollment[]
-  courseLessonProgress     CourseLessonProgress[]
-  courseCertificates       CourseCertificate[]         @relation("CourseCertificateStudent")
-  courseCertificatesIssued CourseCertificate[]         @relation("CourseCertificateTeacher")
-  courseReviewsWritten     CourseReview[]              @relation("CourseReviewsWritten")
-  courseReviewsReceived    CourseReview[]              @relation("CourseReviewsReceived")
-  courseQuestions          CourseQuestion[]            @relation("CourseQuestionsAsked")
-  courseAnswers            CourseAnswer[]              @relation("CourseAnswersWritten")
-  courseSalesCreated       CourseSale[]                @relation("CourseSaleTeacher")
-  courseCouponsCreated     CourseCoupon[]              @relation("CourseCouponTeacher")
-  courseCouponRedemptions  CourseCouponRedemption[]
-  calendarConnections      CalendarConnection[]
-  bookingCalendarEvents    BookingCalendarEvent[]
-  rescheduleProposals      BookingRescheduleProposal[] @relation("RescheduleProposer")
-  complimentaryGrants      Organization[]              @relation("ComplimentaryGrants")
-  refundRequestsMade       RefundRequest[]             @relation("RefundRequestStudent")
-  refundRequestsReceived   RefundRequest[]             @relation("RefundRequestTeacher")
-  legalAcceptances         LegalAcceptance[]
-  consentRecords           ConsentRecord[]
-  safetyReportsMade        SafetyReport[]              @relation("SafetyReportReporter")
-  safetyReportsReceived    SafetyReport[]              @relation("SafetyReportSubject")
-  blocksCreated            UserBlock[]                 @relation("UserBlockBlocker")
-  blocksReceived           UserBlock[]                 @relation("UserBlockBlocked")
-  moderationCasesReported  ModerationCase[]            @relation("ModerationCaseReporter")
-  moderationCasesSubject   ModerationCase[]            @relation("ModerationCaseSubject")
-  moderationCasesAssigned  ModerationCase[]            @relation("ModerationCaseAssignee")
-  caseMessages             CaseMessage[]
-  caseNotes                CaseNote[]
-  caseEvidenceUploaded     CaseEvidence[]
-  sanctionsReceived        Sanction[]                  @relation("SanctionSubject")
-  sanctionsIssued          Sanction[]                  @relation("SanctionIssuer")
-  appealsSubmitted         Appeal[]                    @relation("AppealAppellant")
-  appealsReviewed          Appeal[]                    @relation("AppealReviewer")
-  privacyRequests          PrivacyRequest[]            @relation("PrivacyRequestRequester")
-  privacyRequestsAssigned  PrivacyRequest[]            @relation("PrivacyRequestAssignee")
-  notificationPreference   UserNotificationPreference?
-  emailOutbox              EmailOutbox[]
+  memberships             OrganizationMember[]
+  teacherProfile          TeacherProfile?
+  teacherPaymentAccounts  TeacherPaymentAccount[]
+  availabilitySlots       Availability[]
+  availabilityExceptions  AvailabilityException[]
+  teacherBookings         Booking[]                   @relation("TeacherBookings")
+  studentBookings         Booking[]                   @relation("StudentBookings")
+  reviewsWritten          Review[]                    @relation("ReviewsWritten")
+  reviewsReceived         Review[]                    @relation("ReviewsReceived")
+  adminAuditLogs          AdminAuditLog[]
+  complianceEvents        ComplianceEvent[]
+  invitationsSent         OrganizationInvitation[]    @relation("InvitationSender")
+  teacherRelationships    StudentRelationship[]       @relation("RelationshipTeacher")
+  studentRelationships    StudentRelationship[]       @relation("RelationshipStudent")
+  conversationsAsTeacher  Conversation[]              @relation("ConversationTeacher")
+  conversationsAsStudent  Conversation[]              @relation("ConversationStudent")
+  messagesSent            Message[]                   @relation("MessageSender")
+  notifications           Notification[]
+  calendarConnections     CalendarConnection[]
+  bookingCalendarEvents   BookingCalendarEvent[]
+  rescheduleProposals     BookingRescheduleProposal[] @relation("RescheduleProposer")
+  complimentaryGrants     Organization[]              @relation("ComplimentaryGrants")
+  refundRequestsMade      RefundRequest[]             @relation("RefundRequestStudent")
+  refundRequestsReceived  RefundRequest[]             @relation("RefundRequestTeacher")
+  legalAcceptances        LegalAcceptance[]
+  consentRecords          ConsentRecord[]
+  safetyReportsMade       SafetyReport[]              @relation("SafetyReportReporter")
+  safetyReportsReceived   SafetyReport[]              @relation("SafetyReportSubject")
+  blocksCreated           UserBlock[]                 @relation("UserBlockBlocker")
+  blocksReceived          UserBlock[]                 @relation("UserBlockBlocked")
+  moderationCasesReported ModerationCase[]            @relation("ModerationCaseReporter")
+  moderationCasesSubject  ModerationCase[]            @relation("ModerationCaseSubject")
+  moderationCasesAssigned ModerationCase[]            @relation("ModerationCaseAssignee")
+  caseMessages            CaseMessage[]
+  caseNotes               CaseNote[]
+  caseEvidenceUploaded    CaseEvidence[]
+  sanctionsReceived       Sanction[]                  @relation("SanctionSubject")
+  sanctionsIssued         Sanction[]                  @relation("SanctionIssuer")
+  appealsSubmitted        Appeal[]                    @relation("AppealAppellant")
+  appealsReviewed         Appeal[]                    @relation("AppealReviewer")
+  privacyRequests         PrivacyRequest[]            @relation("PrivacyRequestRequester")
+  privacyRequestsAssigned PrivacyRequest[]            @relation("PrivacyRequestAssignee")
+  notificationPreference  UserNotificationPreference?
+  emailOutbox             EmailOutbox[]
 
   @@index([email])
   @@index([accountStatus])
@@ -552,7 +496,6 @@ model Organization {
   studentRelationships      StudentRelationship[]
   billingEvents             BillingEvent[]
   subscriptionInvoices      SubscriptionInvoice[]
-  courses                   Course[]
 
   @@index([slug])
   @@index([planId])
@@ -629,7 +572,6 @@ model Plan {
   currency                 String   @default("USD")
   studentLimit             Int?     @map("student_limit")
   monthlyLiveLessonMinutes Int?     @map("monthly_live_lesson_minutes")
-  courseLimit              Int?     @map("course_limit")
   features                 String[] @default([])
   marketplaceListing       Boolean  @default(true) @map("marketplace_listing")
   videoSessions            Boolean  @default(true) @map("video_sessions")
@@ -731,7 +673,6 @@ model Subject {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   teachers TeacherSubject[]
-  courses  Course[]
 
   @@index([slug])
   @@map("subjects")
@@ -766,7 +707,7 @@ model TeacherProfile {
   /// rating sort in memory over just those 60 — so "sort by rating" returned the best of the
   /// 60 most recently submitted rather than the platform's best, and minRating could return
   /// an empty page while matching teachers existed. Filtering and ordering need the
-  /// aggregate before the page is chosen, exactly as the course catalog did (QLT-07).
+  /// aggregate before the page is chosen (QLT-08).
   ratingAverage      Decimal?                 @map("rating_average") @db.Decimal(3, 2)
   ratingCount        Int                      @default(0) @map("rating_count")
   createdAt          DateTime                 @default(now()) @map("created_at")
@@ -1058,7 +999,6 @@ model BookingCalendarEvent {
 model PaymentAttempt {
   id                 String               @id @default(uuid()) @db.Uuid
   bookingId          String?              @map("booking_id") @db.Uuid
-  coursePurchaseId   String?              @map("course_purchase_id") @db.Uuid
   provider           PaymentProvider
   status             PaymentAttemptStatus @default(pending)
   amountCents        Int                  @map("amount_cents")
@@ -1078,13 +1018,11 @@ model PaymentAttempt {
   updatedAt          DateTime             @updatedAt @map("updated_at")
 
   booking        Booking?         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  coursePurchase CoursePurchase?  @relation(fields: [coursePurchaseId], references: [id], onDelete: Cascade)
   events         PaymentEvent[]
   refundRequests RefundRequest[]
   disputes       PaymentDispute[]
 
   @@index([bookingId])
-  @@index([coursePurchaseId])
   @@index([provider, status])
   @@index([providerCheckoutId])
   @@index([providerPaymentId])
@@ -1095,7 +1033,6 @@ model PaymentAttempt {
 model RefundRequest {
   id                    String              @id @default(uuid()) @db.Uuid
   bookingId             String?             @unique @map("booking_id") @db.Uuid
-  coursePurchaseId      String?             @unique @map("course_purchase_id") @db.Uuid
   paymentAttemptId      String?             @map("payment_attempt_id") @db.Uuid
   studentId             String              @map("student_id") @db.Uuid
   teacherId             String              @map("teacher_id") @db.Uuid
@@ -1116,7 +1053,6 @@ model RefundRequest {
   updatedAt             DateTime            @updatedAt @map("updated_at")
 
   booking        Booking?        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  coursePurchase CoursePurchase? @relation(fields: [coursePurchaseId], references: [id], onDelete: Cascade)
   paymentAttempt PaymentAttempt? @relation(fields: [paymentAttemptId], references: [id], onDelete: SetNull)
   student        User            @relation("RefundRequestStudent", fields: [studentId], references: [id], onDelete: Cascade)
   teacher        User            @relation("RefundRequestTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
@@ -1147,368 +1083,6 @@ model PaymentDispute {
   @@index([paymentAttemptId])
   @@index([status, openedAt])
   @@map("payment_disputes")
-}
-
-// ─── Courses ─────────────────────────────────────────────────────────────────
-
-model Course {
-  id                 String       @id @default(uuid()) @db.Uuid
-  teacherId          String       @map("teacher_id") @db.Uuid
-  organizationId     String       @map("organization_id") @db.Uuid
-  subjectId          String?      @map("subject_id") @db.Uuid
-  slug               String       @unique
-  title              String
-  description        String       @default("")
-  coverImageUrl      String?      @map("cover_image_url")
-  priceCents         Int          @map("price_cents")
-  currency           String       @default("USD")
-  level              CourseLevel  @default(all_levels)
-  status             CourseStatus @default(draft)
-  certificateEnabled Boolean      @default(false) @map("certificate_enabled")
-  submittedAt        DateTime?    @map("submitted_at")
-  reviewedAt         DateTime?    @map("reviewed_at")
-  rejectionReason    String?      @map("rejection_reason")
-  publishedAt        DateTime?    @map("published_at")
-  /// QLT-07: denormalised catalog aggregates, recomputed by recomputeCourseAggregates
-  /// whenever a review is written or moderated, or an enrollment is granted or revoked.
-  ///
-  /// They exist because minRating and sort=rating need an aggregate BEFORE the page is
-  /// chosen — you cannot paginate first and aggregate the page when the aggregate decides
-  /// which rows are on it. Computing them from the relation meant loading every approved
-  /// review for every published course on each hit of the crawler-visited /courses page.
-  ratingAverage      Decimal?     @map("rating_average") @db.Decimal(3, 2)
-  ratingCount        Int          @default(0) @map("rating_count")
-  /// Active enrollments only — revoked ones must never count as social proof (QLT-12).
-  enrollmentCount    Int          @default(0) @map("enrollment_count")
-  createdAt          DateTime     @default(now()) @map("created_at")
-  updatedAt          DateTime     @updatedAt @map("updated_at")
-  deletedAt          DateTime?    @map("deleted_at")
-
-  teacher      User                @relation("CourseTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
-  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  subject      Subject?            @relation(fields: [subjectId], references: [id], onDelete: SetNull)
-  modules      CourseModule[]
-  purchases    CoursePurchase[]
-  enrollments  CourseEnrollment[]
-  certificates CourseCertificate[]
-  reviews      CourseReview[]
-  questions    CourseQuestion[]
-  saleCourses  CourseSaleCourse[]
-  coupons      CourseCoupon[]
-
-  @@index([teacherId])
-  @@index([organizationId])
-  @@index([subjectId])
-  @@index([status])
-  @@index([slug])
-  /// QLT-07: the catalog's sort keys. Ordering now happens in SQL over the whole catalog
-  /// rather than in JavaScript over a full in-memory copy of it.
-  @@index([status, publishedAt])
-  @@index([status, ratingAverage])
-  @@index([status, enrollmentCount])
-  @@index([status, priceCents])
-  /// QLT-07: trigram indexes for the catalog text search. Prisma renders `contains` with
-  /// `mode: "insensitive"` as ILIKE '%term%', and a leading wildcard rules out a btree.
-  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "courses_title_trgm_idx")
-  @@index([description(ops: raw("gin_trgm_ops"))], type: Gin, map: "courses_description_trgm_idx")
-  @@map("courses")
-}
-
-model CourseModule {
-  id        String   @id @default(uuid()) @db.Uuid
-  courseId  String   @map("course_id") @db.Uuid
-  title     String
-  sortOrder Int      @default(0) @map("sort_order")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  course  Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lessons CourseLesson[]
-
-  @@index([courseId, sortOrder])
-  @@map("course_modules")
-}
-
-model CourseLesson {
-  id              String   @id @default(uuid()) @db.Uuid
-  moduleId        String   @map("module_id") @db.Uuid
-  title           String
-  content         String   @default("")
-  videoUrl        String?  @map("video_url")
-  fileStoragePath String?  @map("file_storage_path")
-  fileName        String?  @map("file_name")
-  fileMimeType    String?  @map("file_mime_type")
-  sortOrder       Int      @default(0) @map("sort_order")
-  isPreview       Boolean  @default(false) @map("is_preview")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-
-  module   CourseModule           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  progress CourseLessonProgress[]
-  assets   CourseLessonAsset[]
-
-  @@index([moduleId, sortOrder])
-  @@map("course_lessons")
-}
-
-model CourseLessonAsset {
-  id          String                @id @default(uuid()) @db.Uuid
-  lessonId    String                @map("lesson_id") @db.Uuid
-  kind        CourseLessonAssetKind
-  storagePath String                @map("storage_path")
-  fileName    String                @map("file_name")
-  mimeType    String                @map("mime_type")
-  sizeBytes   Int                   @map("size_bytes")
-  sortOrder   Int                   @default(0) @map("sort_order")
-  createdAt   DateTime              @default(now()) @map("created_at")
-  updatedAt   DateTime              @updatedAt @map("updated_at")
-
-  lesson CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-
-  @@index([lessonId, kind, sortOrder])
-  @@index([storagePath])
-  @@map("course_lesson_assets")
-}
-
-model CourseCertificate {
-  id               String    @id @default(uuid()) @db.Uuid
-  courseId         String    @map("course_id") @db.Uuid
-  studentId        String    @map("student_id") @db.Uuid
-  teacherId        String    @map("teacher_id") @db.Uuid
-  verificationCode String    @unique @map("verification_code")
-  studentName      String    @map("student_name")
-  courseTitle      String    @map("course_title")
-  teacherName      String    @map("teacher_name")
-  issuedAt         DateTime  @default(now()) @map("issued_at")
-  // MON-35: a certificate must be revocable. Without this it outlived the enrollment it was
-  // earned through, so the public verification page kept vouching for a student whose
-  // purchase had been refunded or whose access had been revoked.
-  revokedAt        DateTime? @map("revoked_at")
-  revocationReason String?   @map("revocation_reason")
-  createdAt        DateTime  @default(now()) @map("created_at")
-
-  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  student User   @relation("CourseCertificateStudent", fields: [studentId], references: [id], onDelete: Cascade)
-  teacher User   @relation("CourseCertificateTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
-
-  @@unique([courseId, studentId])
-  @@index([studentId])
-  @@index([teacherId])
-  @@index([verificationCode])
-  @@index([revokedAt])
-  @@map("course_certificates")
-}
-
-model CoursePurchase {
-  id                String               @id @default(uuid()) @db.Uuid
-  courseId          String               @map("course_id") @db.Uuid
-  studentId         String               @map("student_id") @db.Uuid
-  teacherId         String               @map("teacher_id") @db.Uuid
-  amountCents       Int                  @map("amount_cents")
-  listAmountCents   Int                  @map("list_amount_cents")
-  discountCents     Int                  @default(0) @map("discount_cents")
-  discountSource    String?              @map("discount_source")
-  courseSaleId      String?              @map("course_sale_id") @db.Uuid
-  courseCouponId    String?              @map("course_coupon_id") @db.Uuid
-  currency          String
-  status            CoursePurchaseStatus @default(pending)
-  paymentProvider   PaymentProvider?     @map("payment_provider")
-  paymentExternalId String?              @map("payment_external_id")
-  paymentExpiresAt  DateTime?            @map("payment_expires_at")
-  createdAt         DateTime             @default(now()) @map("created_at")
-  updatedAt         DateTime             @updatedAt @map("updated_at")
-
-  course           Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  student          User                    @relation("CoursePurchaseStudent", fields: [studentId], references: [id], onDelete: Cascade)
-  teacher          User                    @relation("CoursePurchaseTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
-  paymentAttempts  PaymentAttempt[]
-  enrollment       CourseEnrollment?
-  refundRequest    RefundRequest?
-  courseSale       CourseSale?             @relation(fields: [courseSaleId], references: [id], onDelete: SetNull)
-  courseCoupon     CourseCoupon?           @relation(fields: [courseCouponId], references: [id], onDelete: SetNull)
-  couponRedemption CourseCouponRedemption?
-
-  @@index([courseId])
-  @@index([studentId])
-  @@index([teacherId])
-  @@index([status])
-  @@index([paymentExpiresAt])
-  @@index([courseSaleId])
-  @@index([courseCouponId])
-  @@map("course_purchases")
-}
-
-model CourseEnrollment {
-  id         String    @id @default(uuid()) @db.Uuid
-  courseId   String    @map("course_id") @db.Uuid
-  studentId  String    @map("student_id") @db.Uuid
-  purchaseId String    @unique @map("purchase_id") @db.Uuid
-  enrolledAt DateTime  @default(now()) @map("enrolled_at")
-  revokedAt  DateTime? @map("revoked_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-
-  course   Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  student  User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  purchase CoursePurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  review   CourseReview?
-
-  @@unique([courseId, studentId])
-  @@index([studentId])
-  @@index([courseId])
-  @@map("course_enrollments")
-}
-
-model CourseReview {
-  id              String       @id @default(uuid()) @db.Uuid
-  enrollmentId    String       @unique @map("enrollment_id") @db.Uuid
-  courseId        String       @map("course_id") @db.Uuid
-  studentId       String       @map("student_id") @db.Uuid
-  teacherId       String       @map("teacher_id") @db.Uuid
-  rating          Int
-  comment         String
-  status          ReviewStatus @default(pending)
-  teacherResponse String?      @map("teacher_response")
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
-
-  enrollment CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  course     Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  student    User             @relation("CourseReviewsWritten", fields: [studentId], references: [id], onDelete: Cascade)
-  teacher    User             @relation("CourseReviewsReceived", fields: [teacherId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, courseId])
-  @@index([courseId, status])
-  @@index([teacherId, status])
-  @@map("course_reviews")
-}
-
-model CourseSale {
-  id            String             @id @default(uuid()) @db.Uuid
-  teacherId     String             @map("teacher_id") @db.Uuid
-  name          String
-  discountType  CourseDiscountType @map("discount_type")
-  discountValue Int                @map("discount_value")
-  startsAt      DateTime           @map("starts_at")
-  endsAt        DateTime           @map("ends_at")
-  active        Boolean            @default(true)
-  createdAt     DateTime           @default(now()) @map("created_at")
-  updatedAt     DateTime           @updatedAt @map("updated_at")
-
-  teacher   User               @relation("CourseSaleTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
-  courses   CourseSaleCourse[]
-  purchases CoursePurchase[]
-
-  @@index([teacherId, active, startsAt, endsAt])
-  @@map("course_sales")
-}
-
-model CourseSaleCourse {
-  saleId   String @map("sale_id") @db.Uuid
-  courseId String @map("course_id") @db.Uuid
-
-  sale   CourseSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  course Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@id([saleId, courseId])
-  @@index([courseId])
-  @@map("course_sale_courses")
-}
-
-model CourseCoupon {
-  id             String             @id @default(uuid()) @db.Uuid
-  teacherId      String             @map("teacher_id") @db.Uuid
-  courseId       String?            @map("course_id") @db.Uuid
-  code           String
-  discountType   CourseDiscountType @map("discount_type")
-  discountValue  Int                @map("discount_value")
-  startsAt       DateTime?          @map("starts_at")
-  endsAt         DateTime?          @map("ends_at")
-  active         Boolean            @default(true)
-  maxRedemptions Int?               @map("max_redemptions")
-  createdAt      DateTime           @default(now()) @map("created_at")
-  updatedAt      DateTime           @updatedAt @map("updated_at")
-
-  teacher     User                     @relation("CourseCouponTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
-  course      Course?                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  redemptions CourseCouponRedemption[]
-  purchases   CoursePurchase[]
-
-  @@unique([teacherId, code])
-  @@index([teacherId, active])
-  @@index([courseId])
-  @@map("course_coupons")
-}
-
-model CourseCouponRedemption {
-  id         String   @id @default(uuid()) @db.Uuid
-  couponId   String   @map("coupon_id") @db.Uuid
-  purchaseId String   @unique @map("purchase_id") @db.Uuid
-  studentId  String   @map("student_id") @db.Uuid
-  redeemedAt DateTime @default(now()) @map("redeemed_at")
-
-  coupon   CourseCoupon   @relation(fields: [couponId], references: [id], onDelete: Restrict)
-  purchase CoursePurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  student  User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([couponId, studentId])
-  @@index([couponId, redeemedAt])
-  @@index([studentId])
-  @@map("course_coupon_redemptions")
-}
-
-model CourseQuestion {
-  id        String   @id @default(uuid()) @db.Uuid
-  courseId  String   @map("course_id") @db.Uuid
-  studentId String   @map("student_id") @db.Uuid
-  body      String
-  /// Moderation: a teacher or admin suppressed this. Nothing to do with consent.
-  hidden    Boolean  @default(false)
-  /// QLT-10: the STUDENT's consent to publish, deliberately separate from `hidden`.
-  /// Publication requires isPublic AND NOT hidden. Conflating the two would mean a teacher
-  /// restoring a moderated question also published one the student never agreed to share.
-  isPublic  Boolean  @default(false) @map("is_public")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  course  Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  student User          @relation("CourseQuestionsAsked", fields: [studentId], references: [id], onDelete: Cascade)
-  answer  CourseAnswer?
-
-  @@index([courseId, isPublic, hidden, createdAt])
-  @@index([studentId])
-  @@map("course_questions")
-}
-
-model CourseAnswer {
-  id         String   @id @default(uuid()) @db.Uuid
-  questionId String   @unique @map("question_id") @db.Uuid
-  teacherId  String   @map("teacher_id") @db.Uuid
-  body       String
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  question CourseQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  teacher  User           @relation("CourseAnswersWritten", fields: [teacherId], references: [id], onDelete: Cascade)
-
-  @@index([teacherId])
-  @@map("course_answers")
-}
-
-model CourseLessonProgress {
-  id          String    @id @default(uuid()) @db.Uuid
-  lessonId    String    @map("lesson_id") @db.Uuid
-  studentId   String    @map("student_id") @db.Uuid
-  completedAt DateTime? @map("completed_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  lesson  CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  student User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([lessonId, studentId])
-  @@index([studentId])
-  @@map("course_lesson_progress")
 }
 
 model PaymentEvent {

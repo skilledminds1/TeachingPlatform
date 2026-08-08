@@ -13,8 +13,6 @@ import { env } from "@/lib/env";
  * Authenticated areas already redirect, so listing them is belt-and-braces; the entries that
  * matter are the ones that would otherwise be indexed and should not be:
  *
- *   /certificates/  — a public verification URL, but it names a real person and the course
- *                     they took. Verifiable by link is the point; searchable by name is not.
  *   /auth/          — callback URLs carrying single-use codes.
  *   /api/           — never useful in an index, and some routes are expensive.
  *
@@ -35,7 +33,6 @@ export default function robots(): MetadataRoute.Robots {
           "/admin/",
           "/dashboard/",
           "/auth/",
-          "/certificates/",
           "/login",
           "/register",
           "/forgot-password",

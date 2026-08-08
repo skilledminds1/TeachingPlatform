@@ -16,9 +16,7 @@ type AnyRecord = Record<string, unknown>;
 
 const state = {
   teachers: [] as AnyRecord[],
-  courses: [] as AnyRecord[],
   teacherWhere: null as unknown,
-  courseWhere: null as unknown,
   throwOnQuery: false,
 };
 
@@ -29,13 +27,6 @@ vi.mock("@/lib/db", () => ({
         if (state.throwOnQuery) throw new Error("database unreachable");
         state.teacherWhere = args.where;
         return state.teachers;
-      }),
-    },
-    course: {
-      findMany: vi.fn(async (args: AnyRecord) => {
-        if (state.throwOnQuery) throw new Error("database unreachable");
-        state.courseWhere = args.where;
-        return state.courses;
       }),
     },
   },
@@ -52,14 +43,11 @@ vi.mock("@/lib/observability/logger", () => ({
 const { default: sitemap } = await import("@/app/sitemap");
 const { default: robots } = await import("@/app/robots");
 const { PUBLIC_TEACHER_WHERE } = await import("@/server/marketplace/teachers");
-const { PUBLIC_COURSE_WHERE } = await import("@/server/courses/queries");
-const { teacherJsonLd, courseJsonLd, serializeJsonLd } = await import("./structured-data");
+const { teacherJsonLd, serializeJsonLd } = await import("./structured-data");
 
 beforeEach(() => {
   state.teachers = [{ slug: "ana-lopez", updatedAt: new Date("2026-07-01T00:00:00.000Z") }];
-  state.courses = [{ slug: "spanish-basics", updatedAt: new Date("2026-07-02T00:00:00.000Z") }];
   state.teacherWhere = null;
-  state.courseWhere = null;
   state.throwOnQuery = false;
 });
 
@@ -80,14 +68,9 @@ describe("the sitemap", () => {
   it("includes the public marketing and legal pages", async () => {
     const urls = (await sitemap()).map((entry) => entry.url);
 
-    for (const path of ["/", "/find-tutor", "/courses", "/terms", "/privacy"]) {
+    for (const path of ["/", "/find-tutor", "/terms", "/privacy"]) {
       expect(urls).toContain(`https://amazing-skills.com${path}`);
     }
-  });
-
-  it("lists published courses at their canonical path", async () => {
-    const urls = (await sitemap()).map((entry) => entry.url);
-    expect(urls).toContain("https://amazing-skills.com/courses/spanish-basics");
   });
 
   // The sitemap is a second consumer of a visibility rule the marketplace already owns.
@@ -97,13 +80,11 @@ describe("the sitemap", () => {
     await sitemap();
 
     expect(state.teacherWhere).toEqual(PUBLIC_TEACHER_WHERE);
-    expect(state.courseWhere).toEqual(PUBLIC_COURSE_WHERE);
     expect(PUBLIC_TEACHER_WHERE).toMatchObject({
       status: "approved",
       deletedAt: null,
       user: { isDemo: false },
     });
-    expect(PUBLIC_COURSE_WHERE).toMatchObject({ status: "published", deletedAt: null });
   });
 
   // A sitemap is a discovery aid, not a page anyone waits on. Failing the render would turn
@@ -127,18 +108,18 @@ describe("robots", () => {
     const rule = robots().rules;
     const disallow = (Array.isArray(rule) ? rule[0] : rule).disallow as string[];
 
-    for (const path of ["/find-tutor", "/courses", "/terms", "/privacy"]) {
+    for (const path of ["/find-tutor", "/terms", "/privacy"]) {
       expect(disallow, `${path} must stay indexable`).not.toContain(path);
     }
   });
 
-  // A certificate URL is meant to be verifiable by whoever holds the link, not searchable by
-  // the name of the person who earned it.
+  // /auth/ callback URLs carry single-use codes and /api/ is never useful in an index. The
+  // signed-in areas already redirect, so listing them is belt-and-braces — but cheap.
   it("keeps private and personal areas out of the index", () => {
     const rule = robots().rules;
     const disallow = (Array.isArray(rule) ? rule[0] : rule).disallow as string[];
 
-    for (const path of ["/api/", "/admin/", "/dashboard/", "/certificates/", "/auth/"]) {
+    for (const path of ["/api/", "/admin/", "/dashboard/", "/auth/"]) {
       expect(disallow).toContain(path);
     }
   });
@@ -203,34 +184,11 @@ describe("structured data", () => {
     expect(data.mainEntity).not.toHaveProperty("aggregateRating");
   });
 
-  it("describes a course with its provider and offer", () => {
-    const data = courseJsonLd(
-      {
-        title: "Spanish Basics",
-        description: "Start speaking Spanish.",
-        coverImageUrl: null,
-        effectivePriceCents: 4000,
-        currency: "USD",
-        level: "beginner",
-        ratingAverage: null,
-        ratingCount: 0,
-        teacher: { name: "Ana Lopez" },
-      },
-      "spanish-basics",
-      "https://amazing-skills.com",
-    ) as AnyRecord;
-
-    expect(data["@type"]).toBe("Course");
-    expect(data.provider).toMatchObject({ "@type": "Organization" });
-    expect(data.offers).toMatchObject({ price: "40.00", priceCurrency: "USD" });
-    expect(data).not.toHaveProperty("aggregateRating");
-  });
-
   /**
    * A `nonce` here looks like the security-conscious choice and is actively harmful. React
    * refuses to serialize the attribute to the client, so it renders populated on the server
-   * and empty on the client — an unpatched hydration mismatch on every profile and course
-   * page, which `suppressHydrationWarning` does not cover because React special-cases the
+   * and empty on the client — an unpatched hydration mismatch on every teacher profile page,
+   * which `suppressHydrationWarning` does not cover because React special-cases the
    * attribute. It buys nothing either way: `application/ld+json` is a data block the browser
    * never executes, so `script-src` does not apply. Reproduced and then eliminated by
    * removing it; pinned here so it does not come back as a well-meaning hardening patch.

@@ -38,11 +38,15 @@ const eslintConfig = defineConfig([
       /**
        * KNOWN EXCEPTION, and a real one rather than a lint convenience.
        *
-       * Every `<video>` on the platform plays media a user uploaded — teacher intro videos,
-       * course lessons, credential evidence. Captions cannot be synthesised at render time,
-       * and requiring a WebVTT file before publishing would block the core product on a
-       * feature nobody has built. Closing it needs a transcription pipeline, which is its
-       * own piece of work.
+       * Every `<video>` on the platform plays media a user uploaded — teacher intro videos
+       * and credential evidence. Captions cannot be synthesised at render time, and requiring
+       * a WebVTT file before publishing would block the core product on a feature nobody has
+       * built. Closing it needs a transcription pipeline, which is its own piece of work.
+       *
+       * Narrower than it was: removing the courses product took paid lesson video with it, so
+       * the remaining surface is a teacher's own short intro clip rather than the substance
+       * of what a student paid for. Worth revisiting on that basis — /accessibility still
+       * discloses it as an exception.
        *
        * Turned off here rather than silenced at six call sites, so there is one place that
        * says why — and it is disclosed at /accessibility rather than left for a user to

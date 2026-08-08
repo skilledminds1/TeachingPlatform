@@ -43,7 +43,7 @@ export default function AccessibilityPage() {
         {
           title: "3. Known gaps",
           paragraphs: [
-            "Video captions. Lesson recordings, teacher introduction videos and course lessons are uploaded by teachers, and we do not currently generate captions or transcripts for them. This is the most significant gap on the platform and it affects deaf and hard-of-hearing users directly. Closing it requires a transcription pipeline, which is planned work rather than a completed feature. If a video is inaccessible to you, contact us and we will arrange an alternative.",
+            "Video captions. Teacher introduction videos are uploaded by teachers, and we do not currently generate captions or transcripts for them, so a deaf or hard-of-hearing student cannot get what a teacher says about themselves in that video. Closing it requires a transcription pipeline, which is planned work rather than a completed feature. The introduction video is never the only description of a teacher — the written profile, subjects, rates and reviews carry the same ground — and if a video is inaccessible to you, contact us and we will arrange an alternative.",
             "Interface language. The interface is available in English only, which is a barrier for users who rely on their own language to use a service confidently. Translation is planned.",
             "Live video lessons. The classroom is provided through a third-party video service. We have not completed an independent accessibility assessment of that component and cannot yet make claims about it.",
             "Third-party payment pages. Checkout is completed on the payment provider’s own pages, which are outside our control and not covered by this statement.",

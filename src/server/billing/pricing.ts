@@ -121,10 +121,17 @@ export async function getCatalogPlansWithPricing(now = new Date()) {
   });
 }
 
+/**
+ * Features whose label would only repeat a limit bullet the card already prints above it.
+ * Empty today — the seeded catalogue has no such feature — but the card renders the two
+ * limits unconditionally, so anything added here that restates them belongs in this set.
+ */
+const LIMIT_RESTATING_FEATURES = new Set<string>([]);
+
 export async function getMarketingPlans(now = new Date()) {
   const plans = await getCatalogPlansWithPricing(now);
 
-  return plans.map((plan) => {
+  return plans.map((plan, index) => {
     const limitBullets = [
       plan.studentLimit === null
         ? "Unlimited active students"
@@ -132,22 +139,29 @@ export async function getMarketingPlans(now = new Date()) {
       plan.monthlyLiveLessonMinutes === null
         ? "Unlimited live lessons (fair use)"
         : `${plan.monthlyLiveLessonMinutes / 60} live lesson hours / month`,
-      plan.courseLimit === 0
-        ? "Course selling not included"
-        : plan.courseLimit === null
-          ? "Unlimited courses · 0% commission"
-          : `Up to ${plan.courseLimit} course${plan.courseLimit === 1 ? "" : "s"} · 0% commission`,
     ];
 
-    const featureBullets = plan.features
+    // Show what this tier ADDS over the one below it, not its first six features.
+    //
+    // Each tier's feature array is built by spreading the tier below (prisma/seed.ts), so the
+    // first six entries are identical on all four plans. That was masked while a third limit
+    // bullet named the course allowance and differed per tier; removing the courses product
+    // took that bullet with it and left every tier rendering the same list, which gives a
+    // visitor no reason to upgrade. Plans arrive ordered by sortOrder, so the previous entry
+    // is the next tier down.
+    const inherited = new Set(index > 0 ? plans[index - 1].features : []);
+    const distinctive = plan.features.filter((feature) => !inherited.has(feature));
+
+    // The lowest tier inherits nothing, so "what it adds" is simply what it has.
+    //
+    // Deduplication is keyed on the FEATURE, not the rendered label. Matching the label text
+    // for "student" or "live lesson" — which is what this did — silently ate "Student notes",
+    // a real Starter feature, because the substring test cannot tell a limit restatement from
+    // a feature that happens to mention students.
+    const featureBullets = (distinctive.length > 0 ? distinctive : plan.features)
+      .filter((feature) => !LIMIT_RESTATING_FEATURES.has(feature))
       .map((feature) => planFeatureLabels[feature])
       .filter((label): label is string => Boolean(label))
-      .filter(
-        (label) =>
-          !label.toLowerCase().includes("student") &&
-          !label.toLowerCase().includes("live lesson") &&
-          !label.toLowerCase().includes("course"),
-      )
       .slice(0, 6);
 
     return {
@@ -185,7 +199,6 @@ export async function getBillingPlansWithPricing(now = new Date()) {
     currency: plan.currency,
     studentLimit: plan.studentLimit,
     monthlyLiveLessonMinutes: plan.monthlyLiveLessonMinutes,
-    courseLimit: plan.courseLimit,
     features: plan.features,
     highlighted: plan.highlighted,
     monthlyPriceCents: plan.monthly.listCents,

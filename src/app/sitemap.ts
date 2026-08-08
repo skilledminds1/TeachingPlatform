@@ -3,15 +3,14 @@ import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/observability/logger";
-import { PUBLIC_COURSE_WHERE } from "@/server/courses/queries";
 import { PUBLIC_TEACHER_WHERE } from "@/server/marketplace/teachers";
 
 /**
  * URL inventory for crawlers (GLO-02).
  *
- * Teacher profiles and course pages were reachable only by following internal links from the
- * marketplace, which is the slowest possible way for them to be discovered and the easiest
- * for them to be missed.
+ * Teacher profiles were reachable only by following internal links from the marketplace,
+ * which is the slowest possible way for them to be discovered and the easiest for them to
+ * be missed.
  *
  * EVERY URL HERE IS THE CANONICAL ONE. `/teachers/[slug]` permanently redirects to
  * `/find-tutor/[slug]`, and `/teachers` to `/find-tutor` — listing the legacy paths would
@@ -31,7 +30,6 @@ export const revalidate = 3600;
 const STATIC_ROUTES: Array<{ path: string; priority: number; changeFrequency: "daily" | "weekly" | "monthly" | "yearly" }> = [
   { path: "/", priority: 1.0, changeFrequency: "weekly" },
   { path: "/find-tutor", priority: 0.9, changeFrequency: "daily" },
-  { path: "/courses", priority: 0.8, changeFrequency: "daily" },
   { path: "/subscribe", priority: 0.5, changeFrequency: "monthly" },
   { path: "/terms", priority: 0.3, changeFrequency: "yearly" },
   { path: "/privacy", priority: 0.3, changeFrequency: "yearly" },
@@ -59,25 +57,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   try {
-    const [teachers, courses] = await Promise.all([
-      db.teacherProfile.findMany({
-        where: PUBLIC_TEACHER_WHERE,
-        select: { slug: true, updatedAt: true },
-        orderBy: { updatedAt: "desc" },
-        take: MAX_URLS_PER_TYPE,
-      }),
-      db.course.findMany({
-        where: PUBLIC_COURSE_WHERE,
-        select: { slug: true, updatedAt: true },
-        orderBy: { updatedAt: "desc" },
-        take: MAX_URLS_PER_TYPE,
-      }),
-    ]);
+    const teachers = await db.teacherProfile.findMany({
+      where: PUBLIC_TEACHER_WHERE,
+      select: { slug: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: MAX_URLS_PER_TYPE,
+    });
 
-    if (teachers.length === MAX_URLS_PER_TYPE || courses.length === MAX_URLS_PER_TYPE) {
+    if (teachers.length === MAX_URLS_PER_TYPE) {
       logger.warn("sitemap_truncated", {
         teachers: teachers.length,
-        courses: courses.length,
         limit: MAX_URLS_PER_TYPE,
       });
     }
@@ -89,12 +78,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         lastModified: teacher.updatedAt,
         changeFrequency: "weekly" as const,
         priority: 0.8,
-      })),
-      ...courses.map((course) => ({
-        url: `${baseUrl}/courses/${course.slug}`,
-        lastModified: course.updatedAt,
-        changeFrequency: "weekly" as const,
-        priority: 0.7,
       })),
     ];
   } catch (error) {

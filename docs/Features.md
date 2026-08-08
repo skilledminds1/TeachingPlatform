@@ -6,9 +6,11 @@ Amazing Skills is a **live tutoring marketplace** (Preply / AmazingTalker model)
 
 **Core loop:** Discover teacher → Book slot → Pay teacher → Video session → Review
 
-**Platform revenue:** Teacher subscriptions via PayFast only.
+**Platform revenue:** Teacher subscriptions via PayFast only. The platform never handles money between a student and a teacher.
 
 **Not in v1 focus:** Homework, quizzes, and SCORM/xAPI (future optional phases).
+
+**Permanently out of scope:** Self-paced courses and any other hosted, gated, pre-recorded content — see [Why courses are out of scope](../PROJECT.md#why-courses-are-out-of-scope).
 
 ---
 
@@ -82,17 +84,17 @@ Amazing Skills is a **live tutoring marketplace** (Preply / AmazingTalker model)
 - PayFast recurring billing
 - Monthly and annual USD catalog pricing with PayFast ZAR conversion
 - Active-student and monthly live-lesson hour enforcement
-- Free: 2 hours and 1 course; Starter: 20 hours; Professional: 75 hours; Business: unlimited fair use
+- Free: 2 hours; Starter: 20 hours; Professional: 75 hours; Business: unlimited fair use
 - Billing history, upgrade/downgrade, trial, grace period
 
 ---
 
-## Phase 7 — Teacher Payments (PayFast / PayPal)
+## Phase 7 — Teacher Payments (PayPal)
 
-- Teacher links PayFast or PayPal in settings
+- Teacher links their own PayPal account in settings
 - Student pays teacher at booking checkout
-- Platform does NOT handle these funds
-- Payment confirmation via PayFast/PayPal webhooks
+- Platform does NOT handle, hold, or disburse these funds; the teacher is the seller of record
+- Payment confirmation via PayPal webhook
 - Teacher earnings summary (from provider data)
 
 ---
@@ -118,16 +120,6 @@ Amazing Skills is a **live tutoring marketplace** (Preply / AmazingTalker model)
 
 ---
 
-## Course Quality & Commerce
-
-- Separate moderated course reviews become eligible after an enrolled student completes at least one lesson; only approved reviews affect public averages.
-- Teachers may expose up to three free preview lessons while keeping at least one lesson private. Preview video, text, and resources use the same short-lived signed media access path as enrolled content.
-- Scheduled teacher-owned sales and course- or teacher-scoped coupons support percent/fixed discounts. Coupons explicitly override sales and never stack.
-- Every purchase stores immutable list, discount, source, sale/coupon, and effective amount snapshots; PayPal receives the effective amount, while a zero result enrolls without PayPal.
-- Enrolled students can ask course questions. Teachers answer them, and answered non-hidden questions may appear publicly without student identity.
-
----
-
 ## Feature Module Map
 
 | Feature | Folder | Phase |
@@ -137,7 +129,7 @@ Amazing Skills is a **live tutoring marketplace** (Preply / AmazingTalker model)
 | Organizations | `src/features/organizations/` | 1 |
 | Dashboard | `src/features/dashboard/` | 2 |
 | Marketplace | `src/features/marketplace/` | 3 |
-| Reviews | `src/features/reviews/`, `src/features/courses/` | 3 / Courses |
+| Reviews | `src/features/reviews/` | 3 |
 | Bookings | `src/features/bookings/` | 4 |
 | Availability | `src/features/availability/` | 4 |
 | Video | `src/features/video/` | 5 |
@@ -150,10 +142,11 @@ Amazing Skills is a **live tutoring marketplace** (Preply / AmazingTalker model)
 
 ---
 
-## Out of Scope (v1)
+## Out of Scope
 
+- Self-paced courses and any hosted, gated, pre-recorded content — **permanently, not just v1**
 - Platform escrow or teacher payouts
-- Commission on session payments
-- Native mobile apps
-- Enterprise SSO
+- Commission on lesson payments
+- Native mobile apps (v1)
+- Enterprise SSO (v1)
 - SCORM / xAPI

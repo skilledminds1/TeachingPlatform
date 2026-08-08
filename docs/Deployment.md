@@ -112,6 +112,12 @@ migration jobs.
 3. Storage buckets and their RLS policies are applied automatically by
    `prisma migrate deploy` (prisma/migrations/20260731010000_storage_hardening).
    No manual SQL step is required.
+4. One manual step remains, and only on an environment that predates the courses removal:
+   `npm run storage:remove-course-buckets -- --yes`. Supabase's `storage.protect_delete()`
+   trigger forbids deleting storage rows in SQL, so `20260808140000_drop_course_bucket_rows`
+   can only drop the three course buckets when they are already empty — which is the case on
+   a freshly provisioned environment and not on one that stored course media. The migration
+   emits a NOTICE and continues rather than failing the deploy.
 
 ## Monitoring
 

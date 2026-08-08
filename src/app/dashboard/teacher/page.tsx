@@ -1,7 +1,6 @@
 import { CountryBackfillPrompt } from "@/features/compliance/components/country-backfill-prompt";
 import {
   ArrowUpRight,
-  BookOpen,
   CalendarCheck,
   CalendarDays,
   CheckCircle2,
@@ -70,7 +69,7 @@ export default async function TeacherDashboardPage() {
                 Welcome, {user.name}
               </h1>
               <p className="text-sm text-muted-foreground">
-                Manage your lessons, courses, and students from one place.
+                Manage your lessons and students from one place.
               </p>
             </div>
             <StatusBadge tone={statusTone(profile.status)}>
@@ -141,20 +140,12 @@ export default async function TeacherDashboardPage() {
               <ArrowUpRight className="size-3.5" aria-hidden />
             </Button>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <StatCard
               label="Students"
               value={formatNumber(analytics.kpis.uniqueStudents)}
               detail={`${analytics.kpis.newStudents} new this period`}
               icon={Users}
-            />
-            <StatCard
-              label="Course enrollments"
-              value={formatNumber(analytics.kpis.enrollments)}
-              detail={`${analytics.kpis.activeCourses} published course${
-                analytics.kpis.activeCourses === 1 ? "" : "s"
-              }`}
-              icon={BookOpen}
             />
             <StatCard
               label="Completed live lessons"
