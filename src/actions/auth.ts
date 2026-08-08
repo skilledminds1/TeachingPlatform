@@ -7,9 +7,12 @@ import {
   isRestrictedJurisdiction,
   restrictedJurisdictionMessage,
 } from "@/lib/compliance/restricted-jurisdictions";
+import { isMinor } from "@/lib/age";
 import { env } from "@/lib/env";
+import { logger } from "@/lib/observability/logger";
 import { createClient } from "@/lib/supabase/server";
 import { recordComplianceEvent } from "@/server/compliance/events";
+import { requestGuardianConsent } from "@/server/guardians/consent";
 import {
   changePasswordSchema,
   registerRoleSchema,
@@ -46,7 +49,9 @@ export async function signUp(
   const limited = await enforceActionRateLimit({ action: "signup", limit: 5, windowMs: 15 * 60_000, identifier: parsed.data.email, critical: true });
   if (limited) return limited;
 
-  const { name, email, password, role, confirmedAdult, country } = parsed.data;
+  const { name, email, password, role, country, dateOfBirth, guardian } = parsed.data;
+  const birthDate = new Date(`${dateOfBirth}T00:00:00.000Z`);
+  const minor = isMinor(birthDate) === true;
 
   // INT-13: refuse before an account exists, and record why. This runs in the action rather
   // than the schema because it is a trust decision that must leave an audit trail, and a
@@ -80,18 +85,35 @@ export async function signUp(
     return fail("Could not create account. Please try again.");
   }
 
-  await syncUserFromAuth(data.user, { role, country });
+  await syncUserFromAuth(data.user, { role, country, dateOfBirth: birthDate });
   const requestHeaders = await headers();
+  const evidence = {
+    ip: clientIdentityFromHeaders(requestHeaders),
+    userAgent: requestHeaders.get("user-agent"),
+  };
   await recordCurrentLegalAcceptances({
     userId: data.user.id,
     role,
     method: "email_signup",
-    confirmedAdult,
-    evidence: {
-      ip: clientIdentityFromHeaders(requestHeaders),
-      userAgent: requestHeaders.get("user-agent"),
-    },
+    confirmedAdult: !minor,
+    evidence,
   });
+
+  // The account exists either way; what a minor cannot do is book, until the guardian named
+  // here confirms. Creating the account first is deliberate — a child who cannot sign in
+  // cannot see what they are waiting for, and the guardian needs something to consent TO.
+  if (minor && guardian) {
+    await requestGuardianConsent({
+      minorUserId: data.user.id,
+      minorName: name,
+      guardian,
+      evidence,
+    }).catch((error: unknown) => {
+      // A failed send must not fail registration: the student can resend from their
+      // dashboard, and losing the account over a transient mail error is worse.
+      logger.error("guardian_consent_request_failed", { userId: data.user?.id, error });
+    });
+  }
 
   if (data.session) {
     const sessionUser = await db.user.findUniqueOrThrow({

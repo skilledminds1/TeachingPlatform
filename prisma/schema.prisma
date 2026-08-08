@@ -205,6 +205,14 @@ enum LegalAcceptanceMethod {
   @@map("legal_acceptance_method")
 }
 
+enum GuardianConsentStatus {
+  pending
+  verified
+  revoked
+
+  @@map("guardian_consent_status")
+}
+
 enum AccountStatus {
   active
   restricted
@@ -332,6 +340,14 @@ model User {
   /// GLO-01: chosen interface language, BCP-47. NULL means "never chosen", which is not the
   /// same as English — it is what keeps Accept-Language negotiation active for that account.
   locale                 String?       @db.VarChar(10)
+  /// Date only — the time of day is meaningless here and storing it invites timezone bugs in
+  /// an age calculation, where being one day out is the whole question.
+  ///
+  /// Nullable because existing accounts predate the field, exactly as `country` does. NULL
+  /// means "not yet stated", which is NOT the same as adult: `isMinor()` returns null for it
+  /// and every gate treats an unknown age as unverified rather than waving it through. The
+  /// old `confirmedAdult` checkbox asserted an age nobody ever checked.
+  dateOfBirth            DateTime?     @map("date_of_birth") @db.Date
   /// QLT-11: excludes seeded demo accounts from the marketplace and from analytics.
   /// Replaces `email: { not: { endsWith: "teachingplatform.local" } }`, which coupled the
   /// hottest public queries to a seed-data naming convention — it hid any real user whose
@@ -347,6 +363,7 @@ model User {
   deletedAt              DateTime?     @map("deleted_at")
 
   memberships             OrganizationMember[]
+  guardianConsent         GuardianConsent?
   teacherProfile          TeacherProfile?
   teacherPaymentAccounts  TeacherPaymentAccount[]
   availabilitySlots       Availability[]
@@ -458,6 +475,45 @@ model ConsentRecord {
 
   @@index([userId, purpose, capturedAt])
   @@map("consent_records")
+}
+
+/// POPIA s35 requires the consent of a "competent person" to process a child's personal
+/// information, and treats a child as anyone under 18 — stricter than GDPR Art 8, whose
+/// digital-consent age is 13 to 16 depending on member state. The stricter rule is the one
+/// implemented, so a single flow satisfies both.
+///
+/// Consent is verified by emailing the guardian a single-use token and having them confirm on
+/// a page that states plainly what they are agreeing to. That is double opt-in, not identity
+/// verification: it proves someone controlling that mailbox agreed, which is the accepted
+/// standard short of document checks, and it is what the privacy policy now claims — no more.
+model GuardianConsent {
+  id            String                @id @default(uuid()) @db.Uuid
+  minorUserId   String                @unique @map("minor_user_id") @db.Uuid
+  guardianName  String                @map("guardian_name")
+  guardianEmail String                @map("guardian_email")
+  relationship  String
+  status        GuardianConsentStatus @default(pending)
+  /// Only the hash is stored, mirroring OrganizationInvitation. A database dump must not
+  /// contain a working consent link.
+  tokenHash     String                @unique @map("token_hash")
+  expiresAt     DateTime              @map("expires_at")
+  requestedAt   DateTime              @default(now()) @map("requested_at")
+  verifiedAt    DateTime?             @map("verified_at")
+  revokedAt     DateTime?             @map("revoked_at")
+  revokedReason String?               @map("revoked_reason")
+  /// Hashed request evidence, same treatment as LegalAcceptance: enough to evidence the act,
+  /// not enough to be a second copy of the guardian's identity.
+  ipHash        String?               @map("ip_hash")
+  userAgentHash String?               @map("user_agent_hash")
+  policyVersion String                @map("policy_version")
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+
+  minor User @relation(fields: [minorUserId], references: [id], onDelete: Cascade)
+
+  @@index([guardianEmail])
+  @@index([status])
+  @@map("guardian_consents")
 }
 
 model Organization {

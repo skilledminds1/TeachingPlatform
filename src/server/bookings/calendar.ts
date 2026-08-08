@@ -101,6 +101,10 @@ export async function getBookingForUser(bookingId: string) {
         orderBy: { createdAt: "desc" },
         take: 1,
       },
+      // Safeguarding: a teacher must know they are about to meet a child on video, and the
+      // date of birth is what decides it. Selected here rather than derived in the component
+      // so the rule lives in one place.
+      student: { select: { id: true, name: true, avatarUrl: true, dateOfBirth: true } },
       refundRequest: {
         select: {
           id: true,

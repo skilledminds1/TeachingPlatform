@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { isMinor } from "@/lib/age";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, statusTone } from "@/features/admin/components/status-badge";
 import { CancelBookingButton } from "@/features/bookings/components/cancel-booking-button";
@@ -84,6 +85,21 @@ export default async function BookingDetailsPage({
             </Detail>
           </dl>
         </section>
+
+        {isTeacher && isMinor(booking.student.dateOfBirth) === true ? (
+          <section className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-5">
+            <p className="font-medium">This student is under 18</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A parent or guardian has given permission for these lessons. Keep the lesson in
+              the platform&apos;s video room, keep communication in platform messaging, and
+              raise anything that concerns you through{" "}
+              <Link href="/dashboard/safety" className="font-medium text-primary hover:underline">
+                Trust &amp; Safety
+              </Link>
+              .
+            </p>
+          </section>
+        ) : null}
 
         {booking.status === "pending_teacher_confirmation" ? (
           <section className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">

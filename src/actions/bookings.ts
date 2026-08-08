@@ -14,7 +14,12 @@ import {
 } from "@/lib/validations/bookings";
 import { getAvailableSlots } from "@/server/availability/slots";
 import { requireAuth, requireTeacher } from "@/server/auth/session";
+import { isMinor } from "@/lib/age";
 import { getOrganizationGrowthWriteBlock } from "@/server/billing/write-gate";
+import {
+  bookingEligibilityMessage,
+  guardianBookingEligibility,
+} from "@/server/guardians/consent";
 import {
   removeBookingFromConnectedCalendars,
   updateEventsForBooking,
@@ -79,6 +84,14 @@ export async function createBooking(
     },
   });
   if (!profile) return fail("Teacher not found.", "NOT_FOUND");
+  // A student under 18 needs a verified guardian before a lesson can be arranged. Checked
+  // here rather than only in the UI, because the UI is not a security boundary and this is
+  // the point where a child would otherwise be committed to meeting an adult on video.
+  const consent = await guardianBookingEligibility({
+    isMinor: isMinor(student.dateOfBirth),
+    minorUserId: student.id,
+  });
+  if (!consent.allowed) return fail(bookingEligibilityMessage(consent.reason), "FORBIDDEN");
   const billingBlock = await getOrganizationGrowthWriteBlock(profile.organizationId);
   if (billingBlock) return fail(billingBlock, "FORBIDDEN");
   if (profile.userId === student.id) return fail("You cannot book yourself.", "VALIDATION_ERROR");

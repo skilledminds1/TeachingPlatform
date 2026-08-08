@@ -62,9 +62,10 @@ export async function recordCurrentLegalAcceptances(input: {
   confirmedAdult: boolean;
   evidence?: LegalRequestEvidence;
 }): Promise<void> {
-  if (!input.confirmedAdult) {
-    throw new Error("You must confirm that you are at least 18 years old.");
-  }
+  // Being under 18 is no longer a refusal. It routes to guardian consent instead, and
+  // `confirmedAdult` records which of the two applied rather than gating on a claim nobody
+  // verified. The re-acceptance path still passes true, because it collects no date of birth.
+  
 
   const documents = currentLegalDocumentsForRole(input.role);
   const existingCount = await db.legalDocument.count({

@@ -61,7 +61,12 @@ export function hasTeacherMembership(user: {
 
 export async function syncUserFromAuth(
   authUser: AuthUser,
-  options?: { role?: RegisterRole; timeZone?: string | null; country?: string | null },
+  options?: {
+    role?: RegisterRole;
+    timeZone?: string | null;
+    country?: string | null;
+    dateOfBirth?: Date | null;
+  },
 ): Promise<User> {
   const email = authUser.email;
   if (!email) {
@@ -107,6 +112,10 @@ export async function syncUserFromAuth(
   // column because every pre-existing account predates the field and is backfilled by a
   // prompt rather than by a guess.
   const country = toCountryCode(options?.country) ?? undefined;
+  // Stated at registration, and the input to every guardian-consent gate. Nullable for the
+  // same reason as country: existing accounts predate it, and "not stated" must not be read
+  // as "adult" — which is exactly what the old confirmedAdult checkbox did.
+  const dateOfBirth = options?.dateOfBirth ?? undefined;
 
   return db.$transaction(async (transaction) => {
     const user = await transaction.user.create({
@@ -117,6 +126,7 @@ export async function syncUserFromAuth(
         avatarUrl,
         ...(timezone ? { timezone } : {}),
         ...(country ? { country } : {}),
+        ...(dateOfBirth ? { dateOfBirth } : {}),
       },
     });
 

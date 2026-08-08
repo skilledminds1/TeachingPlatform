@@ -10,6 +10,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { signUp } from "@/actions/auth";
+import { isMinor } from "@/lib/age";
 import { countryOptions } from "@/lib/countries";
 import { countryForTimeZone } from "@/lib/timezone-country";
 import { detectBrowserTimeZone } from "@/hooks/use-browser-timezone";
@@ -59,7 +60,7 @@ export function RegisterForm({
       password: "",
       role: defaultRole,
       country: detectedCountry,
-      confirmedAdult: false,
+      dateOfBirth: "",
       acceptedTerms: false,
       acceptedPrivacy: false,
       acceptedRefundPolicy: false,
@@ -74,7 +75,6 @@ export function RegisterForm({
   const agreementValues = useWatch({
     control: form.control,
     name: [
-      "confirmedAdult",
       "acceptedTerms",
       "acceptedPrivacy",
       "acceptedRefundPolicy",
@@ -85,8 +85,14 @@ export function RegisterForm({
     agreementValues[0] &&
     agreementValues[1] &&
     agreementValues[2] &&
-    agreementValues[3] &&
-    (role !== "teacher" || agreementValues[4]);
+    (role !== "teacher" || agreementValues[3]);
+
+  // Guardian fields appear as soon as the stated date of birth is under 18, so the
+  // requirement is visible while typing rather than arriving as a validation error on submit.
+  const dateOfBirth = useWatch({ control: form.control, name: "dateOfBirth" });
+  const registeringMinor =
+    /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth ?? "") &&
+    isMinor(new Date(`${dateOfBirth}T00:00:00.000Z`)) === true;
 
   function onSubmit(values: SignUpInput): void {
     setFormError(null);
@@ -209,13 +215,48 @@ export function RegisterForm({
 
         <input type="hidden" {...form.register("role")} />
 
+        <Field>
+          <FieldLabel htmlFor="dateOfBirth">Date of birth</FieldLabel>
+          <Input id="dateOfBirth" type="date" {...form.register("dateOfBirth")} />
+          <FieldDescription>
+            {registeringMinor
+              ? "Under 18s can learn here with a parent or guardian's permission."
+              : "We ask so we know whether a parent or guardian needs to give permission."}
+          </FieldDescription>
+          <FieldError errors={[form.formState.errors.dateOfBirth]} />
+        </Field>
+
+        {registeringMinor && role !== "teacher" ? (
+          <fieldset className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <legend className="px-1 text-sm font-semibold">Parent or guardian</legend>
+            <p className="text-sm text-muted-foreground">
+              We will email them to ask permission. You can create your account now, but you
+              cannot book a lesson until they confirm.
+            </p>
+            <Field>
+              <FieldLabel htmlFor="guardianName">Their full name</FieldLabel>
+              <Input id="guardianName" {...form.register("guardian.guardianName")} />
+              <FieldError errors={[form.formState.errors.guardian?.guardianName]} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="guardianEmail">Their email address</FieldLabel>
+              <Input id="guardianEmail" type="email" {...form.register("guardian.guardianEmail")} />
+              <FieldError errors={[form.formState.errors.guardian?.guardianEmail]} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="relationship">How are they related to you?</FieldLabel>
+              <Input
+                id="relationship"
+                placeholder="Mother, father, grandparent, legal guardian…"
+                {...form.register("guardian.relationship")}
+              />
+              <FieldError errors={[form.formState.errors.guardian?.relationship]} />
+            </Field>
+          </fieldset>
+        ) : null}
+
         <fieldset className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
           <legend className="px-1 text-sm font-semibold">Required agreements</legend>
-          <AgreementCheckbox
-            id="confirmedAdult"
-            label="I confirm that I am at least 18 years old."
-            register={form.register("confirmedAdult")}
-          />
           <AgreementCheckbox
             id="acceptedTerms"
             label={
@@ -263,7 +304,7 @@ export function RegisterForm({
               register={form.register("acceptedTeacherAgreement")}
             />
           ) : null}
-          {Object.keys(form.formState.errors).some((key) => key.startsWith("accepted") || key === "confirmedAdult") ? (
+          {Object.keys(form.formState.errors).some((key) => key.startsWith("accepted")) ? (
             <p className="text-xs text-destructive" role="alert">
               Accept every required agreement before creating your account.
             </p>

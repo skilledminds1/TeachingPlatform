@@ -56,9 +56,13 @@ export default function PrivacyPage() {
           ],
         },
         {
-          title: "7. Adults only and policy updates",
+          title: "7. Children",
           paragraphs: [
-            "Amazing Skills currently requires every account holder to be at least 18. We do not knowingly create accounts for children.",
+            "Students under 18 may use Amazing Skills with the permission of a parent or legal guardian. Teachers must be adults.",
+            "Section 35 of POPIA requires the consent of a competent person before a child's personal information is processed, and treats a child as anyone under 18. Article 8 of the GDPR sets a lower threshold, between 13 and 16 depending on the member state. We apply the stricter rule to everyone: under 18 requires guardian permission regardless of where the student lives.",
+            "We collect a date of birth at registration to decide which applies. Where the student is under 18, we email the parent or guardian they name, and the account cannot book a lesson until that person confirms on a page setting out what they are agreeing to. We record that confirmation, its date and time, the policy version in force, and a hashed form of the IP address and browser it came from — hashed so it evidences the act without becoming a second copy of the guardian's identity.",
+            "Be clear about what this establishes: that a person controlling the named mailbox gave permission. We do not check identity documents and we do not verify the relationship. We do not carry out criminal record or background checks on teachers, and lessons are not recorded or monitored by us.",
+            "A parent or guardian may withdraw permission at any time, which stops further bookings, and may exercise the access, correction and deletion rights in section 6 on the child's behalf.",
             "Material policy changes are versioned and may require renewed acknowledgement or acceptance before continued account use.",
           ],
         },

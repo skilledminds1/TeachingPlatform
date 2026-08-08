@@ -8,12 +8,14 @@ export default function TermsPage() {
   return (
     <LegalDocumentPage
       title="Terms of Service"
-      introduction="These terms govern access to Amazing Skills, a marketplace and software platform connecting adult students with independent teachers for live lessons."
+      introduction="These terms govern access to Amazing Skills, a marketplace and software platform connecting students with independent teachers for live one-to-one video lessons."
       sections={[
         {
           title: "1. Eligibility and accounts",
           paragraphs: [
-            "You must be at least 18 years old and legally capable of entering a contract. Accounts are personal, and you must provide accurate information, protect your credentials, and promptly report unauthorized access.",
+            "Teachers must be at least 18 and legally capable of entering a contract. A teacher contracts directly with their students, is paid directly by them, and is responsible for their own tax position, so the account holder must be able to be bound by that.",
+            "Students under 18 may hold an account with the permission of a parent or legal guardian. We ask for a date of birth at registration; where it is under 18, we email the parent or guardian named by the student and the account cannot book a lesson until that person confirms. Permission may be withdrawn at any time, which stops further bookings. This is confirmation by email, not identity verification — we do not check documents, and we do not verify that the person confirming is the child's guardian.",
+            "Accounts are personal, and you must provide accurate information, protect your credentials, and promptly report unauthorized access.",
             "Students and teachers must accept the current Terms, Privacy Policy, and Refund and Direct Payment Policy. Teachers must also accept the Teacher Agreement.",
           ],
         },

@@ -39,6 +39,10 @@ function isPublicRoute(pathname: string): boolean {
   if (pathname.startsWith("/teachers/")) return true;
   if (pathname.startsWith("/find-tutor/")) return true;
   if (pathname.startsWith("/auth/")) return true;
+  // A guardian is not an account holder and never will be. Sending them to a sign-in page to
+  // give permission for a child's account is a dead end — the token in the URL is the only
+  // credential this route has or needs.
+  if (pathname.startsWith("/guardian-consent/")) return true;
   if (pathname.startsWith("/api/v1/webhooks")) return true;
   if (pathname.startsWith("/api/v1/health")) return true;
   // Job routes authenticate with a constant-time CRON_SECRET check in each handler.
