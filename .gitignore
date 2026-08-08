@@ -43,3 +43,8 @@ next-env.d.ts
 prisma/*.db
 prisma/*.db-journal
 .env*
+# ...but the templates carry no secrets and are the documentation for what to set.
+# .env.example is already tracked despite this rule; .env.staging.example needs the same
+# exemption or it is silently uncommittable.
+!.env.example
+!.env.staging.example

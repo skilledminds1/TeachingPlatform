@@ -64,13 +64,18 @@ function slugify(value: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-const env = loadEnv(".env.local");
+/** `--env .env.staging` targets a different environment file; defaults to .env.local. */
+const envFlagIndex = process.argv.indexOf("--env");
+const envPath = envFlagIndex >= 0 ? process.argv[envFlagIndex + 1] : ".env.local";
+
+const env = loadEnv(envPath);
 const databaseUrl = env.DATABASE_URL ?? "";
 const host = databaseUrl.match(/@([^:/?]+)/)?.[1] ?? "unknown";
 const apply = process.argv.includes("--yes");
 const overrideProduction = process.argv.includes("--i-know-this-is-production");
 
 async function main(): Promise<void> {
+  console.log(`Environment file:     ${envPath}`);
   console.log(`Target database host: ${host}`);
 
   if (PROTECTED_HOSTS.includes(host) && !overrideProduction) {
