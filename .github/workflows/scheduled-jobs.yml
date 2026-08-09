@@ -1,34 +1,30 @@
-# Scheduled jobs (QLT-04).
+# MANUAL job runner. THE SCHEDULER IS pg_cron — see
+# prisma/migrations/20260809120000_scheduled_jobs_on_pg_cron and scripts/setup-pg-cron.ts.
 #
-# These used to live in vercel.json. Vercel's Hobby tier refuses any cron that runs more than
-# once per day and rejects the DEPLOYMENT outright, not just the cron — so from the day the
-# crons block was added, nothing could be deployed at all. GitHub Actions runs a 5-minute
-# schedule on the free tier, and the job routes were already built to be driven from outside:
-# they authenticate with a bearer CRON_SECRET and record their own check-ins.
+# This held the schedule until 9 August 2026. The jobs lived in vercel.json before that, until
+# Vercel's Hobby tier refused any cron more frequent than daily and rejected the whole
+# DEPLOYMENT over it. Actions was the answer, and it was the wrong one for a different reason:
+# GitHub delivers scheduled workflows on a best-effort basis and drops them under load. The
+# measured gaps between consecutive runs of the */5 schedule were 44, 16 and then 51+ minutes,
+# against staleness thresholds allowing fifteen minutes of jitter. A five-minute email queue
+# drained every fifty-one minutes is not a five-minute email queue, and readiness sat red
+# saying exactly that.
 #
-# TWO WAYS THIS SILENTLY STOPS, both of which the JobRun check-in catches:
+# pg_cron fires from inside the database that is already the system of record, with no runner
+# queue to wait behind.
 #
-#   GitHub disables scheduled workflows in a repository with no activity for 60 days. Nothing
-#   is deleted and nothing warns; the runs simply stop.
+# The `schedule:` triggers are GONE rather than commented out. Two schedulers aimed at the same
+# routes would double every tick, and a commented-out block is how the unreliable one gets
+# switched back on by accident. A test asserts their absence.
 #
-#   Scheduled runs are best-effort and are delayed under load, especially on the hour. That is
-#   why the staleness thresholds in src/server/jobs/registry.ts carry an explicit jitter
-#   allowance rather than assuming punctual delivery.
-#
-# In both cases /api/v1/health/ready turns 503 and names the job and its consequence.
+# What remains is worth keeping: running one job, or all of them, by hand.
 #
 # REQUIRED CONFIGURATION (repository Settings):
 #   Secrets  → CRON_SECRET          the same value as the deployment's CRON_SECRET
-#   Variables → PRODUCTION_APP_URL   e.g. https://amazing-skills.vercel.app (no trailing slash)
+#   Variables → PRODUCTION_APP_URL   e.g. https://www.amazing-skills.com (no trailing slash)
 name: Scheduled jobs
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
-    - cron: "*/10 * * * *"
-    - cron: "*/15 * * * *"
-    - cron: "30 5 * * *"
-    - cron: "15 2 * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -43,14 +39,14 @@ permissions:
 # One queued run at most. The routes claim their own work, so an overlap is safe rather than
 # harmful, but stacking runs behind a slow one only delays the recovery.
 concurrency:
-  group: scheduled-jobs-${{ github.event.schedule || inputs.job }}
+  group: scheduled-jobs-${{ inputs.job }}
   cancel-in-progress: false
 
 env:
-  # Which endpoint runs on which schedule. Kept in step with src/server/jobs/registry.ts and
-  # with the `on.schedule` list above by a test — a job added here without its trigger, or a
-  # schedule changed in one place only, would otherwise never fire while still looking wired up.
-  JOB_SCHEDULES: '{"session-reminders":"*/15 * * * *","expire-booking-requests":"*/10 * * * *","finalize-sessions":"*/15 * * * *","refresh-fx-rates":"30 5 * * *","subscription-lifecycle":"15 2 * * *","process-email-outbox":"*/5 * * * *"}'
+  # The dispatchable jobs. Schedules are NOT here any more — pg_cron holds those, derived from
+  # src/server/jobs/registry.ts by scripts/setup-pg-cron.ts. A test asserts this list still
+  # matches the registry, so a job added there stays runnable by hand.
+  JOB_NAMES: '["session-reminders","expire-booking-requests","finalize-sessions","refresh-fx-rates","subscription-lifecycle","process-email-outbox"]'
 
 jobs:
   invoke:
@@ -74,7 +70,6 @@ jobs:
         env:
           APP_URL: ${{ vars.PRODUCTION_APP_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          SCHEDULE: ${{ github.event.schedule }}
           REQUESTED: ${{ inputs.job }}
         run: |
           # Deliberately no `set -e`: every job is attempted even after one fails, and the
@@ -84,15 +79,12 @@ jobs:
 
           if [ -n "${REQUESTED:-}" ] && [ "$REQUESTED" != "all" ]; then
             jobs="$REQUESTED"
-          elif [ -n "${SCHEDULE:-}" ]; then
-            jobs=$(printf '%s' "$JOB_SCHEDULES" | jq -r --arg s "$SCHEDULE" \
-              'to_entries[] | select(.value == $s) | .key')
           else
-            jobs=$(printf '%s' "$JOB_SCHEDULES" | jq -r 'keys[]')
+            jobs=$(printf '%s' "$JOB_NAMES" | jq -r '.[]')
           fi
 
           if [ -z "$jobs" ]; then
-            echo "::error::Schedule '${SCHEDULE:-}' matches no job in JOB_SCHEDULES"
+            echo "::error::No job to run — '${REQUESTED:-}' matches nothing in JOB_NAMES"
             exit 1
           fi
 

@@ -17,9 +17,9 @@
     "db:push": "dotenv -e .env.local -- prisma db push",
     "db:seed": "dotenv -e .env.local -- prisma db seed",
     "db:studio": "dotenv -e .env.local -- prisma studio",
-    "test:payments": "tsx scripts/test-payments.ts",
     "storage:remove-course-buckets": "tsx scripts/remove-course-buckets.ts",
-    "seed:walkthrough": "tsx scripts/seed-walkthrough.ts"
+    "seed:walkthrough": "tsx scripts/seed-walkthrough.ts",
+    "cron:setup": "dotenv -e .env.local -- tsx scripts/setup-pg-cron.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

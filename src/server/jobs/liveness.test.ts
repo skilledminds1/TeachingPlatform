@@ -30,50 +30,53 @@ describe("the registry matches what the scheduler is actually told to run", () =
   const WORKFLOW_PATH = ".github/workflows/scheduled-jobs.yml";
   const WORKFLOW = readFileSync(WORKFLOW_PATH, "utf8");
 
-  /** The job → schedule map the workflow dispatches from. */
-  function workflowJobSchedules(): Map<string, string> {
-    const match = WORKFLOW.match(/JOB_SCHEDULES:\s*'(\{.*\})'/);
-    if (!match) throw new Error(`No JOB_SCHEDULES mapping in ${WORKFLOW_PATH}`);
-    return new Map(Object.entries(JSON.parse(match[1]) as Record<string, string>));
-  }
+  const MIGRATION = readFileSync(
+    "prisma/migrations/20260809120000_scheduled_jobs_on_pg_cron/migration.sql",
+    "utf8",
+  );
 
-  /** The cron expressions the workflow actually wakes up on. */
-  function workflowTriggers(): string[] {
-    const block = WORKFLOW.split("workflow_dispatch")[0];
-    return [...block.matchAll(/^\s*-\s*cron:\s*"([^"]+)"/gm)].map((m) => m[1]);
+  /** The jobs the workflow can still be asked to run by hand. */
+  function workflowJobNames(): string[] {
+    const match = WORKFLOW.match(/JOB_NAMES:\s*'(\[.*\])'/);
+    if (!match) throw new Error(`No JOB_NAMES list in ${WORKFLOW_PATH}`);
+    return JSON.parse(match[1]) as string[];
   }
 
   /**
-   * The reasoning lives in the registry because YAML carries the trigger and not the why.
-   * A schedule changed in one place and not the other is how monitoring silently starts
-   * watching for the wrong interval — and still reports green.
+   * pg_cron holds the schedules now, and scripts/setup-pg-cron.ts reads them straight from
+   * CRON_JOBS — so those two cannot drift. What CAN drift is the allowlist inside
+   * scheduler.invoke_scheduled_job, which is written out longhand in SQL because a job name is
+   * concatenated into a URL and an unchecked one is a path traversal carrying the CRON_SECRET.
+   *
+   * A job added to the registry and not to that list is scheduled successfully and then raises
+   * on every single tick.
    */
-  it("declares the same schedule as the workflow, for every job", () => {
-    const scheduled = workflowJobSchedules();
-
-    expect([...scheduled.keys()].sort()).toEqual([...CRON_JOB_NAMES].sort());
+  it("can invoke every registered job through the pg_cron function", () => {
     for (const job of CRON_JOB_NAMES) {
-      expect(scheduled.get(job), `${job} schedule`).toBe(CRON_JOBS[job].schedule);
+      expect(MIGRATION, `${job} missing from the invoke_scheduled_job allowlist`).toContain(
+        `'${job}'`,
+      );
     }
   });
 
   /**
-   * The mapping decides what runs; the `on.schedule` list decides whether anything runs at
-   * all. A job added to the mapping without its trigger is wired up everywhere a reader would
-   * look and still never fires.
+   * The workflow is a manual runner now. It still has to know every job, or the one it has
+   * never heard of is the one nobody can run by hand on the night it matters.
    */
-  it("wakes up on every distinct schedule it dispatches", () => {
-    const triggers = workflowTriggers();
-    const needed = [...new Set(CRON_JOB_NAMES.map((job) => CRON_JOBS[job].schedule))];
+  it("can still dispatch every job by hand", () => {
+    expect([...workflowJobNames()].sort()).toEqual([...CRON_JOB_NAMES].sort());
+  });
 
-    expect(triggers.length).toBeGreaterThan(0);
-    for (const schedule of needed) {
-      expect(triggers, `no trigger for "${schedule}"`).toContain(schedule);
-    }
-    // And nothing fires that dispatches nothing, which would fail the run every time.
-    for (const trigger of triggers) {
-      expect(needed, `trigger "${trigger}" matches no job`).toContain(trigger);
-    }
+  /**
+   * GitHub delivered the five-minute schedule at gaps of 44, 16 and 51+ minutes, which is why
+   * it moved to pg_cron. Restoring a `schedule:` trigger here would not replace pg_cron,
+   * it would run ALONGSIDE it and double every tick — so absence is the invariant, not a
+   * preference.
+   */
+  it("declares no schedule of its own, so there is exactly one scheduler", () => {
+    const triggerBlock = WORKFLOW.split("jobs:")[0];
+    expect(triggerBlock).not.toMatch(/^\s*schedule:/m);
+    expect(triggerBlock).not.toMatch(/^\s*-\s*cron:/m);
   });
 
   /**

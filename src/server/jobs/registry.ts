@@ -8,17 +8,22 @@
  * wrong interval and still reports green.
  *
  * ┌──────────────────────────────────────────────────────────────────────────────────────┐
- * │ THESE ARE DRIVEN BY GITHUB ACTIONS, NOT BY VERCEL.                                    │
+ * │ THESE ARE DRIVEN BY pg_cron, INSIDE SUPABASE. NOT BY VERCEL, AND NOT BY GITHUB.       │
  * │                                                                                      │
- * │ .github/workflows/scheduled-jobs.yml. They lived in vercel.json until Vercel's Hobby  │
- * │ tier refused them: it allows no cron more frequent than daily, and it rejects the     │
- * │ whole DEPLOYMENT rather than just the cron — so for two weeks nothing could ship at   │
- * │ all. Actions runs a 5-minute schedule free, and these routes were already built to be │
- * │ driven externally: bearer CRON_SECRET in, check-in recorded on the way out.           │
+ * │ Registered by scripts/setup-pg-cron.ts, which reads the schedules below, and calling  │
+ * │ scheduler.invoke_scheduled_job from the migration of the same name.                   │
  * │                                                                                      │
- * │ Moving the scheduler does not make it reliable. Actions disables scheduled workflows  │
- * │ in a repository idle for 60 days, and delays runs under load. Both look exactly like  │
- * │ a job that stopped, which is what the check-in exists to catch.                       │
+ * │ They lived in vercel.json first, until the Hobby tier refused any cron more frequent  │
+ * │ than daily and rejected the whole DEPLOYMENT over it — so for two weeks nothing could │
+ * │ ship at all. Then GitHub Actions, which was free and ran every five minutes on paper. │
+ * │ In practice it delivers scheduled workflows best-effort and drops them under load: on │
+ * │ 9 August 2026 consecutive runs of the five-minute job came 44, 16 and then 51+        │
+ * │ minutes apart. pg_cron fired its first tick 0.22 seconds after the mark.              │
+ * │                                                                                      │
+ * │ What did NOT change is how the routes are driven: bearer CRON_SECRET in, check-in     │
+ * │ recorded on the way out. That is why swapping the scheduler cost nothing but the      │
+ * │ schedule itself — and why the check-in still has to exist, because a scheduler that   │
+ * │ stops is silent whichever one it is.                                                  │
  * └──────────────────────────────────────────────────────────────────────────────────────┘
  */
 export type CronJobName =
@@ -75,12 +80,17 @@ export const CRON_JOBS: Record<CronJobName, CronJobDefinition> = {
 export const CRON_JOB_NAMES = Object.keys(CRON_JOBS) as CronJobName[];
 
 /**
- * How late an external scheduler is allowed to be before lateness means something.
+ * How late the scheduler is allowed to be before lateness means something.
  *
- * GitHub Actions delivers scheduled runs on a best-effort basis and delays them under load,
- * most visibly on the hour. Without this allowance the 5-minute job would be called stale
- * after 11 minutes and flap on ordinary queueing — and an alert that cries wolf is worse than
- * no alert, because it teaches whoever is on call to ignore the one that matters.
+ * Sized for GitHub Actions, which delivered runs whenever it got round to them. pg_cron is
+ * punctual to a fraction of a second, so this is now more generous than it needs to be and
+ * detection is correspondingly slower than it could be.
+ *
+ * Deliberately not tightened in the same change that moved the scheduler. The check-in depends
+ * on an HTTP call completing, not merely on the tick firing, and there is no production data
+ * yet on how long that tail runs. Tightening on a guess risks an alert that cries wolf, which
+ * is worse than a slow one because it teaches whoever is on call to ignore the alert that
+ * matters. Revisit with a week of cron.job_run_details to hand.
  */
 const SCHEDULER_JITTER_MINUTES = 15;
 
