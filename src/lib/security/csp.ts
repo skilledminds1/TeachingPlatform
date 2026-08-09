@@ -53,10 +53,13 @@ export function buildContentSecurityPolicy(input: {
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://*.supabase.co",
     "media-src 'self' blob: https://*.supabase.co https://*.livekit.cloud",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://*.ingest.sentry.io",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://*.ingest.sentry.io https://*.paddle.com",
+    // Paddle.js renders its checkout in an iframe from these hosts. Without frame-src the
+    // overlay opens to a blank box and the browser reports only a CSP violation, which reads
+    // like the checkout is broken rather than blocked.
     // Video embed hosts must match VIDEO_EMBED_HOSTS in src/lib/security/urls.ts — a test
     // asserts the two stay in sync. Without these, every lesson video iframe is blocked.
-    "frame-src 'self' https://accounts.google.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.loom.com",
+    "frame-src 'self' https://accounts.google.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.loom.com https://*.paddle.com",
     "form-action 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
     "frame-ancestors 'none'",
     "base-uri 'self'",
