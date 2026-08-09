@@ -58,9 +58,7 @@ RESEND_API_KEY=
 CRON_SECRET=
 HEALTH_SECRET=
 
-# Distributed rate limiting - REQUIRED IN PRODUCTION (see Rate limiting below)
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
+# Rate limiting uses the application's own Postgres. No separate store, no extra variables.
 
 # Optional monitoring
 SENTRY_DSN=
@@ -128,7 +126,7 @@ migration jobs.
 ## Scheduled jobs
 
 `.github/workflows/scheduled-jobs.yml` invokes the email outbox every 5 minutes,
-pending-payment expiry every 10, session reminders and lesson finalization every 15, and the
+booking-request expiry and the rate-limit sweep every 10, session reminders and lesson finalization every 15, and the
 FX refresh and the idempotent subscription lifecycle job daily at 05:30 and 02:15 UTC. The
 lifecycle job applies scheduled plan/cancellation changes, complimentary expiry, grace expiry
 and day 0/3/6 dunning notices. The workflow sends `Authorization: Bearer $CRON_SECRET`; job
@@ -157,22 +155,35 @@ and it delays scheduled runs under load. The staleness thresholds in
 
 ## Rate limiting
 
-Upstash Redis is **required in production**. Limits must be shared across instances:
-each serverless instance holds its own in-memory counter and cold starts reset it, so the
-fallback limiter provides effectively no protection against a distributed — or merely
-parallel — attacker.
+Counters live in the application's **own Postgres**, in the `rate_limits` table. There is no
+separate store to provision and no extra environment variables.
 
-Credential-guarding actions (sign-in, sign-up, password reset, password change, password
-recovery) are marked `critical` and **fail closed** when no shared store is configured and
-`NODE_ENV=production`: they return a temporary-unavailable error rather than silently
-accepting unlimited attempts. Non-critical actions still fall back to the in-memory limiter.
+This used Upstash Redis. Redis is genuinely better at the workload — rate limiting is
+write-heavy on the auth path — but a separate store added a failure mode rather than removing
+one. Credential-guarding actions (sign-in, sign-up, password reset, password change, password
+recovery) are marked `critical` and **fail closed** when no shared store is reachable, so an
+Upstash outage meant nobody could sign in or register while every other page returned 200 and
+monitoring stayed green. Sharing the database the application already cannot run without makes
+"the store is down" and "the app is down" the same condition.
+
+Counting is a single `INSERT ... ON CONFLICT DO UPDATE`, which takes a row lock: two
+simultaneous requests cannot both read the old count and both write count+1. A read-then-write
+would lose that race, and losing it means under-counting under concurrency — failing at the
+only moment the limiter exists for. Windows are evaluated with the **database** clock, because
+serverless instances drift and a window boundary that depends on which machine answered is not
+a window.
+
+Expired rows are swept by the `expire-booking-requests` job every 10 minutes. Redis expired
+keys itself; Postgres does not. Nothing depends on the sweep running promptly — an expired row
+is already inert, since every read compares `reset_at` against `now()`.
 
 Rate-limit buckets key on the client IP taken from the **rightmost** forwarded hop (or a
-platform-set header such as `x-vercel-forwarded-for`), never the client-supplied leftmost
-hop. Auth actions additionally bucket on the submitted email, so a distributed attacker
-cannot spread attempts across many IPs to hammer one account.
+platform-set header such as `x-vercel-forwarded-for`), never the client-supplied leftmost hop.
+Auth actions additionally bucket on the submitted email, so a distributed attacker cannot
+spread attempts across many IPs to hammer one account.
 
-The process-local limiter is intended for local development and single-instance testing only.
+The process-local memory limiter remains as the degraded fallback for local development and
+for a database blip, and `critical` callers refuse to proceed on a degraded result.
 
 ## Performance Targets
 

@@ -28,9 +28,10 @@ export async function GET(request: Request) {
   const dependencies = {
     database: false,
     supabase: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-    redis: Boolean(
-      process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN,
-    ),
+    // Rate limiting shares the application database, so there is no separate store to probe.
+    // Reported as its own line because "can we rate limit" is a question worth answering
+    // directly, even when the answer is now the same as "is the database up".
+    rateLimitStore: Boolean(process.env.DATABASE_URL),
     sentry: Boolean(process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN),
     // isCronAuthorized fails closed without this. Correct security, and a total outage of
     // everything scheduled — with no error anywhere to say so.

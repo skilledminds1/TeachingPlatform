@@ -852,6 +852,31 @@ enum LanguageProficiency {
 ///
 /// One row per job, updated in place. A full history would help debugging but grows without
 /// bound and needs pruning; staleness only ever needs the most recent run.
+/// Rate-limit counters, shared across serverless instances.
+///
+/// This lived in Upstash Redis. Moved to Postgres because it removes a failure mode rather
+/// than adding one: with a separate store, an Upstash outage made `enforceActionRateLimit`
+/// fail closed on credential actions — signup, signin and password reset all returning
+/// "temporarily unavailable" while the rest of the site served 200s and monitoring stayed
+/// green. Sharing the database the app already cannot run without collapses "store is down"
+/// and "app is down" into one condition.
+///
+/// The trade accepted: rate limiting is write-heavy on the auth path, and it matters most
+/// under attack — exactly when those writes compete for the same connection pool that serves
+/// the site. At current volume that is theoretical. If it stops being theoretical, this is
+/// 40 lines behind one function and moving it back is a contained change.
+model RateLimit {
+  /// Caller-built: action, then the user id or the hashed client identity.
+  key       String   @id
+  count     Int      @default(0)
+  /// When the current window ends. The row is reused, not deleted, until a sweep removes it.
+  resetAt   DateTime @map("reset_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([resetAt])
+  @@map("rate_limits")
+}
+
 model JobRun {
   id         String    @id @default(uuid()) @db.Uuid
   /// Matches the key in CRON_JOBS — see src/server/jobs/registry.ts.
