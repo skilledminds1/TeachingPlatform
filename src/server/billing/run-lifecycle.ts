@@ -81,14 +81,24 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
         // sent one — an unhandled failure mode, a lost delivery during a deploy, a 5xx,
         // exhausted retries — the organization matched nothing here and kept paid
         // entitlements indefinitely while never being charged again.
+        //
+        // PAY-01: deliberately NOT filtered on payfastToken. Annual is bought as a once-off
+        // so that PayFast will offer Instant EFT and the wallets, which means there is no
+        // token to find — and while this clause required one, every annual organization sailed
+        // past its period end still marked active and kept a paid plan for nothing, for ever.
+        // Complimentary grants and free plans are excluded because their lapse is somebody
+        // else's branch above. Keyed on complimentaryPlanId, not complimentaryExpiresAt: the
+        // expiry is nullable, so a grant made permanent has no expiry at all and filtering on
+        // that would have swept exactly the organizations meant to be exempt.
         {
           subscriptionStatus: "active",
-          payfastToken: { not: null },
+          complimentaryPlanId: null,
+          plan: { slug: { not: "free" } },
           currentPeriodEnd: { lt: new Date(now.getTime() - MISSED_RENEWAL_GRACE_DAYS * 86_400_000) },
         },
       ],
     },
-    include: { pendingPlan: true },
+    include: { pendingPlan: true, plan: { select: { slug: true } } },
   });
   const summary: LifecycleSummary = {
     scanned: organizations.length,
@@ -304,7 +314,8 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
       // grace flow so billing state converges even when notifications go astray.
       if (
         organization.subscriptionStatus === "active" &&
-        organization.payfastToken &&
+        organization.plan.slug !== "free" &&
+        !organization.complimentaryPlanId &&
         organization.currentPeriodEnd &&
         organization.currentPeriodEnd.getTime() <
           now.getTime() - MISSED_RENEWAL_GRACE_DAYS * 86_400_000 &&
@@ -319,11 +330,18 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
           data: startPaymentGrace(now),
         });
         summary.missedRenewals += 1;
+        // Two different people get this. One has a card on file that failed; the other paid
+        // annually by EFT and was never going to be charged again. Telling the second to
+        // "check your payment method" describes a card they never had.
         await notifyAdmins(
           organization.id,
           "billing.renewal_missing",
-          "We could not confirm your subscription renewal",
-          "Your billing period ended but we have not received confirmation of a renewal payment. Please check your payment method — paid access continues during the grace period.",
+          organization.payfastToken
+            ? "We could not confirm your subscription renewal"
+            : "Your annual plan has ended — renew to keep your access",
+          organization.payfastToken
+            ? "Your billing period ended but we have not received confirmation of a renewal payment. Please check your payment method — paid access continues during the grace period."
+            : "Your annual plan does not renew automatically, and its term has now ended. Pay for another year from your billing page to keep your listing and bookings — paid access continues during the grace period.",
         );
         continue;
       }

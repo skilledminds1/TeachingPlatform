@@ -4,12 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * The two subscription-change paths: the in-place repricing of an existing mandate, and the
  * downgrade that is scheduled for period end.
  *
- * Scope note (QLT-02): only the *lifecycle invariants* of these actions are covered — which
- * fields a change that moves no money is allowed to touch, that local state never runs ahead
- * of the provider, and which allowances have to fit before a downgrade may be scheduled. The
- * checkout form built when there is no existing mandate (signed field construction, the SAST
- * billing_date, the ZAR conversion) is PayFast wire format and is deliberately not tested
- * here: it dies with the rail in PAY-05.
+ * Scope note (QLT-02): mostly the *lifecycle invariants* of these actions — which fields a
+ * change that moves no money may touch, that local state never runs ahead of the provider,
+ * and which allowances have to fit before a downgrade may be scheduled. Signed field
+ * construction, the SAST billing_date and the ZAR conversion remain out of scope as PayFast
+ * wire format.
+ *
+ * The one wire detail that IS pinned here is whether the checkout is recurring, because it is
+ * not a formatting question: `subscription_type` silently decides which payment methods the
+ * payer is offered, and getting it wrong shows a card form to someone who came to pay by EFT.
  */
 
 type AnyRecord = Record<string, unknown>;
@@ -163,6 +166,56 @@ describe("changing plan on an existing mandate", () => {
 });
 
 const PERIOD_END = new Date("2026-08-31T00:00:00.000Z");
+
+/**
+ * PAY-01. PayFast tokenises a card to bill recurring, so a subscription checkout offers card
+ * and nothing else — no Instant EFT, no SnapScan, Zapper, Capitec Pay, Mobicred, MoreTyme or
+ * Apple/Samsung Pay, none of which can be tokenised. Annual is therefore sold as a once-off so
+ * the payer gets the full method list, and monthly stays recurring so it renews itself.
+ */
+describe("which checkout is recurring decides how the teacher may pay", () => {
+  beforeEach(() => {
+    // A fresh checkout is only built when there is no mandate to reprice.
+    state.organization = {
+      payfastToken: null,
+      complimentaryPlanId: null,
+      plan: { slug: "free", monthlyPriceCents: 0 },
+      _count: { studentRelationships: 0 },
+      subscriptionStatus: "active",
+      graceStartedAt: null,
+      graceEndsAt: null,
+      dunningStage: 0,
+    };
+  });
+
+  const checkoutFields = async (interval: "monthly" | "annual") => {
+    const result = await createSubscriptionCheckout({ planSlug: "business", interval });
+    if (!result.success) throw new Error(`checkout failed: ${JSON.stringify(result)}`);
+    if (result.data.mode !== "redirect") throw new Error(`expected a redirect, got ${result.data.mode}`);
+    return result.data.fields;
+  };
+
+  it("sends annual as a once-off, so every PayFast method is offered", async () => {
+    const fields = await checkoutFields("annual");
+
+    expect(fields.subscription_type).toBeUndefined();
+    expect(fields.recurring_amount).toBeUndefined();
+    expect(fields.frequency).toBeUndefined();
+    expect(fields.cycles).toBeUndefined();
+    // Still a real payment, and still attributed to the right organization and plan.
+    expect(fields.amount).toBeDefined();
+    expect(fields.custom_str3).toBe("annual");
+  });
+
+  it("keeps monthly recurring, or nothing would ever renew it", async () => {
+    const fields = await checkoutFields("monthly");
+
+    expect(fields.subscription_type).toBe("1");
+    expect(fields.frequency).toBe("3");
+    expect(fields.cycles).toBe("0");
+    expect(fields.custom_str3).toBe("monthly");
+  });
+});
 
 describe("scheduling a downgrade for period end", () => {
   // A downgrade only becomes safe once the account already fits inside the cheaper plan.

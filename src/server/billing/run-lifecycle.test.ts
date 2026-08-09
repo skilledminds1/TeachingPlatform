@@ -112,6 +112,9 @@ function organization(overrides: AnyRecord = {}): AnyRecord {
     id: "org-1",
     deletedAt: null,
     planId: "plan-starter",
+    // The lifecycle query includes the plan so it can tell a lapsed PAID period from a free
+    // organization that never had one.
+    plan: { slug: "starter" },
     billingInterval: "monthly",
     subscriptionStatus: "active",
     payfastToken: "tok-1",
@@ -491,6 +494,68 @@ describe("dunning advancement", () => {
   });
 });
 
+describe("annual is paid once, so nothing renews it", () => {
+  /**
+   * PAY-01. Annual is bought as a PayFast once-off, because a recurring subscription there
+   * tokenises a card and so hides Instant EFT and every wallet method. No subscription means
+   * no token — and while the watchdog required one, an annual organization sailed past its
+   * period end still marked active and kept a paid plan for nothing, indefinitely.
+   */
+  it("lapses an annual organization that has no token to renew", async () => {
+    state.organizations = [
+      organization({
+        subscriptionStatus: "active",
+        billingInterval: "annual",
+        payfastToken: null,
+        currentPeriodEnd: daysAgo(3),
+      }),
+    ];
+
+    const summary = await runSubscriptionLifecycle(NOW);
+
+    expect(summary.missedRenewals).toBe(1);
+    expect(summary.failures).toBe(0);
+  });
+
+  /**
+   * A teacher who paid by EFT has no card to check, so the card wording describes something
+   * they never had and tells them to fix the wrong thing.
+   */
+  it("tells a manual payer to renew rather than to check a card they never had", async () => {
+    state.organizations = [
+      organization({
+        subscriptionStatus: "active",
+        billingInterval: "annual",
+        payfastToken: null,
+        currentPeriodEnd: daysAgo(3),
+      }),
+    ];
+
+    await runSubscriptionLifecycle(NOW);
+
+    const notice = state.notifications[0] as AnyRecord;
+    expect(String(notice.title)).toContain("annual plan has ended");
+    expect(String(notice.body)).not.toContain("payment method");
+  });
+
+  /** A free organization has no period to lapse, and must not be dragged into grace. */
+  it("leaves a free organization alone", async () => {
+    state.organizations = [
+      organization({
+        subscriptionStatus: "active",
+        plan: { slug: "free" },
+        payfastToken: null,
+        currentPeriodEnd: daysAgo(30),
+      }),
+    ];
+
+    const summary = await runSubscriptionLifecycle(NOW);
+
+    expect(summary.missedRenewals).toBe(0);
+    expect(state.notifications).toHaveLength(0);
+  });
+});
+
 describe("missed renewal watchdog", () => {
   // MON-17. Grace only ever started from a FAILED notification, so a lost delivery or an
   // unreported failure mode left the organization on paid entitlements indefinitely while
@@ -545,15 +610,43 @@ describe("missed renewal watchdog", () => {
     expect(state.orgUpdates).toHaveLength(0);
   });
 
-  it("ignores an organization with no provider mandate", async () => {
+  /**
+   * This used to assert that a missing token meant "no mandate, leave it alone". PAY-01 made
+   * that wrong: annual is a once-off, so a paying customer legitimately has no token, and
+   * exempting them handed out a paid plan for nothing. What still needs exempting is an
+   * organization nobody expects to pay — free and complimentary — and those are guarded by
+   * plan slug and complimentaryPlanId instead.
+   */
+  it("no longer exempts a paid organization merely for having no token", async () => {
     state.organizations = [
       organization({ subscriptionStatus: "active", currentPeriodEnd: daysAgo(9), payfastToken: null }),
     ];
 
     const summary = await runSubscriptionLifecycle(NOW);
 
+    expect(summary.missedRenewals).toBe(1);
+  });
+
+  /**
+   * complimentaryExpiresAt is nullable, so a grant made permanent has no expiry — and a guard
+   * written against the expiry rather than the grant would sweep up precisely the
+   * organizations that are supposed to be exempt.
+   */
+  it("leaves a permanently complimentary organization alone", async () => {
+    state.organizations = [
+      organization({
+        subscriptionStatus: "active",
+        payfastToken: null,
+        complimentaryPlanId: "plan-business",
+        complimentaryExpiresAt: null,
+        currentPeriodEnd: daysAgo(30),
+      }),
+    ];
+
+    const summary = await runSubscriptionLifecycle(NOW);
+
     expect(summary.missedRenewals).toBe(0);
-    expect(state.orgUpdates).toHaveLength(0);
+    expect(state.notifications).toHaveLength(0);
   });
 });
 

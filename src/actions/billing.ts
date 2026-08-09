@@ -236,18 +236,32 @@ export async function createSubscriptionCheckout(
   // The exact minor units quoted, so the ITN amount check is an equality test
   // rather than a tolerance around a reconstructed conversion.
   fields.set("custom_str4", String(chargeCents));
-  fields.set("subscription_type", "1");
-  // MON-23: PayFast operates on South African time (UTC+2) and rejects a billing_date in
-  // the past. Deriving it from server UTC meant that between 22:00 and 23:59 UTC the
-  // submitted date was already yesterday to PayFast and checkout failed — roughly 8% of
-  // every day, and precisely the evening hours across the Americas.
-  fields.set(
-    "billing_date",
-    DateTime.now().setZone(PAYFAST_TIMEZONE).toFormat("yyyy-MM-dd"),
-  );
-  fields.set("recurring_amount", recurringAmount);
-  fields.set("frequency", parsed.data.interval === "annual" ? "6" : "3");
-  fields.set("cycles", "0");
+  // PAY-01: monthly recurs, annual does not — and that asymmetry is the whole point.
+  //
+  // PayFast tokenises a CARD to bill recurring, so `subscription_type=1` silently reduces the
+  // checkout to card only: Instant EFT, SnapScan, Zapper, Capitec Pay, Mobicred, MoreTyme and
+  // Apple/Samsung Pay are all one-off instruments and cannot be tokenised. A teacher without a
+  // credit card therefore could not subscribe at all, which on a South African marketplace is
+  // not an edge case.
+  //
+  // Sending annual as a plain once-off payment hands the payer PayFast's full method list. The
+  // cost is that nothing renews it automatically, so the lifecycle job has to notice a lapsed
+  // period with no token behind it — see MISSED_RENEWAL handling in run-lifecycle.ts, which
+  // would otherwise skip these organizations entirely and leave paid access running for free.
+  if (parsed.data.interval === "monthly") {
+    fields.set("subscription_type", "1");
+    // MON-23: PayFast operates on South African time (UTC+2) and rejects a billing_date in
+    // the past. Deriving it from server UTC meant that between 22:00 and 23:59 UTC the
+    // submitted date was already yesterday to PayFast and checkout failed — roughly 8% of
+    // every day, and precisely the evening hours across the Americas.
+    fields.set(
+      "billing_date",
+      DateTime.now().setZone(PAYFAST_TIMEZONE).toFormat("yyyy-MM-dd"),
+    );
+    fields.set("recurring_amount", recurringAmount);
+    fields.set("frequency", "3");
+    fields.set("cycles", "0");
+  }
   fields.set("signature", createPayfastSignature(fields.entries(), env.PAYFAST_PASSPHRASE));
 
   return ok({
