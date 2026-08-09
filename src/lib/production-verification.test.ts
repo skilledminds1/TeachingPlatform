@@ -7,21 +7,7 @@ import {
   checkRateLimit,
   resetMemoryRateLimits,
 } from "@/lib/security/rate-limit";
-import { createPayfastSignature } from "@/services/payfast/signature";
 import { accountRestrictionReason } from "@/server/trust/enforcement";
-
-describe("PayFast signatures", () => {
-  it("encodes fields in insertion order and excludes an existing signature", () => {
-    const fields = new Map([
-      ["merchant_id", "10000100"],
-      ["item_name", "Test Item"],
-      ["signature", "ignored"],
-    ]);
-    expect(createPayfastSignature(fields, "secret")).toBe(
-      "e5c585af062840165f9888f25d1bd7a7",
-    );
-  });
-});
 
 describe("legal document role selection", () => {
   it("requires the teacher agreement only for teachers", () => {

@@ -30,7 +30,7 @@ export default function TermsPage() {
           title: "3. Payments and subscriptions",
           paragraphs: [
             "Students pay teachers directly through the teacher’s connected payment method. Amazing Skills does not receive, hold, settle, or pay out lesson funds and charges no commission on those transactions.",
-            "Teacher platform subscriptions are separate payments made to Amazing Skills through PayFast. Subscription prices, billing intervals, renewals, cancellation timing, and plan limits are shown before checkout.",
+            "Teacher platform subscriptions are sold by Paddle.com Market Ltd, which acts as the merchant of record and is the seller and party to that transaction. Paddle handles payment, invoicing, and any applicable sales tax or VAT, and their terms apply to the purchase itself. Prices are shown in US dollars and converted to your local currency at checkout. Subscription prices, billing intervals, renewals, cancellation timing, and plan limits are shown before you pay.",
           ],
         },
         {

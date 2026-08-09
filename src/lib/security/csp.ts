@@ -60,7 +60,7 @@ export function buildContentSecurityPolicy(input: {
     // Video embed hosts must match VIDEO_EMBED_HOSTS in src/lib/security/urls.ts — a test
     // asserts the two stay in sync. Without these, every lesson video iframe is blocked.
     "frame-src 'self' https://accounts.google.com https://www.youtube-nocookie.com https://player.vimeo.com https://www.loom.com https://*.paddle.com",
-    "form-action 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
+    "form-action 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "object-src 'none'",

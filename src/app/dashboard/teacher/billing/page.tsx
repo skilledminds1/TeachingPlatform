@@ -32,7 +32,7 @@ export default async function TeacherBillingPage({
 
         {query.checkout === "return" ? (
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
-            Your payment is being confirmed. The plan activates automatically after PayFast sends
+            Your payment is being confirmed. The plan activates automatically after Paddle sends
             its verified notification.
           </div>
         ) : null}
@@ -82,7 +82,7 @@ export default async function TeacherBillingPage({
           plans={data.plans}
           currentPlan={data.organization.plan.slug}
           currentInterval={data.organization.billingInterval}
-          payfastConfigured={data.payfastConfigured}
+          checkoutConfigured={data.checkoutConfigured}
           autoCheckoutPlan={autoCheckoutPlan}
           autoCheckoutInterval={autoCheckoutInterval}
           pendingPlan={data.organization.pendingPlan}
@@ -98,7 +98,7 @@ export default async function TeacherBillingPage({
           <div>
             <h2 className="text-xl font-semibold tracking-tight">Subscription invoices</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              PayFast payments received by Amazing Skills for your platform subscription.
+              Payments received by Amazing Skills for your platform subscription.
             </p>
           </div>
           <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
@@ -110,7 +110,7 @@ export default async function TeacherBillingPage({
                   <th className="px-4 py-3 font-medium">Period</th>
                   <th className="px-4 py-3 font-medium">Amount</th>
                   <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">PayFast reference</th>
+                  <th className="px-4 py-3 font-medium">Payment reference</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">

@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * Scope note (QLT-02): mostly the *lifecycle invariants* of these actions — which fields a
  * change that moves no money may touch, that local state never runs ahead of the provider,
  * and which allowances have to fit before a downgrade may be scheduled. Signed field
- * construction, the SAST billing_date and the ZAR conversion remain out of scope as PayFast
- * wire format.
+ * construction and currency conversion are gone with the PayFast rail: Paddle is the authority
+ * on what a plan costs and this application no longer computes a charge at all.
  *
  * The one wire detail that IS pinned here is whether the checkout is recurring, because it is
  * not a formatting question: `subscription_type` silently decides which payment methods the
@@ -42,11 +42,8 @@ vi.mock("@/lib/db", () => ({
 // Hoisted so the flag can be flipped per test: it is the cutover switch between two rails, and
 // a switch with only one position tested is the half nobody notices is broken.
 const mockEnv = vi.hoisted(() => ({
-  PAYFAST_MERCHANT_ID: "10000100",
-  PAYFAST_MERCHANT_KEY: "merchant-key",
-  PAYFAST_PASSPHRASE: "test-passphrase",
   NEXT_PUBLIC_APP_URL: "https://app.example.com",
-  NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED: "false",
+  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: "live_test_token",
 }));
 
 vi.mock("@/lib/env", () => ({ env: mockEnv }));
@@ -74,18 +71,6 @@ vi.mock("@/server/billing/entitlements", () => ({
   })),
 }));
 
-vi.mock("@/services/payfast/signature", () => ({
-  PAYFAST_TIMEZONE: "Africa/Johannesburg",
-  createPayfastSignature: vi.fn(() => "signature"),
-}));
-
-vi.mock("@/services/payfast/subscriptions", () => ({
-  updatePayfastSubscription: vi.fn(async (input: AnyRecord) => {
-    state.providerUpdates.push(input);
-    return state.providerResult;
-  }),
-}));
-
 const { createSubscriptionCheckout, schedulePlanChange } = await import("./billing");
 
 const PAST_DUE = {
@@ -96,14 +81,13 @@ const PAST_DUE = {
 };
 
 beforeEach(() => {
-  mockEnv.NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED = "false";
   state.orgUpdates = [];
   state.providerUpdates = [];
   state.providerResult = true;
   state.liveLessonMinutesUsed = 0;
   state.plan = { id: "plan-business", slug: "business", name: "Business", monthlyPriceCents: 2900 };
   state.organization = {
-    payfastToken: "tok-1",
+    paddleSubscriptionId: "tok-1",
     complimentaryPlanId: null,
     plan: { slug: "business", monthlyPriceCents: 2900 },
     _count: { studentRelationships: 0 },
@@ -111,127 +95,27 @@ beforeEach(() => {
   };
 });
 
-describe("changing plan on an existing mandate", () => {
-  // MON-15. This path only reprices the FUTURE recurring charge — no money moves now.
-  // Clearing the grace timers here let a past-due teacher escape the 7-day growth block and
-  // the 14-day grace window by re-selecting the plan they were already on, and because each
-  // subsequent failed charge restarts a fresh grace period the cycle repeated indefinitely.
-  // Only a verified payment may clear past-due state.
-  it("never clears past-due state, because no money moved", async () => {
-    const result = await createSubscriptionCheckout({ planSlug: "business", interval: "monthly" });
-
-    expect(result).toMatchObject({ success: true, data: { mode: "updated" } });
-    expect(state.orgUpdates).toHaveLength(1);
-    const data = (state.orgUpdates[0] as { data: AnyRecord }).data;
-    expect(data).toMatchObject({ planId: "plan-business", billingInterval: "monthly" });
-    for (const field of [
-      "subscriptionStatus",
-      "graceStartedAt",
-      "graceEndsAt",
-      "dunningStage",
-      "dunningLastNoticeAt",
-    ]) {
-      expect(data).not.toHaveProperty(field);
-    }
-  });
-
-  it("leaves local state untouched when the provider refuses the change", async () => {
-    state.providerResult = false;
-
-    const result = await createSubscriptionCheckout({ planSlug: "business", interval: "monthly" });
-
-    expect(result).toMatchObject({ success: false, code: "INTERNAL_ERROR" });
-    expect(state.orgUpdates).toHaveLength(0);
-  });
-
-  // Downgrades run through the scheduled path so the teacher keeps what they paid for until
-  // the period ends; applying one in place would revoke access mid-cycle.
-  it("refuses an in-place downgrade without calling the provider", async () => {
-    state.plan = { id: "plan-starter", slug: "starter", name: "Starter", monthlyPriceCents: 900 };
-
-    const result = await createSubscriptionCheckout({ planSlug: "starter", interval: "monthly" });
-
-    expect(result).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
-    expect(state.providerUpdates).toHaveLength(0);
-    expect(state.orgUpdates).toHaveLength(0);
-  });
-
-  it("supersedes a complimentary grant when a paid plan is selected", async () => {
-    state.organization = { ...state.organization, complimentaryPlanId: "plan-pro" };
-
-    await createSubscriptionCheckout({ planSlug: "business", interval: "monthly" });
-
-    expect((state.orgUpdates[0] as { data: AnyRecord }).data).toMatchObject({
-      complimentaryPlanId: null,
-      complimentaryExpiresAt: null,
-      complimentaryPreviousPlanId: null,
-    });
-  });
-});
-
 const PERIOD_END = new Date("2026-08-31T00:00:00.000Z");
 
 /**
- * PAY-01. Recurring at PayFast needs a tokenisable instrument: cards, the wallets wrapping one,
- * Capitec Pay and Absa Pay. A subscription checkout therefore drops every EFT, QR and
- * buy-now-pay-later option — Instant EFT, SiD, SnapScan, Zapper, Scan to Pay, SCode,
- * MukuruPay, Store Cards, Mobicred, MoreTyme. Annual is sold as a once-off so the payer gets
- * all of them, and monthly stays recurring so it renews itself.
+ * The in-place reprice this used to cover is gone with PayFast.
+ *
+ * PayFast could reprice a live mandate from the server with the token alone. Paddle needs a
+ * subscription update through its API, and PADDLE_API_KEY is the one credential this
+ * integration does not hold — so the path refuses instead of half-applying. The refusal is
+ * asserted under "checkout hands off to Paddle" below.
  */
-describe("which checkout is recurring decides how the teacher may pay", () => {
-  beforeEach(() => {
-    // A fresh checkout is only built when there is no mandate to reprice.
-    state.organization = {
-      payfastToken: null,
-      complimentaryPlanId: null,
-      plan: { slug: "free", monthlyPriceCents: 0 },
-      _count: { studentRelationships: 0 },
-      subscriptionStatus: "active",
-      graceStartedAt: null,
-      graceEndsAt: null,
-      dunningStage: 0,
-    };
-  });
-
-  const checkoutFields = async (interval: "monthly" | "annual") => {
-    const result = await createSubscriptionCheckout({ planSlug: "business", interval });
-    if (!result.success) throw new Error(`checkout failed: ${JSON.stringify(result)}`);
-    if (result.data.mode !== "redirect") throw new Error(`expected a redirect, got ${result.data.mode}`);
-    return result.data.fields;
-  };
-
-  it("sends annual as a once-off, so every PayFast method is offered", async () => {
-    const fields = await checkoutFields("annual");
-
-    expect(fields.subscription_type).toBeUndefined();
-    expect(fields.recurring_amount).toBeUndefined();
-    expect(fields.frequency).toBeUndefined();
-    expect(fields.cycles).toBeUndefined();
-    // Still a real payment, and still attributed to the right organization and plan.
-    expect(fields.amount).toBeDefined();
-    expect(fields.custom_str3).toBe("annual");
-  });
-
-  it("keeps monthly recurring, or nothing would ever renew it", async () => {
-    const fields = await checkoutFields("monthly");
-
-    expect(fields.subscription_type).toBe("1");
-    expect(fields.frequency).toBe("3");
-    expect(fields.cycles).toBe("0");
-    expect(fields.custom_str3).toBe("monthly");
-  });
-});
 
 /**
- * PAY-03. The flag decides which rail a teacher is sent to, and it is OFF by default on
- * purpose: the Paddle client token being present does not mean Paddle can take money, which
- * needs business verification to pass. Gating on the token would have flipped production to a
- * checkout that cannot complete.
+ * PAY-03. Paddle is the only rail now. The checkout sends a price id and nothing else — no
+ * amount, no currency, no signature — because Paddle is the authority on what a plan costs and
+ * every defect 20260808160000_price_plans_in_zar deleted came from this application computing
+ * a charge for itself.
  */
-describe("the cutover switch", () => {
+describe("checkout hands off to Paddle", () => {
   beforeEach(() => {
     state.organization = {
-      payfastToken: null,
+      paddleSubscriptionId: null,
       complimentaryPlanId: null,
       plan: { slug: "free", monthlyPriceCents: 0 },
       _count: { studentRelationships: 0 },
@@ -242,31 +126,32 @@ describe("the cutover switch", () => {
     };
   });
 
-  it("still sends a teacher to PayFast while it is off", async () => {
-    const result = await createSubscriptionCheckout({ planSlug: "business", interval: "monthly" });
-
-    expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.data.mode).toBe("redirect");
-  });
-
-  it("sends a price id and no amount once it is on", async () => {
-    mockEnv.NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED = "true";
-
+  it("returns the catalogue price id and no amount", async () => {
     const result = await createSubscriptionCheckout({ planSlug: "business", interval: "annual" });
 
     expect(result.success).toBe(true);
     if (!result.success) return;
     if (result.data.mode !== "paddle") throw new Error(`expected paddle, got ${result.data.mode}`);
 
-    // The catalogue's annual Business price, resolved by the action rather than by the browser.
     expect(result.data.priceId).toBe("pri_01kzkwakjn66bjcb1crrmbyg26");
-    // organization_id is the only identifier the webhook can trust to attach the subscription.
     expect(result.data.organizationId).toBe("org-1");
-    // No amount, no signature, no currency. Paddle is the authority on what a plan costs, and
-    // the last rail's worst defects all came from this application computing a charge.
     expect(result.data).not.toHaveProperty("amount");
     expect(result.data).not.toHaveProperty("signature");
+  });
+
+  /**
+   * Repricing a live Paddle subscription needs PADDLE_API_KEY, which this integration does not
+   * hold. Failing loudly beats the alternatives: silence leaves a teacher believing they
+   * upgraded, and a fresh checkout leaves them paying for two subscriptions at once.
+   */
+  it("refuses to change plan on a live subscription rather than half-doing it", async () => {
+    state.organization = { ...state.organization, paddleSubscriptionId: "sub_live" };
+
+    const result = await createSubscriptionCheckout({ planSlug: "business", interval: "monthly" });
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.code).toBe("CONFLICT");
   });
 });
 
@@ -285,7 +170,7 @@ describe("scheduling a downgrade for period end", () => {
     };
     state.organization = {
       currentPeriodEnd: PERIOD_END,
-      payfastToken: "tok-1",
+      paddleSubscriptionId: "tok-1",
       plan: { id: "plan-business", name: "Business", monthlyPriceCents: 2900 },
       _count: { studentRelationships: 2 },
       ...overrides,

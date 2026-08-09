@@ -113,7 +113,7 @@ export function ComplimentaryGrantDialog({
           <DialogHeader>
             <DialogTitle>Complimentary upgrade</DialogTitle>
             <DialogDescription>
-              Grant {organizationName} a paid plan without charging. Existing PayFast
+              Grant {organizationName} a paid plan without charging. Existing
               billing is cancelled so they are not billed while access is free.
             </DialogDescription>
           </DialogHeader>

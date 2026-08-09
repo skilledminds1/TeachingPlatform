@@ -24,7 +24,7 @@ type OrganizationRow = {
   currentPeriodEnd: string | Date | null;
   complimentaryExpiresAt: string | Date | null;
   complimentaryNote: string | null;
-  hasPayfast: boolean;
+  hasSubscription: boolean;
   isComplimentary: boolean;
   adminContact: { id: string; name: string; email: string } | null;
   plan: {
@@ -149,7 +149,7 @@ export function SubscriptionOrganizationsTable({
                       </StatusBadge>
                     </td>
                     <td className="px-5 py-4 align-top text-xs text-muted-foreground">
-                      <p>{organization.hasPayfast ? "PayFast linked" : "No PayFast token"}</p>
+                      <p>{organization.hasSubscription ? "Paddle subscription" : "No subscription"}</p>
                       {organization.currentPeriodEnd ? (
                         <p className="mt-1">
                           Period ends {formatDate(new Date(organization.currentPeriodEnd))}

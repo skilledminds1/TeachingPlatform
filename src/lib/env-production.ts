@@ -128,38 +128,24 @@ export function productionEnvProblems(env: Env): EnvProblem[] {
   requireValue(problems, "LIVEKIT_API_KEY", env.LIVEKIT_API_KEY, "LiveKit tokens cannot be signed");
   requireValue(problems, "LIVEKIT_API_SECRET", env.LIVEKIT_API_SECRET, "LiveKit tokens cannot be signed");
 
-  // Subscriptions are the platform's ONLY revenue, so PayFast is not optional in production.
+  // Subscriptions are the platform's ONLY revenue, so Paddle is not optional in production.
   //
-  // PAYFAST_SANDBOX is the dangerous one and the reason this block exists. It defaults to
-  // "true" and nothing checked it, so a production deploy that simply omitted the variable
-  // booted green, served 200s, and routed every live checkout to the PayFast sandbox — the
-  // only money the platform collects silently not being collected, with no error anywhere.
-  // A missing credential at least fails loudly at checkout; this failed quietly at the till.
+  // Both of these fail silently rather than loudly, which is why they are checked at boot. A
+  // missing client token leaves a checkout button that opens nothing. A missing webhook secret
+  // is worse: the route fails closed, every notification is refused, and a teacher who has
+  // genuinely paid is never granted the plan they bought — with the money already taken.
   requireValue(
     problems,
-    "PAYFAST_MERCHANT_ID",
-    env.PAYFAST_MERCHANT_ID,
-    "teachers cannot be charged, which is the platform's only revenue",
+    "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN",
+    env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
+    "the checkout cannot open, which is the platform's only revenue",
   );
   requireValue(
     problems,
-    "PAYFAST_MERCHANT_KEY",
-    env.PAYFAST_MERCHANT_KEY,
-    "teachers cannot be charged, which is the platform's only revenue",
+    "PADDLE_WEBHOOK_SECRET",
+    env.PADDLE_WEBHOOK_SECRET,
+    "every Paddle notification is refused, so paid teachers are never granted their plan",
   );
-  requireValue(
-    problems,
-    "PAYFAST_PASSPHRASE",
-    env.PAYFAST_PASSPHRASE,
-    "checkout signatures and ITN verification cannot be computed",
-  );
-  if (env.PAYFAST_SANDBOX !== "false") {
-    problems.push({
-      variable: "PAYFAST_SANDBOX",
-      problem:
-        'not "false" — every live checkout would be routed to the PayFast sandbox and no real payment would be taken',
-    });
-  }
 
 
   // Legal identity. These render to users on the pages that exist to be trusted.

@@ -2,11 +2,9 @@
 
 import { randomBytes } from "node:crypto";
 
-import { DateTime } from "luxon";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
-import { PAYFAST_TIMEZONE } from "@/services/payfast/signature";
 import { env } from "@/lib/env";
 import { requireTeacher } from "@/server/auth/session";
 import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
@@ -15,8 +13,6 @@ import {
   getEffectivePlanPrice,
 } from "@/server/billing/pricing";
 import { getLiveLessonUsage } from "@/server/billing/entitlements";
-import { createPayfastSignature } from "@/services/payfast/signature";
-import { updatePayfastSubscription } from "@/services/payfast/subscriptions";
 import { isPaidPlanSlug, paddlePriceId } from "@/services/paddle/catalogue";
 import { fail, ok, type ActionResult } from "@/types/action";
 
@@ -43,7 +39,6 @@ export async function createSubscriptionCheckout(
   input: unknown,
 ): Promise<
   ActionResult<
-    | { mode: "redirect"; url: string; fields: Record<string, string> }
     | { mode: "paddle"; priceId: string; organizationId: string; email: string }
     | { mode: "updated" }
     | { mode: "local"; planName: string }
@@ -67,9 +62,12 @@ export async function createSubscriptionCheckout(
     return fail("Only organization admins can change billing.", "FORBIDDEN");
   }
 
-  if (!env.PAYFAST_MERCHANT_ID || !env.PAYFAST_MERCHANT_KEY || !env.PAYFAST_PASSPHRASE) {
+  // The client token is what opens the checkout, so without it there is nothing to send a
+  // teacher to. Checked here rather than at the overlay so the failure is a sentence they can
+  // read instead of a dead button.
+  if (!env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN) {
     return fail(
-      "PayFast billing is not configured. Add the merchant credentials.",
+      "Billing is not configured yet. Please try again shortly.",
       "VALIDATION_ERROR",
     );
   }
@@ -79,7 +77,7 @@ export async function createSubscriptionCheckout(
   const organization = await db.organization.findUniqueOrThrow({
     where: { id: membership.organizationId },
     select: {
-      payfastToken: true,
+      paddleSubscriptionId: true,
       complimentaryPlanId: true,
       plan: {
         select: {
@@ -166,44 +164,25 @@ export async function createSubscriptionCheckout(
     return ok({ mode: "local", planName: plan.name });
   }
 
-  if (organization.payfastToken) {
-    if (plan.monthlyPriceCents < organization.plan.monthlyPriceCents) {
-      return fail(
-        "Paid-plan downgrades are scheduled separately to avoid losing access mid-cycle.",
-        "VALIDATION_ERROR",
-      );
-    }
-    const updated = await updatePayfastSubscription({
-      token: organization.payfastToken,
-      amountCents: chargeCents,
-      frequency: parsed.data.interval === "annual" ? 6 : 3,
-    });
-    if (!updated) {
-      return fail(
-        "PayFast could not update the existing subscription. Your plan has not changed.",
-        "INTERNAL_ERROR",
-      );
-    }
-    // MON-15: this path changes the FUTURE recurring amount at PayFast; it takes no payment
-    // now. Clearing graceStartedAt/graceEndsAt/dunningStage here let a past-due teacher
-    // escape the 7-day growth block and 14-day grace window simply by re-selecting their
-    // current plan — and since each subsequent FAILED ITN restarts a fresh grace period, the
-    // cycle could repeat indefinitely without a cent changing hands. Only a verified
-    // COMPLETE ITN may clear past-due state, so those fields are deliberately left alone.
-    await db.organization.update({
-      where: { id: membership.organizationId },
-      data: {
-        planId: plan.id,
-        billingInterval: parsed.data.interval,
-        cancelAtPeriodEnd: false,
-        pendingPlanId: null,
-        pendingBillingInterval: null,
-        pendingChangeAt: null,
-        ...clearComplimentary,
-      },
-    });
-    return ok({ mode: "updated" });
+  /**
+   * Changing plan on a LIVE subscription is not wired yet.
+   *
+   * PayFast let this be done by repricing the token in place. The Paddle equivalent is a
+   * subscription update through their API, with proration — which needs PADDLE_API_KEY, and
+   * that is the one credential this integration does not yet hold.
+   *
+   * Failing loudly is the point. The alternative shapes are worse: silently doing nothing
+   * leaves a teacher believing they upgraded, and starting a fresh checkout would leave them
+   * paying for two subscriptions at once. Nobody hits this today — there are no live
+   * subscriptions — but that will stop being true the moment Paddle is verified.
+   */
+  if (organization.paddleSubscriptionId) {
+    return fail(
+      "Changing plan on an active subscription is not available yet. Contact support and we will move you over.",
+      "CONFLICT",
+    );
   }
+
   if (!canStartFreshCheckout) {
     return fail(
       "This paid account has no PayFast token. Contact support before changing plans.",
@@ -212,92 +191,26 @@ export async function createSubscriptionCheckout(
   }
 
   /**
-   * Paddle, once the cutover switch is on.
+   * Paddle is now the only rail.
    *
    * Nothing is signed and no amount is sent: the price id IS the amount, and Paddle is the
    * authority on what it costs. That deletes the entire class of defect that came from this
-   * application computing a charge — see 20260808160000_price_plans_in_zar, where a
+   * application computing a charge — see 20260808160000_price_plans_in_zar, where one
    * hand-maintained conversion rate produced three separate ways to bill the wrong number.
    *
    * organization_id rides along in custom_data because it is the only identifier the webhook
    * can trust to attach a subscription to the right organization. Paddle echoes it on every
    * notification for the life of the subscription.
    */
-  if (env.NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED === "true") {
-    if (!isPaidPlanSlug(plan.slug)) {
-      return fail("That plan cannot be bought through checkout.", "VALIDATION_ERROR");
-    }
-    return ok({
-      mode: "paddle" as const,
-      priceId: paddlePriceId(plan.slug, parsed.data.interval),
-      organizationId: membership.organizationId,
-      email: user.email,
-    });
+  if (!isPaidPlanSlug(plan.slug)) {
+    return fail("That plan cannot be bought through checkout.", "VALIDATION_ERROR");
   }
-
-  const fields = new Map<string, string>([
-    ["merchant_id", env.PAYFAST_MERCHANT_ID],
-    ["merchant_key", env.PAYFAST_MERCHANT_KEY],
-    ["return_url", new URL("/dashboard/teacher/billing?checkout=return", appUrl).toString()],
-    ["cancel_url", new URL("/dashboard/teacher/billing?checkout=cancelled", appUrl).toString()],
-  ]);
-
-  // PayFast (and its CloudFront edge) rejects checkout when notify_url is not publicly reachable.
-  if (isPublicHttps) {
-    fields.set("notify_url", new URL("/api/v1/webhooks/payfast", appUrl).toString());
-  }
-
-  fields.set("email_address", user.email);
-  fields.set("m_payment_id", `${membership.organizationId}-${randomBytes(8).toString("hex")}`);
-  fields.set("amount", amountDue);
-  fields.set(
-    "item_name",
-    priced.percentOff > 0
-      ? `Amazing Skills ${plan.name} ${parsed.data.interval} (${priced.percentOff}% off)`
-      : `Amazing Skills ${plan.name} ${parsed.data.interval}`,
-  );
-  fields.set("custom_str1", membership.organizationId);
-  fields.set("custom_str2", plan.id);
-  fields.set("custom_str3", parsed.data.interval);
-  // The exact minor units quoted, so the ITN amount check is an equality test
-  // rather than a tolerance around a reconstructed conversion.
-  fields.set("custom_str4", String(chargeCents));
-  // PAY-01: monthly recurs, annual does not — and that asymmetry is the whole point.
-  //
-  // Recurring at PayFast needs an instrument it can tokenise and re-debit. Cards can, and so
-  // can the wallets that wrap one — Google, Apple and Samsung Pay — along with Capitec Pay and
-  // Absa Pay. What CANNOT is everything else PayFast offers, and that list is the point:
-  // Instant EFT, SiD, SnapScan, Zapper, Scan to Pay, SCode, MukuruPay, Store Cards, Mobicred
-  // and MoreTyme. So `subscription_type=1` quietly removes every EFT, QR and buy-now-pay-later
-  // option from the page — which on a South African marketplace is most of how people pay.
-  //
-  // Sending annual as a plain once-off payment hands the payer PayFast's full method list. The
-  // cost is that nothing renews it automatically, so the lifecycle job has to notice a lapsed
-  // period with no token behind it — see MISSED_RENEWAL handling in run-lifecycle.ts, which
-  // would otherwise skip these organizations entirely and leave paid access running for free.
-  if (parsed.data.interval === "monthly") {
-    fields.set("subscription_type", "1");
-    // MON-23: PayFast operates on South African time (UTC+2) and rejects a billing_date in
-    // the past. Deriving it from server UTC meant that between 22:00 and 23:59 UTC the
-    // submitted date was already yesterday to PayFast and checkout failed — roughly 8% of
-    // every day, and precisely the evening hours across the Americas.
-    fields.set(
-      "billing_date",
-      DateTime.now().setZone(PAYFAST_TIMEZONE).toFormat("yyyy-MM-dd"),
-    );
-    fields.set("recurring_amount", recurringAmount);
-    fields.set("frequency", "3");
-    fields.set("cycles", "0");
-  }
-  fields.set("signature", createPayfastSignature(fields.entries(), env.PAYFAST_PASSPHRASE));
 
   return ok({
-    mode: "redirect",
-    url:
-      env.PAYFAST_SANDBOX === "true"
-        ? "https://sandbox.payfast.co.za/eng/process"
-        : "https://www.payfast.co.za/eng/process",
-    fields: Object.fromEntries(fields),
+    mode: "paddle" as const,
+    priceId: paddlePriceId(plan.slug, parsed.data.interval),
+    organizationId: membership.organizationId,
+    email: user.email,
   });
 }
 
@@ -320,7 +233,7 @@ export async function schedulePlanChange(
       where: { id: admin.organizationId },
       select: {
         currentPeriodEnd: true,
-        payfastToken: true,
+        paddleSubscriptionId: true,
         plan: { select: { id: true, name: true, monthlyPriceCents: true } },
         _count: {
           select: {
@@ -333,7 +246,7 @@ export async function schedulePlanChange(
     getLiveLessonUsage(admin.organizationId),
   ]);
   if (!target) return fail("Plan not found.", "NOT_FOUND");
-  if (!organization.currentPeriodEnd || !organization.payfastToken) {
+  if (!organization.currentPeriodEnd || !organization.paddleSubscriptionId) {
     return fail("Only active paid subscriptions can schedule a downgrade.", "CONFLICT");
   }
   if (target.monthlyPriceCents >= organization.plan.monthlyPriceCents) {
@@ -393,9 +306,9 @@ export async function scheduleSubscriptionCancellation(): Promise<
   if (!admin) return fail("Only organization admins can change billing.", "FORBIDDEN");
   const organization = await db.organization.findUniqueOrThrow({
     where: { id: admin.organizationId },
-    select: { payfastToken: true, currentPeriodEnd: true },
+    select: { paddleSubscriptionId: true, currentPeriodEnd: true },
   });
-  if (!organization.payfastToken || !organization.currentPeriodEnd) {
+  if (!organization.paddleSubscriptionId || !organization.currentPeriodEnd) {
     return fail("There is no paid subscription to cancel.", "CONFLICT");
   }
   await db.organization.update({
@@ -415,9 +328,9 @@ export async function resumeSubscription(): Promise<ActionResult<{ resumed: true
   if (!admin) return fail("Only organization admins can change billing.", "FORBIDDEN");
   const organization = await db.organization.findUniqueOrThrow({
     where: { id: admin.organizationId },
-    select: { payfastToken: true, currentPeriodEnd: true, cancelAtPeriodEnd: true },
+    select: { paddleSubscriptionId: true, currentPeriodEnd: true, cancelAtPeriodEnd: true },
   });
-  if (!organization.payfastToken || !organization.currentPeriodEnd) {
+  if (!organization.paddleSubscriptionId || !organization.currentPeriodEnd) {
     return fail("This subscription cannot be resumed. Start a new checkout instead.", "CONFLICT");
   }
   if (!organization.cancelAtPeriodEnd) return ok({ resumed: true });

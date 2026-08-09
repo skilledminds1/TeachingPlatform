@@ -47,6 +47,7 @@ enum PaymentProvider {
   paypal
   stripe
   payfast
+  paddle
 
   @@map("payment_provider")
 }
@@ -489,11 +490,10 @@ model Organization {
   name                        String
   slug                        String             @unique
   planId                      String             @map("plan_id") @db.Uuid
-  payfastToken                String?            @map("payfast_token")
   /// Paddle's customer, kept so a returning teacher checks out against the same record rather
   /// than accumulating duplicates that split their invoice history (PAY-03).
   paddleCustomerId            String?            @map("paddle_customer_id")
-  /// The live Paddle subscription. Replaces payfastToken as the thing plan changes and
+  /// The live Paddle subscription. The thing plan changes and
   /// cancellations act on. Nullable because a free organization has never had one.
   paddleSubscriptionId        String?            @map("paddle_subscription_id")
   subscriptionStatus          SubscriptionStatus @default(active) @map("subscription_status")
@@ -545,7 +545,7 @@ model Organization {
 model BillingEvent {
   id              String   @id @default(uuid()) @db.Uuid
   organizationId  String   @map("organization_id") @db.Uuid
-  provider        String   @default("payfast")
+  provider        String   @default("paddle")
   providerEventId String   @unique @map("provider_event_id")
   eventType       String   @map("event_type")
   payload         Json

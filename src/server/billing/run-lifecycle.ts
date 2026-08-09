@@ -7,10 +7,6 @@ import {
   startPaymentGrace,
 } from "@/server/billing/lifecycle";
 import { createNotification } from "@/server/notifications/notify";
-import {
-  cancelPayfastSubscription,
-  updatePayfastSubscription,
-} from "@/services/payfast/subscriptions";
 
 /**
  * How long past currentPeriodEnd an active subscription may sit before we assume the
@@ -82,7 +78,7 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
         // exhausted retries — the organization matched nothing here and kept paid
         // entitlements indefinitely while never being charged again.
         //
-        // PAY-01: deliberately NOT filtered on payfastToken. Annual is bought as a once-off
+        // PAY-01: deliberately NOT filtered on paddleSubscriptionId. Annual is bought as a once-off
         // so that PayFast will offer Instant EFT and the wallets, which means there is no
         // token to find — and while this clause required one, every annual organization sailed
         // past its period end still marked active and kept a paid plan for nothing, for ever.
@@ -157,10 +153,22 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
         organization.currentPeriodEnd &&
         organization.currentPeriodEnd <= now
       ) {
-        const providerCancelled =
-          !organization.payfastToken ||
-          (await cancelPayfastSubscription(organization.payfastToken));
-        if (!providerCancelled) {
+        /**
+         * The provider is no longer told anything here, and that is a real gap.
+         *
+         * PayFast could be cancelled from this job. Paddle cannot without PADDLE_API_KEY, and
+         * downgrading locally while a Paddle subscription keeps billing would be worse than
+         * doing nothing at all — the teacher loses the plan AND keeps paying for it.
+         *
+         * So a live Paddle subscription is skipped and shouted about rather than half-applied.
+         * Organizations with no subscription (a complimentary grant lapsing, a plan set by
+         * hand) still cancel cleanly, which is every case that exists today.
+         */
+        if (organization.paddleSubscriptionId) {
+          logger.error("subscription_cancellation_needs_paddle_api", {
+            organizationId: organization.id,
+            paddleSubscriptionId: organization.paddleSubscriptionId,
+          });
           summary.failures += 1;
           continue;
         }
@@ -168,7 +176,7 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
           where: { id: organization.id },
           data: {
             planId: freePlan.id,
-            payfastToken: null,
+            paddleSubscriptionId: null,
             subscriptionStatus: "active",
             currentPeriodEnd: null,
             cancelAtPeriodEnd: false,
@@ -192,7 +200,7 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
         organization.pendingBillingInterval &&
         organization.pendingChangeAt &&
         organization.pendingChangeAt <= now &&
-        organization.payfastToken
+        organization.paddleSubscriptionId
       ) {
         const planPriceCents =
           organization.pendingBillingInterval === "annual"
@@ -215,41 +223,16 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
           continue;
         }
 
-        const updated =
-          organization.pendingPlan.slug === "free"
-            ? await cancelPayfastSubscription(organization.payfastToken)
-            : await updatePayfastSubscription({
-                token: organization.payfastToken,
-                amountCents: planPriceCents,
-                frequency: organization.pendingBillingInterval === "annual" ? 6 : 3,
-              });
-        if (!updated) {
-          summary.failures += 1;
-          continue;
-        }
-        await db.organization.update({
-          where: { id: organization.id },
-          data: {
-            planId: organization.pendingPlan.id,
-            billingInterval: organization.pendingBillingInterval,
-            payfastToken:
-              organization.pendingPlan.slug === "free" ? null : organization.payfastToken,
-            subscriptionStatus: "active",
-            currentPeriodEnd:
-              organization.pendingPlan.slug === "free" ? null : organization.currentPeriodEnd,
-            pendingPlanId: null,
-            pendingBillingInterval: null,
-            pendingChangeAt: null,
-          },
+        // Same gap as the cancellation branch above: repricing or ending a Paddle subscription
+        // needs PADDLE_API_KEY. Applying the plan locally while Paddle keeps billing the old
+        // amount would charge one price and grant another, so the change waits.
+        logger.error("subscription_plan_change_needs_paddle_api", {
+          organizationId: organization.id,
+          paddleSubscriptionId: organization.paddleSubscriptionId,
+          pendingPlanId: organization.pendingPlan.id,
         });
-        summary.planChangesApplied += 1;
-        await notifyAdmins(
-          organization.id,
-          "billing.plan_changed",
-          "Scheduled plan change applied",
-          `Your organization is now on ${organization.pendingPlan.name}.`,
-        );
-        continue;
+        summary.failures += 1;
+                continue;
       }
 
       if (organization.subscriptionStatus === "past_due" && organization.graceStartedAt) {
@@ -258,7 +241,7 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
             where: { id: organization.id },
             data: {
               planId: freePlan.id,
-              payfastToken: null,
+              paddleSubscriptionId: null,
               // MON-20: previously "cancelled", which isGrowthBlocked treats as blocked
               // unconditionally — so a teacher whose card simply expired was left read-only
               // forever, unable to use even the Free plan's own allowance. The spec says
@@ -336,10 +319,10 @@ export async function runSubscriptionLifecycle(now = new Date()): Promise<Lifecy
         await notifyAdmins(
           organization.id,
           "billing.renewal_missing",
-          organization.payfastToken
+          organization.paddleSubscriptionId
             ? "We could not confirm your subscription renewal"
             : "Your annual plan has ended — renew to keep your access",
-          organization.payfastToken
+          organization.paddleSubscriptionId
             ? "Your billing period ended but we have not received confirmation of a renewal payment. Please check your payment method — paid access continues during the grace period."
             : "Your annual plan does not renew automatically, and its term has now ended. Pay for another year from your billing page to keep your listing and bookings — paid access continues during the grace period.",
         );

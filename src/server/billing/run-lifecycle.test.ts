@@ -89,17 +89,6 @@ vi.mock("@/server/notifications/notify", () => ({
   }),
 }));
 
-vi.mock("@/services/payfast/subscriptions", () => ({
-  cancelPayfastSubscription: vi.fn(async (token: string) => {
-    state.provider.cancelled.push(token);
-    return state.provider.cancelResult;
-  }),
-  updatePayfastSubscription: vi.fn(async (input: AnyRecord) => {
-    state.provider.updated.push(input);
-    return state.provider.updateResult;
-  }),
-}));
-
 const { runSubscriptionLifecycle } = await import("./run-lifecycle");
 
 const NOW = new Date("2026-07-19T12:00:00.000Z");
@@ -117,7 +106,7 @@ function organization(overrides: AnyRecord = {}): AnyRecord {
     plan: { slug: "starter" },
     billingInterval: "monthly",
     subscriptionStatus: "active",
-    payfastToken: "tok-1",
+    paddleSubscriptionId: "tok-1",
     currentPeriodEnd: null,
     cancelAtPeriodEnd: false,
     graceStartedAt: null,
@@ -207,175 +196,80 @@ describe("complimentary access", () => {
   });
 });
 
+/**
+ * Cancelling or repricing at the provider is gone with PayFast.
+ *
+ * PayFast could be driven from this job with the token alone. Paddle needs its API, and
+ * PADDLE_API_KEY is the one credential this integration does not hold — so an organization
+ * with a LIVE Paddle subscription is skipped and shouted about rather than half-applied.
+ *
+ * Half-applying is the failure worth guarding against: downgrading locally while Paddle keeps
+ * billing means the teacher loses the plan AND keeps paying for it.
+ */
 describe("scheduled cancellation", () => {
-  it("cancels at the provider before downgrading", async () => {
+  it("cancels cleanly when there is no live subscription to end", async () => {
     state.organizations = [
-      organization({ cancelAtPeriodEnd: true, currentPeriodEnd: daysAgo(1) }),
+      organization({
+        cancelAtPeriodEnd: true,
+        currentPeriodEnd: daysAgo(1),
+        paddleSubscriptionId: null,
+      }),
     ];
 
     const summary = await runSubscriptionLifecycle(NOW);
 
-    expect(state.provider.cancelled).toEqual(["tok-1"]);
     expect(summary.cancellationsApplied).toBe(1);
     expect(soleUpdate()).toMatchObject({
       planId: FREE_PLAN.id,
-      payfastToken: null,
+      paddleSubscriptionId: null,
       currentPeriodEnd: null,
       cancelAtPeriodEnd: false,
     });
   });
 
-  // Local state must never claim the subscription ended while the provider still holds a
-  // live mandate — that is the direction that keeps charging a downgraded organization.
-  it("leaves state untouched and counts a failure when the provider refuses", async () => {
-    state.provider.cancelResult = false;
+  it("refuses to downgrade while a Paddle subscription is still billing", async () => {
     state.organizations = [
-      organization({ cancelAtPeriodEnd: true, currentPeriodEnd: daysAgo(1) }),
+      organization({
+        cancelAtPeriodEnd: true,
+        currentPeriodEnd: daysAgo(1),
+        paddleSubscriptionId: "sub_live",
+      }),
     ];
 
     const summary = await runSubscriptionLifecycle(NOW);
 
     expect(state.orgUpdates).toHaveLength(0);
+    expect(summary.cancellationsApplied).toBe(0);
     expect(summary.failures).toBe(1);
-    expect(summary.cancellationsApplied).toBe(0);
-    expect(state.notifications).toHaveLength(0);
-  });
-
-  // MON-13. A CANCELLED notification nulls the token precisely so this branch stops asking
-  // the provider to cancel a subscription it has already cancelled. Before the fix the call
-  // failed every night, the downgrade never applied, and the organization kept paid
-  // entitlements forever while nothing was being charged. cancelResult is forced to false
-  // here so the test fails if the short-circuit is ever removed.
-  it("downgrades without a provider round-trip once the token is gone", async () => {
-    state.provider.cancelResult = false;
-    state.organizations = [
-      organization({ cancelAtPeriodEnd: true, currentPeriodEnd: daysAgo(1), payfastToken: null }),
-    ];
-
-    const summary = await runSubscriptionLifecycle(NOW);
-
-    expect(state.provider.cancelled).toHaveLength(0);
-    expect(summary.cancellationsApplied).toBe(1);
-    expect(summary.failures).toBe(0);
-    expect(soleUpdate()).toMatchObject({ planId: FREE_PLAN.id, cancelAtPeriodEnd: false });
-  });
-
-  it("waits until the period actually ends", async () => {
-    state.organizations = [
-      organization({ cancelAtPeriodEnd: true, currentPeriodEnd: daysAhead(3) }),
-    ];
-
-    const summary = await runSubscriptionLifecycle(NOW);
-
-    expect(state.provider.cancelled).toHaveLength(0);
-    expect(state.orgUpdates).toHaveLength(0);
-    expect(summary.cancellationsApplied).toBe(0);
+    expect(loggerError).toHaveBeenCalledWith(
+      "subscription_cancellation_needs_paddle_api",
+      expect.objectContaining({ organizationId: "org-1" }),
+    );
   });
 });
 
 describe("scheduled plan change", () => {
-  const pending = (overrides: AnyRecord = {}) =>
-    organization({
-      pendingPlan: plan(),
-      pendingPlanId: "plan-business",
-      pendingBillingInterval: "annual",
-      pendingChangeAt: daysAgo(1),
-      currentPeriodEnd: daysAhead(20),
-      ...overrides,
-    });
-
-  it("applies the change only after the provider confirms", async () => {
-    state.organizations = [pending()];
-
-    const summary = await runSubscriptionLifecycle(NOW);
-
-    expect(state.provider.updated).toEqual([
-      { token: "tok-1", amountCents: 29900, frequency: 6 },
-    ]);
-    expect(summary.planChangesApplied).toBe(1);
-    expect(soleUpdate()).toMatchObject({
-      planId: "plan-business",
-      billingInterval: "annual",
-      payfastToken: "tok-1",
-      currentPeriodEnd: daysAhead(20),
-      pendingPlanId: null,
-      pendingBillingInterval: null,
-      pendingChangeAt: null,
-    });
-  });
-
-  it("uses the monthly price and monthly frequency for a monthly change", async () => {
-    state.organizations = [pending({ pendingBillingInterval: "monthly" })];
-
-    await runSubscriptionLifecycle(NOW);
-
-    expect(state.provider.updated).toEqual([
-      { token: "tok-1", amountCents: 2900, frequency: 3 },
-    ]);
-  });
-
-  // MON-14. The recurring amount was `Math.round(usdCents * (rate ?? 0))`, so an unset rate
-  // asked the provider to set a live subscription's recurring charge to zero while granting
-  // the new plan. Plans are priced in the settlement currency now, so there is no rate to be
-  // missing — but a paid plan priced at zero reaches the identical outcome, so the invariant
-  // is pinned against the price itself: a plan change that would charge nothing must make no
-  // provider call and must not grant the plan.
-  it("makes no provider call and grants nothing when a paid plan would charge zero", async () => {
+  it("waits rather than granting a plan Paddle is not billing for", async () => {
     state.organizations = [
-      pending({ pendingPlan: plan({ monthlyPriceCents: 0, annualPriceCents: 0 }) }),
+      organization({
+        pendingPlan: plan(),
+        pendingPlanId: "plan-business",
+        pendingBillingInterval: "monthly",
+        pendingChangeAt: daysAgo(1),
+        currentPeriodEnd: daysAhead(20),
+        paddleSubscriptionId: "sub_live",
+      }),
     ];
 
     const summary = await runSubscriptionLifecycle(NOW);
 
-    expect(state.provider.updated).toHaveLength(0);
-    expect(state.provider.cancelled).toHaveLength(0);
     expect(state.orgUpdates).toHaveLength(0);
     expect(summary.planChangesApplied).toBe(0);
     expect(summary.failures).toBe(1);
     expect(loggerError).toHaveBeenCalledWith(
-      "subscription_plan_change_zero_price",
+      "subscription_plan_change_needs_paddle_api",
       expect.objectContaining({ organizationId: "org-1" }),
     );
-  });
-
-  it("leaves state untouched and counts a failure when the provider refuses", async () => {
-    state.provider.updateResult = false;
-    state.organizations = [pending()];
-
-    const summary = await runSubscriptionLifecycle(NOW);
-
-    expect(state.orgUpdates).toHaveLength(0);
-    expect(summary.planChangesApplied).toBe(0);
-    expect(summary.failures).toBe(1);
-  });
-
-  // A downgrade to Free is a cancellation, not a repriced mandate, so it needs no price and
-  // must retire the token rather than leave a live one pointing at a free plan.
-  it("cancels the mandate for a downgrade to Free without needing a price", async () => {
-    state.fxRate = undefined;
-    state.organizations = [
-      pending({ pendingPlan: plan({ id: "plan-free", slug: "free", name: "Free" }) }),
-    ];
-
-    const summary = await runSubscriptionLifecycle(NOW);
-
-    expect(state.provider.cancelled).toEqual(["tok-1"]);
-    expect(state.provider.updated).toHaveLength(0);
-    expect(summary.planChangesApplied).toBe(1);
-    expect(soleUpdate()).toMatchObject({
-      planId: "plan-free",
-      payfastToken: null,
-      currentPeriodEnd: null,
-    });
-  });
-
-  it("does not apply a change that is not yet due", async () => {
-    state.organizations = [pending({ pendingChangeAt: daysAhead(5) })];
-
-    const summary = await runSubscriptionLifecycle(NOW);
-
-    expect(state.provider.updated).toHaveLength(0);
-    expect(summary.planChangesApplied).toBe(0);
   });
 });
 
@@ -403,7 +297,7 @@ describe("grace expiry", () => {
     expect(data.subscriptionStatus).not.toBe("cancelled");
     expect(data).toMatchObject({
       planId: FREE_PLAN.id,
-      payfastToken: null,
+      paddleSubscriptionId: null,
       currentPeriodEnd: null,
       cancelAtPeriodEnd: false,
       graceStartedAt: null,
@@ -506,7 +400,7 @@ describe("annual is paid once, so nothing renews it", () => {
       organization({
         subscriptionStatus: "active",
         billingInterval: "annual",
-        payfastToken: null,
+        paddleSubscriptionId: null,
         currentPeriodEnd: daysAgo(3),
       }),
     ];
@@ -526,7 +420,7 @@ describe("annual is paid once, so nothing renews it", () => {
       organization({
         subscriptionStatus: "active",
         billingInterval: "annual",
-        payfastToken: null,
+        paddleSubscriptionId: null,
         currentPeriodEnd: daysAgo(3),
       }),
     ];
@@ -544,7 +438,7 @@ describe("annual is paid once, so nothing renews it", () => {
       organization({
         subscriptionStatus: "active",
         plan: { slug: "free" },
-        payfastToken: null,
+        paddleSubscriptionId: null,
         currentPeriodEnd: daysAgo(30),
       }),
     ];
@@ -619,7 +513,7 @@ describe("missed renewal watchdog", () => {
    */
   it("no longer exempts a paid organization merely for having no token", async () => {
     state.organizations = [
-      organization({ subscriptionStatus: "active", currentPeriodEnd: daysAgo(9), payfastToken: null }),
+      organization({ subscriptionStatus: "active", currentPeriodEnd: daysAgo(9), paddleSubscriptionId: null }),
     ];
 
     const summary = await runSubscriptionLifecycle(NOW);
@@ -636,7 +530,7 @@ describe("missed renewal watchdog", () => {
     state.organizations = [
       organization({
         subscriptionStatus: "active",
-        payfastToken: null,
+        paddleSubscriptionId: null,
         complimentaryPlanId: "plan-business",
         complimentaryExpiresAt: null,
         currentPeriodEnd: daysAgo(30),

@@ -17,7 +17,7 @@ export async function getAdminSubscriptionOrganizations() {
       subscriptionStatus: true,
       billingInterval: true,
       currentPeriodEnd: true,
-      payfastToken: true,
+      paddleSubscriptionId: true,
       complimentaryPlanId: true,
       complimentaryExpiresAt: true,
       complimentaryGrantedAt: true,
@@ -67,7 +67,7 @@ export async function getAdminSubscriptionOrganizations() {
       organization.members[0]?.user ??
       organization.teacherProfiles[0]?.user ??
       null,
-    hasPayfast: Boolean(organization.payfastToken),
+    hasSubscription: Boolean(organization.paddleSubscriptionId),
     isComplimentary: Boolean(organization.complimentaryPlanId),
   }));
 }

@@ -37,7 +37,7 @@ type BillingPlan = {
 /**
  * Hand a checkout result to whichever rail produced it.
  *
- * PayFast posts a signed form and navigates away; Paddle opens an overlay and the page stays
+ * Paddle opens an overlay and the page stays
  * put. Keeping the branch here rather than at each call site means a future rail is one arm of
  * this switch, not another pair of places to remember.
  */
@@ -79,7 +79,7 @@ export function BillingPlanSelector({
   plans,
   currentPlan,
   currentInterval,
-  payfastConfigured,
+  checkoutConfigured,
   autoCheckoutPlan,
   autoCheckoutInterval,
   pendingPlan,
@@ -93,7 +93,7 @@ export function BillingPlanSelector({
   plans: BillingPlan[];
   currentPlan: string;
   currentInterval: "monthly" | "annual";
-  payfastConfigured: boolean;
+  checkoutConfigured: boolean;
   autoCheckoutPlan?: "starter" | "professional" | "business";
   autoCheckoutInterval?: "monthly" | "annual";
   pendingPlan: { slug: string; name: string } | null;
@@ -148,7 +148,7 @@ export function BillingPlanSelector({
         setPendingChoice(null);
         toast.success(
           result.data.mode === "local"
-            ? `${result.data.planName} activated for local testing (PayFast skipped on localhost).`
+            ? `${result.data.planName} activated for local testing (checkout skipped on localhost).`
             : `${plan.name} activated.`,
         );
         router.refresh();
@@ -159,7 +159,7 @@ export function BillingPlanSelector({
   }
 
   useEffect(() => {
-    if (autoStarted.current || !autoCheckoutPlan || !payfastConfigured) return;
+    if (autoStarted.current || !autoCheckoutPlan || !checkoutConfigured) return;
     const plan = plans.find((item) => item.slug === autoCheckoutPlan);
     if (!plan || plan.slug === "free") return;
     const billingInterval = autoCheckoutInterval ?? interval;
@@ -180,7 +180,7 @@ export function BillingPlanSelector({
       if (result.data.mode === "updated" || result.data.mode === "local") {
         toast.success(
           result.data.mode === "local"
-            ? `${result.data.planName} activated for local testing (PayFast skipped on localhost).`
+            ? `${result.data.planName} activated for local testing (checkout skipped on localhost).`
             : `${plan.name} activated.`,
         );
         router.refresh();
@@ -198,7 +198,7 @@ export function BillingPlanSelector({
     currentInterval,
     currentPlan,
     interval,
-    payfastConfigured,
+    checkoutConfigured,
     plans,
     router,
   ]);
@@ -392,7 +392,7 @@ export function BillingPlanSelector({
                 variant={current ? "outline" : "default"}
                 disabled={
                   current ||
-                  (plan.slug !== "free" && !payfastConfigured) ||
+                  (plan.slug !== "free" && !checkoutConfigured) ||
                   (isPending && pendingChoice === plan.slug)
                 }
                 onClick={() => choosePlan(plan)}
@@ -410,10 +410,9 @@ export function BillingPlanSelector({
         })}
       </div>
 
-      {!payfastConfigured ? (
+      {!checkoutConfigured ? (
         <p className="text-sm text-amber-600 dark:text-amber-400">
-          Checkout is disabled until the PayFast merchant credentials and USD/ZAR billing rate are
-          configured.
+          Checkout is disabled until billing is configured.
         </p>
       ) : null}
     </div>

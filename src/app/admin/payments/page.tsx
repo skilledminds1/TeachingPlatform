@@ -127,7 +127,7 @@ export default async function AdminPaymentsPage() {
         <SectionHeading
           icon={FileText}
           title="Platform subscription invoices"
-          description="Invoices for subscription payments received by Amazing Skills through PayFast."
+          description="Invoices for subscription payments received by Amazing Skills through Paddle."
         />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {data.subscriptionInvoices.map((invoice) => (

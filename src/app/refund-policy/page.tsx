@@ -15,7 +15,7 @@ export default function RefundPolicyPage() {
           paragraphs: [
             "Lesson payments are made from the student to the teacher through the teacher’s connected payment account. The teacher is the merchant of record. Amazing Skills does not receive, hold, settle, or pay out those funds and takes no commission.",
             "Because the platform never holds the money, every refund is issued by the teacher from that same payment account. Amazing Skills has nothing to refund from and cannot return a payment on a teacher’s behalf.",
-            "PayFast payments for teacher platform subscriptions are separate transactions between the subscribing organization and Amazing Skills.",
+            "Teacher platform subscriptions are sold by Paddle.com Market Ltd as merchant of record, so the subscription purchase is a transaction between the subscribing organization and Paddle rather than with Amazing Skills directly. Refund requests for a subscription may be raised with us or with Paddle; Paddle issues any refund to the original payment method.",
           ],
         },
         {

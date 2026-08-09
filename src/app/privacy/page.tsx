@@ -31,7 +31,7 @@ export default function PrivacyPage() {
         {
           title: "3. Sharing and processors",
           paragraphs: [
-            "We share only what is necessary with the student or teacher involved in a transaction and with service providers such as Supabase, hosting, LiveKit, Resend, Google, and PayFast. These providers process data under their own terms and applicable safeguards.",
+            "We share only what is necessary with the student or teacher involved in a transaction and with service providers such as Supabase, hosting, LiveKit, Resend, and Google. Teacher subscription payments are handled by Paddle.com Market Ltd as merchant of record: your billing details are collected and held by Paddle under their own privacy policy, not by us, and we never receive your card number. These providers process data under their own terms and applicable safeguards.",
             "When you pay a teacher for a lesson you leave Amazing Skills for that teacher's own payment provider, chosen by them. We never receive that payment and never see your card or account details; what happens there is governed by that provider's terms and the teacher's relationship with them.",
             "We may disclose information where required by law, to protect safety or legal rights, or during a legitimate business transfer with appropriate safeguards.",
           ],

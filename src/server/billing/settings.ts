@@ -60,8 +60,6 @@ export async function getBillingSettings() {
     usage,
     liveLessonUsage,
     invoices,
-    payfastConfigured: Boolean(
-      env.PAYFAST_MERCHANT_ID && env.PAYFAST_MERCHANT_KEY && env.PAYFAST_PASSPHRASE,
-    ),
+    checkoutConfigured: Boolean(env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN),
   };
 }

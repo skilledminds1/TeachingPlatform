@@ -52,7 +52,7 @@ export default async function AdminDashboardPage() {
         <StatCard
           label="Platform MRR"
           value={formatCurrency(metrics.monthlyRecurringRevenueCents)}
-          detail="Active PayFast subscriptions"
+          detail="Active Paddle subscriptions"
           icon={CircleDollarSign}
         />
       </section>

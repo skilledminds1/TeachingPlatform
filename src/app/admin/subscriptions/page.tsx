@@ -43,7 +43,7 @@ export default async function AdminSubscriptionsPage() {
           complimentaryExpiresAt:
             organization.complimentaryExpiresAt?.toISOString() ?? null,
           complimentaryNote: organization.complimentaryNote,
-          hasPayfast: organization.hasPayfast,
+          hasSubscription: organization.hasSubscription,
           isComplimentary: organization.isComplimentary,
           adminContact: organization.adminContact,
           plan: organization.plan,

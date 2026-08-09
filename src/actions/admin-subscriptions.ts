@@ -7,7 +7,6 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { planFeatures } from "@/features/billing/lib/plan-feature-labels";
 import { requirePlatformAdmin } from "@/server/auth/session";
-import { cancelPayfastSubscription } from "@/services/payfast/subscriptions";
 import { fail, ok, type ActionResult } from "@/types/action";
 
 const uuid = z.string().uuid();
@@ -20,7 +19,7 @@ const grantSchema = z
     expiresAt: z.string().datetime().optional().nullable(),
     note: z.string().trim().max(500).optional().nullable(),
     /**
-     * MON-21: granting complimentary access to an organization with a live PayFast
+     * MON-21: granting complimentary access to an organization with a live paid
      * subscription cancels that subscription and nulls the token, and nothing can bring it
      * back — complimentaryPreviousPlanId is stored but never used to restore anything. When
      * the complimentary period ends the org drops to Free and must re-checkout from scratch.
@@ -123,7 +122,7 @@ export async function grantComplimentaryPlan(
       select: {
         id: true,
         planId: true,
-        payfastToken: true,
+        paddleSubscriptionId: true,
         subscriptionStatus: true,
         complimentaryPlanId: true,
         plan: { select: { id: true, name: true, slug: true } },
@@ -143,7 +142,7 @@ export async function grantComplimentaryPlan(
     return fail("Choose a paid plan for complimentary upgrades.", "VALIDATION_ERROR");
   }
 
-  if (organization.payfastToken) {
+  if (organization.paddleSubscriptionId) {
     // MON-21: this is destructive and irreversible — require the caller to have been told.
     if (!parsed.data.confirmCancelsPaidSubscription) {
       return fail(
@@ -155,17 +154,14 @@ export async function grantComplimentaryPlan(
       );
     }
 
-    const payfastConfigured = Boolean(
-      env.PAYFAST_MERCHANT_ID && env.PAYFAST_PASSPHRASE,
-    );
-    if (payfastConfigured) {
-      const cancelled = await cancelPayfastSubscription(organization.payfastToken);
-      if (!cancelled) {
-        return fail(
-          "PayFast could not cancel the existing subscription. Complimentary upgrade was not applied.",
-          "INTERNAL_ERROR",
-        );
-      }
+    if (organization.paddleSubscriptionId) {
+      // Granting a complimentary plan over a LIVE paid subscription would leave the teacher
+      // billed by Paddle for something they were just given. Cancelling at Paddle needs
+      // PADDLE_API_KEY, so until that exists the grant is refused rather than applied on top.
+      return fail(
+        "This organization has an active Paddle subscription. Cancel it in Paddle first, then grant the complimentary plan.",
+        "CONFLICT",
+      );
     }
   }
 
@@ -181,7 +177,7 @@ export async function grantComplimentaryPlan(
         planId: plan.id,
         subscriptionStatus: "active",
         cancelAtPeriodEnd: false,
-        payfastToken: null,
+        paddleSubscriptionId: null,
         currentPeriodEnd: expiresAt,
         graceStartedAt: null,
         graceEndsAt: null,
@@ -213,7 +209,7 @@ export async function grantComplimentaryPlan(
           permanent: parsed.data.permanent,
           expiresAt: expiresAt?.toISOString() ?? null,
           note: parsed.data.note ?? null,
-          cancelledPayfast: Boolean(organization.payfastToken),
+          cancelledSubscription: Boolean(organization.paddleSubscriptionId),
         },
       },
     }),

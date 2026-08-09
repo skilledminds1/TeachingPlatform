@@ -18,20 +18,12 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   DATABASE_URL: z.string().min(1).optional(),
   DIRECT_URL: z.string().min(1).optional(),
-  PAYFAST_MERCHANT_ID: optionalSecret,
-  PAYFAST_MERCHANT_KEY: optionalSecret,
-  PAYFAST_PASSPHRASE: optionalSecret,
-  PAYFAST_SANDBOX: z.enum(["true", "false"]).default("true"),
-  // Paddle (PAY-03). Not yet the live rail — see src/services/paddle/catalogue.ts.
-  // The client token is designed to sit in the browser, like the Supabase publishable key, so
-  // it is NEXT_PUBLIC_ and must not be marked Sensitive in Vercel: sensitive values are absent
-  // at build time and a NEXT_PUBLIC_ one would inline as undefined with no error anywhere.
+  // Paddle is the only rail (PAY-03). The client token is designed to sit in the browser, like
+  // the Supabase publishable key, so it is NEXT_PUBLIC_ and must not be marked Sensitive in
+  // Vercel: sensitive values are absent at build time and a NEXT_PUBLIC_ one would inline as
+  // undefined with no error anywhere.
   NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: z.string().min(1).optional(),
   NEXT_PUBLIC_PADDLE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("production"),
-  // The cutover switch. Off by default and deliberately explicit: the client token being
-  // present does NOT mean Paddle can take money — that needs business verification to pass —
-  // so gating on the token would have flipped production to a checkout that cannot complete.
-  NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("false"),
   PADDLE_API_KEY: optionalSecret,
   PADDLE_WEBHOOK_SECRET: optionalSecret,
   LIVEKIT_URL: z.string().url().optional(),
@@ -87,13 +79,8 @@ function parseEnv(): Env {
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     DIRECT_URL: process.env.DIRECT_URL,
-                PAYFAST_MERCHANT_ID: process.env.PAYFAST_MERCHANT_ID,
-    PAYFAST_MERCHANT_KEY: process.env.PAYFAST_MERCHANT_KEY,
-    PAYFAST_PASSPHRASE: process.env.PAYFAST_PASSPHRASE,
-    PAYFAST_SANDBOX: process.env.PAYFAST_SANDBOX,
     NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
     NEXT_PUBLIC_PADDLE_ENVIRONMENT: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT,
-    NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED: process.env.NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED,
     PADDLE_API_KEY: process.env.PADDLE_API_KEY,
     PADDLE_WEBHOOK_SECRET: process.env.PADDLE_WEBHOOK_SECRET,
     LIVEKIT_URL: process.env.LIVEKIT_URL,

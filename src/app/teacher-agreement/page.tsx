@@ -47,7 +47,7 @@ export default function TeacherAgreementPage() {
         {
           title: "6. Subscription and platform limits",
           paragraphs: [
-            "Your selected subscription controls platform features and limits. You authorize recurring PayFast billing according to the selected interval until cancellation takes effect. Failed or cancelled subscriptions may restrict features after the published grace process.",
+            "Your selected subscription controls platform features and limits. You authorize recurring billing by Paddle.com Market Ltd, the merchant of record for your subscription, according to the selected interval until cancellation takes effect. Paddle retries a failed payment before a subscription lapses; failed or cancelled subscriptions may restrict features after the published grace process.",
           ],
         },
         {

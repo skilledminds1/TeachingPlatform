@@ -58,8 +58,14 @@ describe("policy completeness", () => {
     expect(connectSrc).toContain("wss://*.livekit.cloud");
   });
 
-  it("keeps form-action scoped to the payment processor", () => {
-    expect(directive(production, "form-action")).toContain("https://www.payfast.co.za");
+  /**
+   * Paddle renders its checkout in an iframe and is never posted to, so form-action has no
+   * third party left to allow. Keeping a stale payment host here would leave a form target
+   * open that nothing uses — which is exactly the kind of leftover an attacker looks for.
+   */
+  it("allows no third-party form target now that checkout is an iframe", () => {
+    expect(directive(production, "form-action")).toBe("form-action 'self'");
+    expect(directive(production, "frame-src")).toContain("https://*.paddle.com");
   });
 
   // Same invariant asserted from the urls side; kept here so either file failing points at

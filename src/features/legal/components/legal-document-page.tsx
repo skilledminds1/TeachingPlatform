@@ -13,7 +13,7 @@ export function LegalDocumentPage({
   // Defaults track CURRENT_LEGAL_DOCUMENTS in src/lib/legal/documents.ts. Bump both together:
   // this only paints the header, while the id over there is what decides whether a user is
   // sent back to /legal-review to re-accept.
-  version = "4.0",
+  version = "5.0",
   effectiveDate = "9 August 2026",
   introduction,
   sections,
