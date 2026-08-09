@@ -71,6 +71,20 @@ export const PAYMENT_LINK_PROVIDERS: readonly PaymentLinkProvider[] = [
     hint: "Create a Payment Link and let customers choose what to pay, so one link covers any lesson price.",
   },
   {
+    id: "square",
+    name: "Square",
+    // square.link is the short form Square mints; checkout.square.site is the long form of the
+    // same page. Both are Square-hosted, so both must be allowed or a teacher who pastes the
+    // one they were shown is rejected for no reason they can see.
+    hosts: ["square.link", "checkout.square.site"],
+    // Square does not onboard South African sellers, so this is for teachers abroad. Added
+    // when PayPal.Me was removed, because that left Wise and Revolut as the only options for
+    // a teacher outside the listed countries.
+    countries: ["AU", "CA", "FR", "IE", "JP", "ES", "GB", "US"],
+    reusable: true,
+    hint: "A Square 'Collect a payment' link, which lets the student enter the lesson price. An item link is fixed to one price and will not work across different lesson lengths.",
+  },
+  {
     id: "yoco",
     name: "Yoco",
     hosts: ["pay.yoco.com"],
@@ -135,17 +149,6 @@ export const PAYMENT_LINK_PROVIDERS: readonly PaymentLinkProvider[] = [
     countries: "global",
     reusable: true,
     hint: "A Wise payment link with an open amount, so the payer chooses what to send.",
-  },
-  {
-    id: "paypal_me",
-    name: "PayPal.Me",
-    hosts: ["paypal.me", "www.paypal.me"],
-    countries: "global",
-    reusable: true,
-    // A PayPal BUSINESS account can only accept goods-and-services payments, which forecloses
-    // the friends-and-family loophole teachers use to dodge fees — the same loophole that
-    // strips the student of buyer protection and gets teacher accounts frozen.
-    hint: "Your PayPal.Me link on a PayPal BUSINESS account. Personal accounts accept friends-and-family payments, which leave your student with no protection and can get your account limited.",
   },
 ] as const;
 

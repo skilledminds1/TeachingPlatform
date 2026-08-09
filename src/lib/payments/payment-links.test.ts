@@ -103,8 +103,18 @@ describe("paymentLinkProvidersForCountry", () => {
 
   it("falls back to global providers when the country is unknown", () => {
     const ids = paymentLinkProvidersForCountry(null).map((p) => p.id);
-    expect(ids).toContain("paypal_me");
+    expect(ids).toContain("wise");
     expect(ids).not.toContain("yoco");
+  });
+
+  /**
+   * PayPal.Me was removed on 9 August 2026 with the rest of the PayPal rail. Global coverage
+   * has to survive it, or a teacher outside the listed countries is left with nothing to
+   * paste and no way to be paid at all.
+   */
+  it("still offers a global option to a teacher in an unlisted country", () => {
+    expect(paymentLinkProvidersForCountry("JP").length).toBeGreaterThan(0);
+    expect(paymentLinkProvidersForCountry(null).length).toBeGreaterThan(0);
   });
 });
 
