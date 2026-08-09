@@ -71,7 +71,7 @@ export function LegalDocumentPage({
           <h2 className="text-xl font-semibold">Operator and contact details</h2>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <LegalDetail label="Legal entity" value={env.LEGAL_ENTITY_NAME} />
-            <LegalDetail label="Registration number" value={env.LEGAL_REGISTRATION_NUMBER} />
+            <LegalDetail label="Legal status / registration" value={env.LEGAL_REGISTRATION_NUMBER} />
             <LegalDetail label="Business address" value={env.LEGAL_BUSINESS_ADDRESS} />
             <LegalDetail label="Support" value={env.LEGAL_SUPPORT_EMAIL} />
             <LegalDetail
