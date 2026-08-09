@@ -2,12 +2,14 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import { schedulerHasNeverRun, unhealthyJobs } from "./check-in";
 import {
   assessJob,
   CRON_JOBS,
   CRON_JOB_NAMES,
   stalenessThresholdMinutes,
   type CronJobName,
+  type JobLiveness,
 } from "./registry";
 
 /**
@@ -102,7 +104,7 @@ describe("staleness", () => {
   it("is healthy when it ran recently", () => {
     const result = assessJob(
       job,
-      { lastRunAt: minutesAgo(3), lastOkAt: minutesAgo(3), lastStatus: "ok" },
+      { createdAt: minutesAgo(3), lastRunAt: minutesAgo(3), lastOkAt: minutesAgo(3), lastStatus: "ok" },
     );
     expect(result.status).toBe("ok");
   });
@@ -115,12 +117,14 @@ describe("staleness", () => {
   it("tolerates one missed tick, then reports stale", () => {
     const threshold = stalenessThresholdMinutes(job);
     expect(assessJob(job, {
+      createdAt: minutesAgo(threshold - 1),
       lastRunAt: minutesAgo(threshold - 1),
       lastOkAt: minutesAgo(threshold - 1),
       lastStatus: "ok",
     }).status).toBe("ok");
 
     expect(assessJob(job, {
+      createdAt: minutesAgo(threshold + 1),
       lastRunAt: minutesAgo(threshold + 1),
       lastOkAt: minutesAgo(threshold + 1),
       lastStatus: "ok",
@@ -133,6 +137,7 @@ describe("staleness", () => {
    */
   it("measures from the last SUCCESS, not the last attempt", () => {
     const result = assessJob(job, {
+      createdAt: minutesAgo(1),
       lastRunAt: minutesAgo(1),
       lastOkAt: null,
       lastStatus: "failed",
@@ -153,6 +158,106 @@ describe("staleness", () => {
     expect(stalenessThresholdMinutes("refresh-fx-rates")).toBeGreaterThan(
       stalenessThresholdMinutes("process-email-outbox"),
     );
+  });
+});
+
+/**
+ * The blind spot that let a real outage run green.
+ *
+ * assessJob sees one job at a time, so "never ran" is honestly `unknown` there. Judged across
+ * all six it is not ambiguous at all, and these are the cases worth failing on.
+ */
+describe("a job that has never run", () => {
+  /** [job, when it first checked in, when it last did] — null for a job with no runs at all. */
+  const liveness = (
+    entries: Array<[CronJobName, Date | null, Date?]>,
+    now = new Date(),
+  ): JobLiveness[] =>
+    entries.map(([job, firstSeenAt, lastRunAt = firstSeenAt ?? undefined]) =>
+      assessJob(
+        job,
+        firstSeenAt === null || lastRunAt === undefined
+          ? null
+          : { createdAt: firstSeenAt, lastRunAt, lastOkAt: lastRunAt, lastStatus: "ok" },
+        now,
+      ),
+    );
+
+  /**
+   * The exact state on 9 August 2026: a valid CRON_SECRET on the deployment, nothing
+   * configured to use it, 136 workflow runs failing at their own config gate, and readiness
+   * green throughout because every job read `unknown`.
+   */
+  it("is a total outage when NOT ONE job has ever checked in", () => {
+    const nothing = liveness(CRON_JOB_NAMES.map((job) => [job, null]));
+
+    expect(nothing.every((job) => job.status === "unknown")).toBe(true);
+    expect(schedulerHasNeverRun(nothing)).toBe(true);
+  });
+
+  it("is not a total outage the moment one job checks in", () => {
+    const entries = CRON_JOB_NAMES.map<[CronJobName, Date | null]>((job, index) => [
+      job,
+      index === 0 ? minutesAgo(1) : null,
+    ]);
+    expect(schedulerHasNeverRun(liveness(entries))).toBe(false);
+  });
+
+  /**
+   * The anchor has to be the FIRST check-in, not the most recent one.
+   *
+   * A healthy job ticks every few minutes, so anchoring on lastRunAt would push the grace
+   * period forward by exactly the time that elapsed, it would never expire, and a job that was
+   * never wired up would stay unreported for ever — the same silence this replaced.
+   */
+  it("is not excused by a healthy sibling ticking the anchor forward", () => {
+    const now = new Date();
+    const jobs = liveness(
+      [
+        // Running happily for three hours, and last ran a minute ago.
+        ["session-reminders", minutesAgo(180, now), minutesAgo(1, now)],
+        ["process-email-outbox", null],
+      ],
+      now,
+    );
+
+    expect(unhealthyJobs(jobs, now).map((job) => job.job)).toEqual(["process-email-outbox"]);
+  });
+
+  /**
+   * Once another job has checked in, the scheduler has proved it can reach this deployment and
+   * authenticate. A job still showing nothing after its own schedule has come round is then
+   * wired up wrong, not young.
+   */
+  it("is unhealthy once the scheduler has proved itself and its schedule has passed", () => {
+    const now = new Date();
+    const proved = minutesAgo(stalenessThresholdMinutes("process-email-outbox") + 1, now);
+    const jobs = liveness(
+      [
+        ["session-reminders", proved],
+        ["process-email-outbox", null],
+      ],
+      now,
+    );
+
+    expect(unhealthyJobs(jobs, now).map((job) => job.job)).toEqual(["process-email-outbox"]);
+  });
+
+  /**
+   * A daily job wired up at 10:00 has not failed because it has not run by 10:05. Alarming
+   * here would page whoever just stood the environment up, which is how an alert gets ignored.
+   */
+  it("is left alone while its schedule has not yet come round", () => {
+    const now = new Date();
+    const jobs = liveness(
+      [
+        ["process-email-outbox", minutesAgo(2, now)],
+        ["subscription-lifecycle", null],
+      ],
+      now,
+    );
+
+    expect(unhealthyJobs(jobs, now)).toEqual([]);
   });
 });
 
@@ -199,6 +304,16 @@ describe("readiness reports what it can now answer", () => {
   it("fails when a job has stalled", () => {
     expect(READY).toContain("unhealthyJobs");
     expect(READY).toMatch(/stalled\.length === 0/);
+  });
+
+  /**
+   * Holding the secret is not the same as anyone using it, and the difference was a live
+   * outage this endpoint reported as ok.
+   */
+  it("fails in production when no scheduler has ever called a job route", () => {
+    expect(READY).toContain("schedulerHasNeverRun");
+    expect(READY).toMatch(/isProduction && schedulerHasNeverRun\(jobs\)/);
+    expect(READY).toMatch(/!schedulerNeverRan/);
   });
 
   it("logs as well as returns, in case the poller is what stopped", () => {

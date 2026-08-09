@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/observability/logger";
 import { isAuthorizedBearer } from "@/lib/security/cron-auth";
-import { getJobLiveness, unhealthyJobs } from "@/server/jobs/check-in";
+import { getJobLiveness, schedulerHasNeverRun, unhealthyJobs } from "@/server/jobs/check-in";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,13 +53,19 @@ export async function GET(request: Request) {
 
   // Only a fault in production: locally the jobs are invoked by hand.
   const cronSecretMissing = isProduction && !dependencies.cronSecret;
-  const ok = !cronSecretMissing && stalled.length === 0;
+  // Holding the secret is not the same as anyone using it. This deployment had a valid
+  // CRON_SECRET and nothing configured to call the job routes, so cronSecretMissing was false,
+  // every job read `unknown`, and readiness reported ok through a total outage of everything
+  // scheduled. Production-only: preview deployments have no scheduler pointed at them.
+  const schedulerNeverRan = isProduction && schedulerHasNeverRun(jobs);
+  const ok = !cronSecretMissing && !schedulerNeverRan && stalled.length === 0;
 
   if (!ok) {
     // Logged as well as returned, so this reaches the tracker even when whatever polls this
     // endpoint is itself the thing that has stopped.
     logger.error("readiness_check_failed", {
       cronSecretMissing,
+      schedulerNeverRan,
       stalledJobs: stalled.map((job) => ({
         job: job.job,
         status: job.status,
@@ -75,6 +81,7 @@ export async function GET(request: Request) {
       service: "amazing-skills",
       dependencies,
       cronSecretMissing,
+      schedulerNeverRan,
       jobs: jobs.map((job) => ({
         job: job.job,
         status: job.status,

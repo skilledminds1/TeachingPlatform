@@ -100,12 +100,25 @@ export function stalenessThresholdMinutes(job: CronJobName): number {
 export type JobLiveness = {
   job: CronJobName;
   /**
-   * `unknown` means it has never run. That is NOT reported as stale: a fresh deploy would
-   * otherwise alarm on every job before the first tick. The case it might hide — a
-   * CRON_SECRET so wrong that nothing ever ran — is caught by the separate secret check,
-   * which fails readiness in production outright.
+   * `unknown` means it has never run. Still not reported as stale HERE, because this sees one
+   * job in isolation and cannot tell "never wired up" from "wired up a minute ago".
+   *
+   * That judgement needs the other jobs for context, so it lives in unhealthyJobs and
+   * schedulerHasNeverRun instead. This comment used to claim the dangerous case — nothing ever
+   * ran — was "caught by the separate secret check". It was not: that check only asks whether
+   * the DEPLOYMENT holds a CRON_SECRET, which says nothing about whether any caller has it. On
+   * 9 August 2026 the secret was present and correct, nothing was configured to use it, and
+   * readiness stayed green through a total outage of everything scheduled.
    */
   status: "ok" | "stale" | "failing" | "unknown";
+  /**
+   * When this job FIRST checked in, which is not when it last did.
+   *
+   * The earliest of these across all jobs is the only honest answer to "since when should a
+   * job have been running here": it is written once and never moves, while lastRunAt advances
+   * on every tick and would carry a grace period forward for ever.
+   */
+  firstSeenAt: Date | null;
   lastRunAt: Date | null;
   lastOkAt: Date | null;
   minutesSinceLastOk: number | null;
@@ -115,7 +128,7 @@ export type JobLiveness = {
 
 export function assessJob(
   job: CronJobName,
-  run: { lastRunAt: Date; lastOkAt: Date | null; lastStatus: string } | null,
+  run: { createdAt: Date; lastRunAt: Date; lastOkAt: Date | null; lastStatus: string } | null,
   now = new Date(),
 ): JobLiveness {
   const thresholdMinutes = stalenessThresholdMinutes(job);
@@ -125,6 +138,7 @@ export function assessJob(
     return {
       job,
       status: "unknown",
+      firstSeenAt: null,
       lastRunAt: null,
       lastOkAt: null,
       minutesSinceLastOk: null,
@@ -149,6 +163,7 @@ export function assessJob(
   return {
     job,
     status,
+    firstSeenAt: run.createdAt,
     lastRunAt: run.lastRunAt,
     lastOkAt: run.lastOkAt,
     minutesSinceLastOk,
