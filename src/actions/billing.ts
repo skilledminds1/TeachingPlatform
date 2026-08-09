@@ -1,6 +1,5 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
 
 import { z } from "zod";
 
@@ -8,10 +7,6 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { requireTeacher } from "@/server/auth/session";
 import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
-import {
-  getActiveSalesForPlans,
-  getEffectivePlanPrice,
-} from "@/server/billing/pricing";
 import { getLiveLessonUsage } from "@/server/billing/entitlements";
 import { isPaidPlanSlug, paddlePriceId } from "@/services/paddle/catalogue";
 import { fail, ok, type ActionResult } from "@/types/action";
@@ -102,29 +97,20 @@ export async function createSubscriptionCheckout(
     );
   }
 
-  const sales = await getActiveSalesForPlans([plan.id]);
-  const priced = getEffectivePlanPrice(
-    plan,
-    parsed.data.interval,
-    sales.get(plan.id),
-  );
-  // Plans are priced in the currency PayFast settles in, so there is no conversion here and
-  // no rate to drift. The old code multiplied a USD price by PAYFAST_USD_ZAR_RATE at checkout
-  // — and since PayFast fixes recurring_amount for the life of the token, every teacher was
-  // left paying the rand figure that one env var happened to produce on the day they signed
-  // up, permanently, while the catalogue moved on without them.
-  const chargeCents = priced.effectiveCents;
-  const toAmount = (cents: number) => (cents / 100).toFixed(2);
-  // First charge honours any active promotion.
-  const amountDue = toAmount(chargeCents);
-  // MON-22: renewals bill at list price. Previously the discounted figure was sent as
-  // `recurring_amount` too, so a time-limited promotion ("30% off launch weekend") became a
-  // permanent discount for anyone who happened to check out during it.
-  const recurringAmount = toAmount(priced.listCents);
+  /**
+   * Nothing here computes a charge any more. The price id sent to Paddle IS the amount, and
+   * removing this application's ability to work out a number is the point — see
+   * 20260808160000_price_plans_in_zar for the three ways it got that wrong.
+   *
+   * The casualty is promotional pricing. PlanSale used to be applied here: first charge at the
+   * discount, renewals at list. Paddle expresses a discount as a catalogue object, not a figure
+   * a caller supplies, so sales are NOT applied at checkout today. Left visibly absent rather
+   * than half-wired, because a sale that shows in the UI and never reaches the till is worse
+   * than one that does not exist.
+   */
   const appUrl = env.NEXT_PUBLIC_APP_URL;
   const appHost = new URL(appUrl).hostname;
   const isLocalApp = appHost === "localhost" || appHost === "127.0.0.1";
-  const isPublicHttps = appUrl.startsWith("https://") && !isLocalApp;
   const onComplimentary = Boolean(organization.complimentaryPlanId);
   const canStartFreshCheckout =
     organization.plan.slug === "free" || onComplimentary;

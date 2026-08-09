@@ -100,6 +100,25 @@ async function handleRequest(request: NextRequest): Promise<NextResponse> {
   }
 
   if (!userId) {
+    /**
+     * An API answers, it does not redirect.
+     *
+     * Every unauthenticated /api/ request used to get a 307 to /login and, on following it, a
+     * page of HTML with a 200. To anything that is not a browser — a webhook provider, a
+     * script, a monitor — that reads as success, so a misaimed or unauthenticated integration
+     * looked like it was working while doing nothing at all.
+     *
+     * 401 rather than 404 on purpose: which API paths exist is not something an anonymous
+     * caller needs told. A caller with a session falls through to the route, or to the
+     * catch-all in app/api/[...unmatched] that answers a real 404.
+     */
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Unauthorized", message: "Authentication is required for this endpoint." },
+        { status: 401 },
+      );
+    }
+
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("redirect", pathname);

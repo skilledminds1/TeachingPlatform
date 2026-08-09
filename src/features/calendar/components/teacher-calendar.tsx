@@ -298,7 +298,12 @@ export function TeacherCalendar({
               className="mt-2 w-full"
               render={
                 // GLO-03: content comes from Button's children — see the connect card.
-                // eslint-disable-next-line jsx-a11y/anchor-has-content
+                //
+                // next/link is wrong here and the rule is misfiring: this is a Route Handler
+                // that starts an OAuth redirect, not a page, and it needs a real navigation.
+                // The rule only began flagging it once app/api/[...unmatched] existed, which
+                // makes every /api/ path look like a page to it.
+                // eslint-disable-next-line jsx-a11y/anchor-has-content, @next/next/no-html-link-for-pages
                 <a href="/api/integrations/google-calendar/connect?returnTo=/dashboard/teacher/bookings" />
               }
             >
