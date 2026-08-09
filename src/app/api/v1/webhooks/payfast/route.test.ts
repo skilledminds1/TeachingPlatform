@@ -235,6 +235,32 @@ describe("rejected notifications never reach billing state", () => {
 
   // A subscription must never be activated off a zero-value payment. The rejection is still
   // recorded, so a genuine misconfiguration is visible rather than silently dropped.
+  /**
+   * Multi-Currency Pricing lets the buyer pay in their own currency while Payfast still
+   * settles ZAR. The quote in custom_str4 is rand, so a strict comparison against a dollar
+   * gross would 400 a payment Payfast had already taken — no invoice, and the lifecycle job
+   * then duns a teacher who paid. The signature and the server confirmation are what actually
+   * guard this route; the amount is a cross-check that cannot apply across currencies.
+   */
+  it("accepts a payment made in another currency rather than rejecting the amount", async () => {
+    const response = await post(
+      itn({ amount_gross: "55.00", currency: "USD", custom_str4: "53900" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(state.writes.length).toBeGreaterThan(0);
+    expect(state.auditWrites).toHaveLength(0);
+  });
+
+  it("still refuses a rand amount that does not match the quote", async () => {
+    const response = await post(
+      itn({ amount_gross: "1.00", currency: "ZAR", custom_str4: "53900" }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(state.writes).toHaveLength(0);
+  });
+
   it("refuses a completed payment carrying no money but keeps an audit row", async () => {
     const response = await post(itn({ amount_gross: "0" }));
 

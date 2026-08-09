@@ -80,6 +80,33 @@ function amountLooksConsistent(params: URLSearchParams): boolean {
   // still stand, so do not reject a legitimate payment over a missing annotation.
   if (!Number.isFinite(quotedCents) || quotedCents <= 0) return true;
 
+  /**
+   * The quote is in RAND, because that is the only currency this checkout ever asks for. With
+   * Multi-Currency Pricing the buyer may choose to pay in theirs, and there is then no honest
+   * comparison to make here: reconstructing the expected foreign amount needs Payfast's rate
+   * at the moment of capture, which is exactly the hand-maintained-constant trap that pricing
+   * in ZAR was meant to delete (see 20260808160000_price_plans_in_zar).
+   *
+   * Getting this wrong is not a near miss. A strict comparison against a foreign gross fails,
+   * the handler 400s a payment Payfast has ALREADY taken, no invoice is written, and the
+   * lifecycle job then duns a teacher who paid — defect 2 of that migration, re-entering
+   * through the multi-currency door.
+   *
+   * So the amount check is skipped when the currency is not the one quoted. It is a
+   * belt-and-braces check, not the security boundary: the signature is verified and the
+   * notification is confirmed with Payfast's own server before this runs. Logged rather than
+   * silent, because an unexpected currency is worth seeing.
+   */
+  const currency = params.get("currency")?.toUpperCase();
+  if (currency && currency !== "ZAR") {
+    logger.info("payfast_itn_amount_check_skipped_foreign_currency", {
+      currency,
+      gross,
+      quotedCents,
+    });
+    return true;
+  }
+
   // Compared in minor units: 0.1 + 0.2 style float error on a rand figure is exactly how an
   // equality test on money goes wrong.
   return Math.round(gross * 100) === Math.round(quotedCents);
