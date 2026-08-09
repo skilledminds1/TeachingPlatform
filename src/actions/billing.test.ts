@@ -39,14 +39,17 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-vi.mock("@/lib/env", () => ({
-  env: {
-    PAYFAST_MERCHANT_ID: "10000100",
-    PAYFAST_MERCHANT_KEY: "merchant-key",
-    PAYFAST_PASSPHRASE: "test-passphrase",
-    NEXT_PUBLIC_APP_URL: "https://app.example.com",
-  },
+// Hoisted so the flag can be flipped per test: it is the cutover switch between two rails, and
+// a switch with only one position tested is the half nobody notices is broken.
+const mockEnv = vi.hoisted(() => ({
+  PAYFAST_MERCHANT_ID: "10000100",
+  PAYFAST_MERCHANT_KEY: "merchant-key",
+  PAYFAST_PASSPHRASE: "test-passphrase",
+  NEXT_PUBLIC_APP_URL: "https://app.example.com",
+  NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED: "false",
 }));
+
+vi.mock("@/lib/env", () => ({ env: mockEnv }));
 
 vi.mock("@/server/auth/session", () => ({
   requireTeacher: vi.fn(async () => ({
@@ -93,6 +96,7 @@ const PAST_DUE = {
 };
 
 beforeEach(() => {
+  mockEnv.NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED = "false";
   state.orgUpdates = [];
   state.providerUpdates = [];
   state.providerResult = true;
@@ -215,6 +219,54 @@ describe("which checkout is recurring decides how the teacher may pay", () => {
     expect(fields.frequency).toBe("3");
     expect(fields.cycles).toBe("0");
     expect(fields.custom_str3).toBe("monthly");
+  });
+});
+
+/**
+ * PAY-03. The flag decides which rail a teacher is sent to, and it is OFF by default on
+ * purpose: the Paddle client token being present does not mean Paddle can take money, which
+ * needs business verification to pass. Gating on the token would have flipped production to a
+ * checkout that cannot complete.
+ */
+describe("the cutover switch", () => {
+  beforeEach(() => {
+    state.organization = {
+      payfastToken: null,
+      complimentaryPlanId: null,
+      plan: { slug: "free", monthlyPriceCents: 0 },
+      _count: { studentRelationships: 0 },
+      subscriptionStatus: "active",
+      graceStartedAt: null,
+      graceEndsAt: null,
+      dunningStage: 0,
+    };
+  });
+
+  it("still sends a teacher to PayFast while it is off", async () => {
+    const result = await createSubscriptionCheckout({ planSlug: "business", interval: "monthly" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.mode).toBe("redirect");
+  });
+
+  it("sends a price id and no amount once it is on", async () => {
+    mockEnv.NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED = "true";
+
+    const result = await createSubscriptionCheckout({ planSlug: "business", interval: "annual" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    if (result.data.mode !== "paddle") throw new Error(`expected paddle, got ${result.data.mode}`);
+
+    // The catalogue's annual Business price, resolved by the action rather than by the browser.
+    expect(result.data.priceId).toBe("pri_01kzkwakjn66bjcb1crrmbyg26");
+    // organization_id is the only identifier the webhook can trust to attach the subscription.
+    expect(result.data.organizationId).toBe("org-1");
+    // No amount, no signature, no currency. Paddle is the authority on what a plan costs, and
+    // the last rail's worst defects all came from this application computing a charge.
+    expect(result.data).not.toHaveProperty("amount");
+    expect(result.data).not.toHaveProperty("signature");
   });
 });
 

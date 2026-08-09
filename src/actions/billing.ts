@@ -17,6 +17,7 @@ import {
 import { getLiveLessonUsage } from "@/server/billing/entitlements";
 import { createPayfastSignature } from "@/services/payfast/signature";
 import { updatePayfastSubscription } from "@/services/payfast/subscriptions";
+import { isPaidPlanSlug, paddlePriceId } from "@/services/paddle/catalogue";
 import { fail, ok, type ActionResult } from "@/types/action";
 
 const checkoutSchema = z.object({
@@ -43,6 +44,7 @@ export async function createSubscriptionCheckout(
 ): Promise<
   ActionResult<
     | { mode: "redirect"; url: string; fields: Record<string, string> }
+    | { mode: "paddle"; priceId: string; organizationId: string; email: string }
     | { mode: "updated" }
     | { mode: "local"; planName: string }
   >
@@ -207,6 +209,30 @@ export async function createSubscriptionCheckout(
       "This paid account has no PayFast token. Contact support before changing plans.",
       "CONFLICT",
     );
+  }
+
+  /**
+   * Paddle, once the cutover switch is on.
+   *
+   * Nothing is signed and no amount is sent: the price id IS the amount, and Paddle is the
+   * authority on what it costs. That deletes the entire class of defect that came from this
+   * application computing a charge — see 20260808160000_price_plans_in_zar, where a
+   * hand-maintained conversion rate produced three separate ways to bill the wrong number.
+   *
+   * organization_id rides along in custom_data because it is the only identifier the webhook
+   * can trust to attach a subscription to the right organization. Paddle echoes it on every
+   * notification for the life of the subscription.
+   */
+  if (env.NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED === "true") {
+    if (!isPaidPlanSlug(plan.slug)) {
+      return fail("That plan cannot be bought through checkout.", "VALIDATION_ERROR");
+    }
+    return ok({
+      mode: "paddle" as const,
+      priceId: paddlePriceId(plan.slug, parsed.data.interval),
+      organizationId: membership.organizationId,
+      email: user.email,
+    });
   }
 
   const fields = new Map<string, string>([

@@ -14,6 +14,7 @@ import {
 } from "@/actions/billing";
 import { Button } from "@/components/ui/button";
 import { planFeatureLabels } from "@/features/billing/lib/plan-feature-labels";
+import { openPaddleCheckout } from "@/services/paddle/checkout-client";
 import { cn } from "@/lib/utils";
 
 type BillingPlan = {
@@ -32,6 +33,32 @@ type BillingPlan = {
   features: string[];
   highlighted?: boolean;
 };
+
+/**
+ * Hand a checkout result to whichever rail produced it.
+ *
+ * PayFast posts a signed form and navigates away; Paddle opens an overlay and the page stays
+ * put. Keeping the branch here rather than at each call site means a future rail is one arm of
+ * this switch, not another pair of places to remember.
+ */
+async function startCheckout(
+  data:
+    | { mode: "redirect"; url: string; fields: Record<string, string> }
+    | { mode: "paddle"; priceId: string; organizationId: string; email: string },
+): Promise<void> {
+  if (data.mode === "paddle") {
+    await openPaddleCheckout({
+      priceId: data.priceId,
+      organizationId: data.organizationId,
+      email: data.email,
+      // Paddle confirms in the overlay; this brings them back to a page that reflects the new
+      // plan rather than leaving them looking at the old one.
+      successUrl: `${window.location.origin}/dashboard/teacher/billing?checkout=return`,
+    });
+    return;
+  }
+  submitHostedForm(data.url, data.fields);
+}
 
 function submitHostedForm(url: string, fields: Record<string, string>): void {
   const form = document.createElement("form");
@@ -127,7 +154,7 @@ export function BillingPlanSelector({
         router.refresh();
         return;
       }
-      submitHostedForm(result.data.url, result.data.fields);
+      await startCheckout(result.data);
     });
   }
 
@@ -159,7 +186,7 @@ export function BillingPlanSelector({
         router.refresh();
         return;
       }
-      submitHostedForm(result.data.url, result.data.fields);
+      await startCheckout(result.data);
     })();
 
     return () => {

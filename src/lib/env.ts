@@ -28,6 +28,10 @@ const envSchema = z.object({
   // at build time and a NEXT_PUBLIC_ one would inline as undefined with no error anywhere.
   NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: z.string().min(1).optional(),
   NEXT_PUBLIC_PADDLE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("production"),
+  // The cutover switch. Off by default and deliberately explicit: the client token being
+  // present does NOT mean Paddle can take money — that needs business verification to pass —
+  // so gating on the token would have flipped production to a checkout that cannot complete.
+  NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("false"),
   PADDLE_API_KEY: optionalSecret,
   PADDLE_WEBHOOK_SECRET: optionalSecret,
   LIVEKIT_URL: z.string().url().optional(),
@@ -89,6 +93,7 @@ function parseEnv(): Env {
     PAYFAST_SANDBOX: process.env.PAYFAST_SANDBOX,
     NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
     NEXT_PUBLIC_PADDLE_ENVIRONMENT: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT,
+    NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED: process.env.NEXT_PUBLIC_PADDLE_CHECKOUT_ENABLED,
     PADDLE_API_KEY: process.env.PADDLE_API_KEY,
     PADDLE_WEBHOOK_SECRET: process.env.PADDLE_WEBHOOK_SECRET,
     LIVEKIT_URL: process.env.LIVEKIT_URL,
