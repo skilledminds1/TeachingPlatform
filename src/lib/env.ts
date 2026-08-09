@@ -67,7 +67,7 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 function parseEnv(): Env {
-  return envSchema.parse({
+  const raw: Record<string, string | undefined> = {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
@@ -79,7 +79,7 @@ function parseEnv(): Env {
     PAYFAST_MERCHANT_KEY: process.env.PAYFAST_MERCHANT_KEY,
     PAYFAST_PASSPHRASE: process.env.PAYFAST_PASSPHRASE,
     PAYFAST_SANDBOX: process.env.PAYFAST_SANDBOX,
-        LIVEKIT_URL: process.env.LIVEKIT_URL,
+    LIVEKIT_URL: process.env.LIVEKIT_URL,
     LIVEKIT_API_KEY: process.env.LIVEKIT_API_KEY,
     LIVEKIT_API_SECRET: process.env.LIVEKIT_API_SECRET,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
@@ -96,11 +96,46 @@ function parseEnv(): Env {
     GOOGLE_CALENDAR_CLIENT_SECRET: process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
     CRON_SECRET: process.env.CRON_SECRET,
     HEALTH_SECRET: process.env.HEALTH_SECRET,
-        SENTRY_DSN: process.env.SENTRY_DSN,
+    SENTRY_DSN: process.env.SENTRY_DSN,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     SENTRY_ENVIRONMENT: process.env.SENTRY_ENVIRONMENT,
     NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
-  });
+  };
+
+  /**
+   * An empty value is NOT an absent one, and every deployment UI produces empty ones.
+   *
+   * `.optional()` accepts a missing key. It rejects `""`. So a variable someone added in the
+   * Vercel dashboard and left blank — or a blank line in a copied .env — fails the parse at
+   * module load, inside the Edge middleware bundle, and every route in the application answers
+   * MIDDLEWARE_INVOCATION_FAILED. Blank is the normal way to express "not set" in those tools,
+   * so treat it as such here rather than making each optional field spell it out.
+   */
+  const normalised = Object.fromEntries(
+    Object.entries(raw).map(([key, value]) => [key, value === "" ? undefined : value]),
+  );
+
+  const result = envSchema.safeParse(normalised);
+  if (result.success) return result.data;
+
+  /**
+   * Fail readably. `envSchema.parse()` threw a raw ZodError, which surfaces as a stack trace
+   * naming a field and nothing else — while assertProductionEnv, twenty lines below, exists
+   * precisely to list every problem in plain language. The schema running first meant the
+   * worse message always won.
+   */
+  const problems = result.error.issues
+    .map((issue) => `  - ${issue.path.join(".") || "(unknown)"}: ${issue.message}`)
+    .join("\n");
+  const count = result.error.issues.length;
+  throw new Error(
+    [
+      `Invalid environment configuration: ${count} problem${count === 1 ? "" : "s"}.`,
+      problems,
+      "",
+      "A variable set to an empty string counts as invalid, not as unset — remove it instead.",
+    ].join("\n"),
+  );
 }
 
 export const env = parseEnv();

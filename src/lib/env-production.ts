@@ -52,6 +52,21 @@ function requireValue(
 export function productionEnvProblems(env: Env): EnvProblem[] {
   const problems: EnvProblem[] = [];
 
+  // Silent, not loud: this one has a default, so a production deploy that omits it boots
+  // perfectly and simply builds every absolute URL against localhost — auth callbacks,
+  // password-reset links, and the guardian-consent links emailed to a parent. It is also
+  // NEXT_PUBLIC_, so it is inlined at BUILD time: fixing it afterwards needs a rebuild, not a
+  // restart.
+  if (
+    env.NEXT_PUBLIC_APP_URL.includes("localhost") ||
+    env.NEXT_PUBLIC_APP_URL.startsWith("http://")
+  ) {
+    problems.push({
+      variable: "NEXT_PUBLIC_APP_URL",
+      problem: `is "${env.NEXT_PUBLIC_APP_URL}" — every emailed link would point there, and it is inlined at build time`,
+    });
+  }
+
   requireValue(problems, "DATABASE_URL", env.DATABASE_URL, "the application cannot reach any database");
   requireValue(problems, "DIRECT_URL", env.DIRECT_URL, "migrations and direct queries have no connection");
 

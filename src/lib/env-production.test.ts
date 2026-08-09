@@ -14,6 +14,7 @@ import type { Env } from "./env";
  */
 function goodEnv(overrides: Partial<Env> = {}): Env {
   return {
+    NEXT_PUBLIC_APP_URL: "https://www.amazing-skills.com",
     DATABASE_URL: "postgresql://db",
     DIRECT_URL: "postgresql://direct",
     NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co",
@@ -46,6 +47,20 @@ function problemFor(overrides: Partial<Env>): string[] {
 describe("a complete production environment", () => {
   it("reports nothing wrong", () => {
     expect(productionEnvProblems(goodEnv())).toEqual([]);
+  });
+});
+
+describe("the app URL, which fails silently rather than loudly", () => {
+  it("catches a production deploy still pointed at localhost", () => {
+    // It has a default, so this boots clean and simply emails everyone a link to their own
+    // machine — including the guardian-consent link sent to a parent.
+    expect(problemFor({ NEXT_PUBLIC_APP_URL: "http://localhost:3000" }))
+      .toContain("NEXT_PUBLIC_APP_URL");
+  });
+
+  it("catches plain http, which breaks secure cookies", () => {
+    expect(problemFor({ NEXT_PUBLIC_APP_URL: "http://amazing-skills.com" }))
+      .toContain("NEXT_PUBLIC_APP_URL");
   });
 });
 
