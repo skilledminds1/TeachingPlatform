@@ -168,10 +168,11 @@ describe("changing plan on an existing mandate", () => {
 const PERIOD_END = new Date("2026-08-31T00:00:00.000Z");
 
 /**
- * PAY-01. PayFast tokenises a card to bill recurring, so a subscription checkout offers card
- * and nothing else — no Instant EFT, no SnapScan, Zapper, Capitec Pay, Mobicred, MoreTyme or
- * Apple/Samsung Pay, none of which can be tokenised. Annual is therefore sold as a once-off so
- * the payer gets the full method list, and monthly stays recurring so it renews itself.
+ * PAY-01. Recurring at PayFast needs a tokenisable instrument: cards, the wallets wrapping one,
+ * Capitec Pay and Absa Pay. A subscription checkout therefore drops every EFT, QR and
+ * buy-now-pay-later option — Instant EFT, SiD, SnapScan, Zapper, Scan to Pay, SCode,
+ * MukuruPay, Store Cards, Mobicred, MoreTyme. Annual is sold as a once-off so the payer gets
+ * all of them, and monthly stays recurring so it renews itself.
  */
 describe("which checkout is recurring decides how the teacher may pay", () => {
   beforeEach(() => {

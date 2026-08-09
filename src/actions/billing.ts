@@ -238,11 +238,12 @@ export async function createSubscriptionCheckout(
   fields.set("custom_str4", String(chargeCents));
   // PAY-01: monthly recurs, annual does not — and that asymmetry is the whole point.
   //
-  // PayFast tokenises a CARD to bill recurring, so `subscription_type=1` silently reduces the
-  // checkout to card only: Instant EFT, SnapScan, Zapper, Capitec Pay, Mobicred, MoreTyme and
-  // Apple/Samsung Pay are all one-off instruments and cannot be tokenised. A teacher without a
-  // credit card therefore could not subscribe at all, which on a South African marketplace is
-  // not an edge case.
+  // Recurring at PayFast needs an instrument it can tokenise and re-debit. Cards can, and so
+  // can the wallets that wrap one — Google, Apple and Samsung Pay — along with Capitec Pay and
+  // Absa Pay. What CANNOT is everything else PayFast offers, and that list is the point:
+  // Instant EFT, SiD, SnapScan, Zapper, Scan to Pay, SCode, MukuruPay, Store Cards, Mobicred
+  // and MoreTyme. So `subscription_type=1` quietly removes every EFT, QR and buy-now-pay-later
+  // option from the page — which on a South African marketplace is most of how people pay.
   //
   // Sending annual as a plain once-off payment hands the payer PayFast's full method list. The
   // cost is that nothing renews it automatically, so the lifecycle job has to notice a lapsed
