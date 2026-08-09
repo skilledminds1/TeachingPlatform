@@ -16,6 +16,17 @@ export class ResendEmailProvider implements EmailProvider {
     const { data, error } = await this.client.emails.send(
       {
         from: env.RESEND_FROM_EMAIL ?? "Amazing Skills <onboarding@resend.dev>",
+        // Sending on a domain does not mean receiving on it. Resend delivers mail FROM
+        // amazing-skills.com, but nothing accepts mail TO it unless a mailbox exists — so a
+        // reply to the From address bounces silently.
+        //
+        // That is not cosmetic here: the guardian consent email tells a parent they can
+        // withdraw permission for their child by replying. Pointing Reply-To at the operator
+        // address makes that true without needing a mailbox on the domain. It is
+        // LEGAL_SUPPORT_EMAIL rather than a new variable because that is already "where users
+        // write", already rendered on every legal page, and already required at boot — so it
+        // cannot be unset in production while this quietly falls back to a black hole.
+        replyTo: env.LEGAL_SUPPORT_EMAIL,
         to: input.to,
         subject: input.subject,
         html: input.html,

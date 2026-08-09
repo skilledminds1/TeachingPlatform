@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { GuardianConsentForm } from "@/features/guardians/components/guardian-consent-form";
+import { GuardianWithdrawForm } from "@/features/guardians/components/guardian-withdraw-form";
 import { lookupGuardianConsent } from "@/server/guardians/consent";
 
 export const metadata: Metadata = {
@@ -32,27 +33,38 @@ export default async function GuardianConsentPage({
         Permission for a young learner
       </h1>
 
-      {!consent.ok ? (
+      {!consent.ok && consent.reason === "already_verified" ? (
+        <div className="mt-6 space-y-4">
+          <section className="space-y-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-6">
+            <p className="font-medium">You have given permission for {consent.minorName}</p>
+            <p className="text-sm text-muted-foreground">
+              They can book lessons. Keep this email — it is also how you withdraw permission.
+            </p>
+          </section>
+          <GuardianWithdrawForm token={token} minorName={consent.minorName} />
+        </div>
+      ) : null}
+
+      {!consent.ok && consent.reason !== "already_verified" ? (
         <div className="mt-6 space-y-4 rounded-xl border border-border bg-card p-6">
           <p className="font-medium">
-            {consent.reason === "already_verified"
-              ? "This permission has already been given."
-              : consent.reason === "revoked"
-                ? "This permission has been withdrawn."
-                : consent.reason === "expired"
-                  ? "This permission link has expired."
-                  : "This permission link is not valid."}
+            {consent.reason === "revoked"
+              ? "This permission has been withdrawn."
+              : consent.reason === "expired"
+                ? "This permission link has expired."
+                : "This permission link is not valid."}
           </p>
           <p className="text-sm text-muted-foreground">
-            {consent.reason === "already_verified"
-              ? "Nothing more is needed. The account can book lessons."
-              : "Ask the student to send a new request from their dashboard. Links expire so that an old email cannot be used later."}
+            Ask the student to send a new request from their dashboard. Links expire so that an
+            old email cannot be used later.
           </p>
           <Link href="/" className="text-sm font-medium text-primary hover:underline">
             Go to Amazing Skills
           </Link>
         </div>
-      ) : (
+      ) : null}
+
+      {consent.ok ? (
         <div className="mt-6 space-y-6">
           <section className="space-y-3 rounded-xl border border-border bg-card p-6">
             <p>
@@ -116,7 +128,7 @@ export default async function GuardianConsentPage({
 
           <GuardianConsentForm token={token} minorName={consent.minorName} />
         </div>
-      )}
+      ) : null}
     </main>
   );
 }

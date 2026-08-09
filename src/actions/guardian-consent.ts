@@ -13,6 +13,7 @@ import { db } from "@/lib/db";
 import {
   requestGuardianConsent,
   verifyGuardianConsent,
+  withdrawGuardianConsentByToken,
 } from "@/server/guardians/consent";
 import { guardianSchema } from "@/lib/validations/auth";
 import { fail, ok, type ActionResult } from "@/types/action";
@@ -56,6 +57,42 @@ export async function confirmGuardianConsent(
     );
   }
   return ok({ granted: true });
+}
+
+/**
+ * The guardian withdraws permission.
+ *
+ * Unauthenticated, like granting: the token from their email is the credential, because a
+ * guardian has no account. Without this the withdrawal promised in the consent email, the
+ * Terms and the Privacy Policy had no mechanism at all — `revokeGuardianConsent` existed and
+ * nothing called it, so honouring a request meant editing the database by hand.
+ *
+ * Withdrawal stops NEW bookings and leaves confirmed lessons alone. Cancelling a booked lesson
+ * is a decision for the guardian, the student and the teacher together, and doing it silently
+ * from an email link is not that conversation.
+ */
+export async function withdrawGuardianConsent(
+  token: unknown,
+): Promise<ActionResult<{ withdrawn: true }>> {
+  const parsed = tokenSchema.safeParse(token);
+  if (!parsed.success) return fail("This permission link is not valid.", "VALIDATION_ERROR");
+
+  const limited = await enforceActionRateLimit({
+    action: "guardian-consent-withdraw",
+    limit: 10,
+    windowMs: 10 * 60_000,
+    identifier: parsed.data.slice(0, 32),
+  });
+  if (limited) return limited;
+
+  const result = await withdrawGuardianConsentByToken({
+    token: parsed.data,
+    reason: "Withdrawn by the parent or guardian",
+  });
+  if (!result.withdrawn) {
+    return fail("This permission has already been withdrawn, or the link is not valid.", "CONFLICT");
+  }
+  return ok({ withdrawn: true });
 }
 
 /**

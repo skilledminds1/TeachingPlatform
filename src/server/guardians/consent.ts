@@ -113,7 +113,8 @@ export async function requestGuardianConsent(input: {
       paragraphs: [
         `${input.minorName} has created a student account on Amazing Skills and named you as their parent or guardian.`,
         "Amazing Skills is a tutoring marketplace. Students book live one-to-one video lessons with independent teachers, and pay those teachers directly — the platform never handles that money.",
-        "Until you confirm, this account cannot book a lesson. You can withdraw permission at any time by replying to this email, which stops any further bookings.",
+        "Until you confirm, this account cannot book a lesson.",
+        "Keep this email. The same link lets you withdraw permission at any time, which stops any further bookings. You can also just reply to this message.",
         `This link works once and expires in ${CONSENT_LINK_TTL_DAYS} days. If you were not expecting it, ignore it and no lessons can be booked.`,
       ],
       action: { label: "Review and give permission", href: url },
@@ -126,7 +127,14 @@ export async function requestGuardianConsent(input: {
 
 export type ConsentLookup =
   | { ok: true; minorName: string; guardianName: string; relationship: string }
-  | { ok: false; reason: "not_found" | "expired" | "revoked" | "already_verified" };
+  /**
+   * Already granted. NOT an error state: the same link is how a guardian comes back to
+   * withdraw, which is the mechanism behind the promise made in the consent email, the Terms
+   * and the Privacy Policy. `verifyGuardianConsent` deliberately leaves `tokenHash` in place
+   * after granting so this stays reachable.
+   */
+  | { ok: false; reason: "already_verified"; minorName: string; verifiedAt: Date | null }
+  | { ok: false; reason: "not_found" | "expired" | "revoked" };
 
 /** Resolve a token for the confirmation page, without granting anything. */
 export async function lookupGuardianConsent(token: string): Promise<ConsentLookup> {
@@ -135,6 +143,7 @@ export async function lookupGuardianConsent(token: string): Promise<ConsentLooku
     select: {
       status: true,
       expiresAt: true,
+      verifiedAt: true,
       guardianName: true,
       relationship: true,
       minor: { select: { name: true } },
@@ -142,7 +151,14 @@ export async function lookupGuardianConsent(token: string): Promise<ConsentLooku
   });
   if (!consent) return { ok: false, reason: "not_found" };
   if (consent.status === "revoked") return { ok: false, reason: "revoked" };
-  if (consent.status === "verified") return { ok: false, reason: "already_verified" };
+  if (consent.status === "verified") {
+    return {
+      ok: false,
+      reason: "already_verified",
+      minorName: consent.minor.name,
+      verifiedAt: consent.verifiedAt,
+    };
+  }
   if (consent.expiresAt <= new Date()) return { ok: false, reason: "expired" };
 
   return {
@@ -247,6 +263,31 @@ export async function revokeGuardianConsent(input: {
 
   if (result) logger.info("guardian_consent_revoked", { minorUserId: input.minorUserId });
   return { revoked: result };
+}
+
+/**
+ * Withdraw using the link from the original email.
+ *
+ * The guardian has no account and never will, so the token is the credential — the same one
+ * that granted permission. That is deliberate: withdrawal only ever STOPS bookings, so the
+ * failure mode of a leaked link is a lesson that does not happen, which is the safe direction.
+ * Granting is the operation that needed protecting, and it already has the same protection.
+ */
+export async function withdrawGuardianConsentByToken(input: {
+  token: string;
+  reason: string;
+}): Promise<{ withdrawn: boolean }> {
+  const consent = await db.guardianConsent.findUnique({
+    where: { tokenHash: hashLinkToken(input.token) },
+    select: { minorUserId: true, status: true },
+  });
+  if (!consent || consent.status === "revoked") return { withdrawn: false };
+
+  const result = await revokeGuardianConsent({
+    minorUserId: consent.minorUserId,
+    reason: input.reason,
+  });
+  return { withdrawn: result.revoked };
 }
 
 export type BookingEligibility =

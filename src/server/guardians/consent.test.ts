@@ -57,7 +57,8 @@ vi.mock("@/services/email/templates", () => ({
   renderEmailTemplate: () => "<html></html>",
 }));
 
-const { verifyGuardianConsent, guardianBookingEligibility } = await import("./consent");
+const { verifyGuardianConsent, guardianBookingEligibility, withdrawGuardianConsentByToken } =
+  await import("./consent");
 
 const FUTURE = new Date(Date.now() + 86_400_000);
 const PAST = new Date(Date.now() - 86_400_000);
@@ -129,6 +130,45 @@ describe("verifyGuardianConsent", () => {
     expect((call.where as AnyRecord).expiresAt).toBeDefined();
     // And no audit row claiming a consent that was not granted.
     expect(state.writes.consentRecords).toHaveLength(0);
+  });
+});
+
+/**
+ * The withdrawal promise appears in the consent email, the Terms and the Privacy Policy. Until
+ * this existed, `revokeGuardianConsent` had no caller — honouring a parent's request meant
+ * editing the database by hand.
+ */
+describe("withdrawGuardianConsentByToken", () => {
+  it("withdraws a verified consent using the original link", async () => {
+    state.consent = { minorUserId: "minor-1", status: "verified", policyVersion: "3.0" };
+
+    const result = await withdrawGuardianConsentByToken({ token: "tok", reason: "parent asked" });
+
+    expect(result).toEqual({ withdrawn: true });
+    const [call] = state.writes.updateMany;
+    expect((call.data as AnyRecord).status).toBe("revoked");
+    // The audit trail records the withdrawal, not just the grant.
+    expect(state.writes.consentRecords.at(-1)?.data).toMatchObject({
+      purpose: "guardian_consent",
+      granted: false,
+      source: "guardian_withdrawal",
+    });
+  });
+
+  it("is a no-op on an already withdrawn consent", async () => {
+    state.consent = { minorUserId: "minor-1", status: "revoked", policyVersion: "3.0" };
+
+    expect(await withdrawGuardianConsentByToken({ token: "tok", reason: "again" })).toEqual({
+      withdrawn: false,
+    });
+  });
+
+  it("refuses an unknown token", async () => {
+    state.consent = null;
+
+    expect(await withdrawGuardianConsentByToken({ token: "tok", reason: "x" })).toEqual({
+      withdrawn: false,
+    });
   });
 });
 
