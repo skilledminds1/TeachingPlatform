@@ -51,6 +51,14 @@ export function buildContentSecurityPolicy(input: {
     // script injection.
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
+    // SEC-18: no third-party image host, and deliberately so. Google sign-in hands us an
+    // avatar_url on the googleusercontent.com CDN, which this directive blocked on the public
+    // tutor listing. The fix was to import those bytes into the avatars bucket at sign-in
+    // (src/server/auth/provider-avatar.ts) rather than to allow the host: Google spreads
+    // profile photos across lh3–lh6 and moves between them, so the allowlist entry that
+    // actually works for every user is https://*.googleusercontent.com — the whole Google
+    // user-content CDN, on every page of the app, to render one 96px thumbnail. Any new
+    // provider avatar belongs in the importer's host allowlist, not in this line.
     "img-src 'self' data: blob: https://*.supabase.co",
     "media-src 'self' blob: https://*.supabase.co https://*.livekit.cloud",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://*.ingest.sentry.io https://*.paddle.com",

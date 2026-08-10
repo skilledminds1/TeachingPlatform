@@ -77,6 +77,19 @@ describe("policy completeness", () => {
     }
   });
 
+  /**
+   * SEC-18. Google sign-in supplies an avatar on the googleusercontent.com CDN, and the
+   * tempting fix is one entry here. It was rejected: profile photos move across lh3–lh6, so
+   * the entry that works for everyone is the whole Google user-content CDN on every page, to
+   * render a 96px thumbnail. Provider avatars are imported into the avatars bucket instead
+   * (src/server/auth/provider-avatar.ts), which keeps this directive first-party.
+   */
+  it("allows no third-party image host", () => {
+    const imgSrc = directive(production, "img-src");
+    expect(imgSrc).toBe("img-src 'self' data: blob: https://*.supabase.co");
+    expect(imgSrc).not.toContain("googleusercontent");
+  });
+
   it("no longer sets a static CSP in next.config.ts", () => {
     const config = readFileSync("next.config.ts", "utf8");
     expect(

@@ -7,6 +7,7 @@ import { isTeachingLanguage } from "@/lib/languages";
 
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { hasValidImageSignature } from "@/lib/security/image-signature";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSubjectSpecialties } from "@/lib/subject-specialties";
 import {
@@ -23,23 +24,6 @@ import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
 import { getTeacherProfileReadiness } from "@/server/teachers/onboarding";
 import { fail, ok, type ActionResult } from "@/types/action";
 import { slugify } from "@/utils/slugify";
-
-function hasValidImageSignature(bytes: Uint8Array, mimeType: string): boolean {
-  if (mimeType === "image/jpeg") {
-    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  }
-  if (mimeType === "image/png") {
-    const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-    return signature.every((value, index) => bytes[index] === value);
-  }
-  if (mimeType === "image/webp") {
-    return (
-      String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
-      String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
-    );
-  }
-  return false;
-}
 
 function hasValidCredentialSignature(bytes: Uint8Array, mimeType: string): boolean {
   if (mimeType === "application/pdf") {
