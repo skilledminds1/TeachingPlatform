@@ -30,7 +30,7 @@ export async function TeacherCard({
   fxRates: Record<string, number>;
   fxStale: boolean;
 }) {
-  const t = await getTranslations("marketplace");
+  const t = await getTranslations("findTutor");
   return (
     <Link
       href={`/find-tutor/${teacher.slug}`}

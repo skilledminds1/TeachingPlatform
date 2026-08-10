@@ -12,7 +12,7 @@ export async function RatingStars({
   count: number;
   showCount?: boolean;
 }) {
-  const t = await getTranslations("marketplace");
+  const t = await getTranslations("findTutor");
 
   if (count === 0) {
     return <span className="text-xs text-muted-foreground">{t("noReviews")}</span>;

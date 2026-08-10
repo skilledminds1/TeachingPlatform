@@ -35,7 +35,7 @@ export default async function FindTutorPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const t = await getTranslations("marketplace");
+  const t = await getTranslations("findTutor");
   const tNav = await getTranslations("nav");
   const params = await searchParams;
   const first = (key: string): string | undefined => {
