@@ -33,12 +33,24 @@ export function Pricing({ plans }: { plans: MarketingPlan[] }) {
   return (
     <section id="pricing" className="scroll-mt-20 border-t border-border/60">
       <div className="mx-auto max-w-6xl space-y-12 px-6 py-16 md:px-8 md:py-24">
+        {/*
+          The heading names the thing being priced.
+
+          "Simple, honest pricing" priced nothing in particular, and a visitor arriving at
+          this section from a page about tutoring could reasonably read the figures as the
+          cost of a lesson. They are not: they are the cost of the software, and the lesson
+          fee never passes through us at all. Stating the two facts in the heading is worth
+          more than the adjectives were.
+        */}
         <div className="mx-auto max-w-2xl space-y-3 text-center">
-          <h2 className="text-3xl font-semibold tracking-tight">Simple, honest pricing</h2>
+          <p className="text-sm font-medium text-primary">For tutors and tutoring academies</p>
+          <h2 className="text-3xl font-semibold tracking-tight">
+            One subscription. No commission.
+          </h2>
           <p className="text-muted-foreground">
-            Start free, then raise your student and live-lesson limits as your practice grows.
-            Every tier keeps 100% of what students pay you — Amazing Skills charges the
-            subscription and nothing else.
+            Every tier is a software subscription — scheduling, live video classrooms and
+            student management. Start free, then raise your student and live-lesson limits as
+            your practice grows. Students pay you directly for lessons, and we take 0% of it.
           </p>
           <div className="mx-auto mt-6 flex w-fit items-center rounded-lg border border-border bg-card p-1">
             <Button
