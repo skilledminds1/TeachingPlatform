@@ -760,6 +760,12 @@ model TeacherProfile {
   status                        TeacherProfileStatus     @default(draft)
   rejectionReason               String?                  @map("rejection_reason")
   slug                          String                   @unique
+  /// Slugs this profile used to answer on. The slug is built from the teacher's name when
+  /// the profile is created and never rebuilt, so correcting a name leaves the URL stating
+  /// the old one. Renaming the slug fixes that, but a bare rename turns every link anyone
+  /// already holds into a 404 — including the sitemap entry search engines indexed. Old
+  /// values live here and redirect to the current slug.
+  previousSlugs                 String[]                 @default([]) @map("previous_slugs")
   submittedAt                   DateTime?                @map("submitted_at")
   /// INT-13: outcome of the sanctions-list screen run at approval, kept for audit.
   screeningStatus               SanctionsScreeningStatus @default(not_screened) @map("screening_status")

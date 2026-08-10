@@ -19,7 +19,10 @@ import { RatingStars } from "@/features/marketplace/components/rating-stars";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getAvailableSlots } from "@/server/availability/slots";
 import { getCurrentUser } from "@/server/auth/session";
-import { getTeacherBySlug } from "@/server/marketplace/teachers";
+import {
+  getCurrentSlugForRetiredSlug,
+  getTeacherBySlug,
+} from "@/server/marketplace/teachers";
 import { SiteFooter } from "@/features/marketing/components/site-footer";
 
 const dayNames = [
@@ -69,7 +72,15 @@ export async function TeacherProfileContent({
     getCurrentUser(),
     getAvailableSlots(slug),
   ]);
-  if (!teacher) notFound();
+  if (!teacher) {
+    // Before giving up, check whether this slug is one the profile has retired. A teacher who
+    // corrects their display name gets a new slug, and every link anyone already holds — a
+    // shared URL, a bookmark, the sitemap entry a search engine indexed — points at the old
+    // one. Answering 404 there loses the profile rather than moving it.
+    const currentSlug = await getCurrentSlugForRetiredSlug(slug);
+    if (currentSlug) permanentRedirect(`/find-tutor/${encodeURIComponent(currentSlug)}`);
+    notFound();
+  }
 
   const availabilityByDay = new Map<number, Array<{ start: Date; end: Date }>>();
   for (const slot of teacher.user.availabilitySlots) {

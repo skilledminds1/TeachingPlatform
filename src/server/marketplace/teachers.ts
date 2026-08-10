@@ -151,6 +151,22 @@ export async function getMarketplaceSubjects() {
   });
 }
 
+/**
+ * The current slug of a profile that used to answer on this one, or null.
+ *
+ * Only called after an exact-slug lookup has already missed, so it costs nothing on the
+ * path everybody takes. The visibility filter is the same one `getTeacherBySlug` applies —
+ * a retired slug must not become a way to reach a profile that is unlisted, deleted or on a
+ * plan without listing.
+ */
+export async function getCurrentSlugForRetiredSlug(slug: string): Promise<string | null> {
+  const profile = await db.teacherProfile.findFirst({
+    where: { previousSlugs: { has: slug }, ...PUBLIC_TEACHER_WHERE },
+    select: { slug: true },
+  });
+  return profile?.slug ?? null;
+}
+
 export async function getTeacherBySlug(slug: string) {
   const profile = await db.teacherProfile.findFirst({
     where: { slug, ...PUBLIC_TEACHER_WHERE },
