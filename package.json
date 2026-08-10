@@ -18,6 +18,7 @@
     "db:seed": "dotenv -e .env.local -- prisma db seed",
     "db:studio": "dotenv -e .env.local -- prisma studio",
     "storage:remove-course-buckets": "tsx scripts/remove-course-buckets.ts",
+    "avatars:backfill": "dotenv -e .env.local -- tsx scripts/backfill-provider-avatars.ts",
     "seed:walkthrough": "tsx scripts/seed-walkthrough.ts",
     "cron:setup": "dotenv -e .env.local -- tsx scripts/setup-pg-cron.ts"
   },

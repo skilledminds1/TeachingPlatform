@@ -9,6 +9,7 @@ import { db, type DbTransactionClient } from "@/lib/db";
 import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import { registerRoleSchema, type RegisterRole } from "@/lib/validations/auth";
+import { importProviderAvatar } from "@/server/auth/provider-avatar";
 import { hasCurrentLegalAcceptances } from "@/server/legal/acceptance";
 import { slugify } from "@/utils/slugify";
 
@@ -35,11 +36,36 @@ function resolveDisplayName(authUser: AuthUser): string {
   return email.split("@")[0] ?? "User";
 }
 
-function resolveAvatarUrl(authUser: AuthUser): string | null {
+/** The URL the identity provider claims for this user's picture. Never stored, see below. */
+function resolveProviderAvatarUrl(authUser: AuthUser): string | null {
   const metadata = authUser.user_metadata ?? {};
   if (typeof metadata.avatar_url === "string") return metadata.avatar_url;
   if (typeof metadata.picture === "string") return metadata.picture;
   return null;
+}
+
+/**
+ * SEC-18: User.avatarUrl is always a first-party URL.
+ *
+ * The provider's URL is only ever an instruction to go and fetch the bytes, and only when the
+ * account has no avatar of its own — it never overwrites one. That ordering matters twice
+ * over: it is what keeps the googleusercontent.com host off the public tutor listing (see
+ * src/server/auth/provider-avatar.ts for why importing beats widening img-src), and it fixes
+ * the clobber that came with reading the field back out of provider metadata on every
+ * request. uploadTeacherAvatar writes only the User row, so a teacher who signed in with
+ * Google and then uploaded a profile photo had it silently replaced by their Google picture
+ * on the very next page view.
+ */
+async function resolveStoredAvatarUrl(input: {
+  userId: string;
+  existingAvatarUrl: string | null;
+  authUser: AuthUser;
+}): Promise<string | null> {
+  if (input.existingAvatarUrl) return input.existingAvatarUrl;
+  return importProviderAvatar({
+    userId: input.userId,
+    url: resolveProviderAvatarUrl(input.authUser),
+  });
 }
 
 function resolveRegisterRole(
@@ -74,7 +100,6 @@ export async function syncUserFromAuth(
   }
 
   const name = resolveDisplayName(authUser);
-  const avatarUrl = resolveAvatarUrl(authUser);
   const role = resolveRegisterRole(authUser, options?.role);
 
   const existing = await db.user.findUnique({ where: { id: authUser.id } });
@@ -85,7 +110,11 @@ export async function syncUserFromAuth(
       data: {
         email,
         name: existing.name || name,
-        avatarUrl: avatarUrl ?? existing.avatarUrl,
+        avatarUrl: await resolveStoredAvatarUrl({
+          userId: authUser.id,
+          existingAvatarUrl: existing.avatarUrl,
+          authUser,
+        }),
       },
     });
 
@@ -116,6 +145,15 @@ export async function syncUserFromAuth(
   // same reason as country: existing accounts predate it, and "not stated" must not be read
   // as "adult" — which is exactly what the old confirmedAdult checkbox did.
   const dateOfBirth = options?.dateOfBirth ?? undefined;
+
+  // Imported before the row exists, which is safe because the row's id IS the auth id, so the
+  // storage path is known in advance. Keeping it outside the transaction means a network
+  // fetch never holds one open.
+  const avatarUrl = await resolveStoredAvatarUrl({
+    userId: authUser.id,
+    existingAvatarUrl: null,
+    authUser,
+  });
 
   return db.$transaction(async (transaction) => {
     const user = await transaction.user.create({
@@ -240,13 +278,17 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   // Only the fields the provider owns, and only when they have actually changed. The name
   // is preserved once set, matching what syncUserFromAuth has always done — a user who
   // edited their name should not have it overwritten from the identity provider.
+  //
+  // SEC-18: avatarUrl is no longer synced here at all. It is owned by the upload actions and
+  // seeded once, at sign-in, by syncUserFromAuth. Re-reading it from provider metadata on
+  // every request is what put a googleusercontent.com URL — blocked by img-src — onto the
+  // public tutor listing, and it also reverted any photo a Google teacher had uploaded, since
+  // Supabase refreshes that metadata from Google on each sign-in.
   const nextName = existing.name || resolveDisplayName(authUser);
-  const nextAvatarUrl = resolveAvatarUrl(authUser) ?? existing.avatarUrl;
 
   const changes: Prisma.UserUpdateInput = {};
   if (existing.email !== email) changes.email = email;
   if (existing.name !== nextName) changes.name = nextName;
-  if (existing.avatarUrl !== nextAvatarUrl) changes.avatarUrl = nextAvatarUrl;
 
   if (Object.keys(changes).length > 0) {
     const updated = await db.user.update({ where: { id: existing.id }, data: changes });

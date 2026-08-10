@@ -52,18 +52,6 @@ describe("policy completeness", () => {
     }
   });
 
-  /**
-   * A blocked avatar is invisible from the server: the request never happens, nothing is
-   * logged, and the only symptom is an empty circle on someone else's screen. This was live
-   * for every Google-signed-up teacher, on the public tutor listing, and the browser
-   * reported it to a console nobody was reading.
-   */
-  it("allows the provider host that Google sign-in avatars are served from", () => {
-    const imgSrc = directive(production, "img-src");
-    expect(imgSrc).toContain("https://*.googleusercontent.com");
-    expect(imgSrc).toContain("https://*.supabase.co");
-  });
-
   it("still allows the Supabase and LiveKit connections the app needs", () => {
     const connectSrc = directive(production, "connect-src");
     expect(connectSrc).toContain("https://*.supabase.co");
@@ -87,6 +75,19 @@ describe("policy completeness", () => {
     for (const host of VIDEO_EMBED_HOSTS) {
       expect(frameSrc).toContain(host);
     }
+  });
+
+  /**
+   * SEC-18. Google sign-in supplies an avatar on the googleusercontent.com CDN, and the
+   * tempting fix is one entry here. It was rejected: profile photos move across lh3–lh6, so
+   * the entry that works for everyone is the whole Google user-content CDN on every page, to
+   * render a 96px thumbnail. Provider avatars are imported into the avatars bucket instead
+   * (src/server/auth/provider-avatar.ts), which keeps this directive first-party.
+   */
+  it("allows no third-party image host", () => {
+    const imgSrc = directive(production, "img-src");
+    expect(imgSrc).toBe("img-src 'self' data: blob: https://*.supabase.co");
+    expect(imgSrc).not.toContain("googleusercontent");
   });
 
   it("no longer sets a static CSP in next.config.ts", () => {

@@ -51,20 +51,15 @@ export function buildContentSecurityPolicy(input: {
     // script injection.
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
-    // googleusercontent.com is where a Google sign-in avatar lives. `resolveAvatarUrl` in
-    // src/server/auth/session.ts stores the provider's URL verbatim, so every teacher who
-    // signed up with Google had a blocked, empty avatar on their public profile and in the
-    // tutor listing — the pages a stranger judges them on. The browser said so only in the
-    // console, which is why it survived this long.
-    //
-    // The alternative was to copy the provider image into the `avatars` bucket at sign-in so
-    // the policy could stay first-party. Not done: it adds a network fetch and a failure mode
-    // to the sign-in path, and it would still need this host, or a backfill, for every
-    // account that already exists. Images are a weak vector — object-src is 'none' and
-    // script-src takes a nonce — so allowing one CDN to render pictures is the cheaper trade.
-    //
-    // Wildcarded because Google serves these from lh3 through lh6 and picks per user.
-    "img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com",
+    // SEC-18: no third-party image host, and deliberately so. Google sign-in hands us an
+    // avatar_url on the googleusercontent.com CDN, which this directive blocked on the public
+    // tutor listing. The fix was to import those bytes into the avatars bucket at sign-in
+    // (src/server/auth/provider-avatar.ts) rather than to allow the host: Google spreads
+    // profile photos across lh3–lh6 and moves between them, so the allowlist entry that
+    // actually works for every user is https://*.googleusercontent.com — the whole Google
+    // user-content CDN, on every page of the app, to render one 96px thumbnail. Any new
+    // provider avatar belongs in the importer's host allowlist, not in this line.
+    "img-src 'self' data: blob: https://*.supabase.co",
     "media-src 'self' blob: https://*.supabase.co https://*.livekit.cloud",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud https://*.ingest.sentry.io https://*.paddle.com",
     // Paddle.js renders its checkout in an iframe from these hosts. Without frame-src the
