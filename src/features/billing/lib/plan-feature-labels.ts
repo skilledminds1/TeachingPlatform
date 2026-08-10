@@ -33,7 +33,10 @@ export type PlanFeature = (typeof planFeatures)[number];
 
 export const planFeatureLabels: Record<string, string> = {
   teacher_profile: "Teacher profile",
-  marketplace_listing: "Find Tutor listing",
+  // The KEY stays marketplace_listing — it is stored on every plan row and renaming it
+  // would need a migration for no gain. This is the label a customer reads, and what the
+  // feature actually grants is a profile that appears in teacher search.
+  marketplace_listing: "Listed in teacher search",
   booking_calendar: "Booking calendar",
   direct_messaging: "Direct messaging",
   one_on_one_lessons: "One-on-one lessons",

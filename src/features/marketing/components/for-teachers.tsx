@@ -20,7 +20,7 @@ const benefits = [
     icon: BadgeCheck,
     title: "A profile that sells for you",
     description:
-      "Verified badge, moderated reviews, and marketplace search put your lessons in front of new students.",
+      "Verified badge, moderated reviews, and a searchable profile put your lessons in front of new students.",
   },
   {
     icon: TrendingUp,
