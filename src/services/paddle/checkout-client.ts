@@ -17,7 +17,13 @@ type PaddleCheckoutOptions = {
   customer?: { email: string };
   customData?: Record<string, string>;
   discountId?: string;
-  settings?: { displayMode?: string; theme?: string; successUrl?: string };
+  settings?: {
+    displayMode?: string;
+    theme?: string;
+    successUrl?: string;
+    showAddDiscounts?: boolean;
+    allowDiscountRemoval?: boolean;
+  };
 };
 
 type PaddleGlobal = {
@@ -117,6 +123,19 @@ export async function openPaddleCheckout(input: {
     ...(input.discountId ? { discountId: input.discountId } : {}),
     settings: {
       displayMode: "overlay",
+      /**
+       * Both of these already default to true at Paddle. They are stated anyway, because a
+       * checkout that quietly stops accepting discount codes is not a failure anyone notices
+       * from this side — the first report is a customer saying their code did not work, and by
+       * then they have either paid full price or given up. A default is a decision somebody
+       * else can change; this is one we have made.
+       *
+       * Removal stays allowed even when an automatic sale has been applied. Paddle holds one
+       * discount at a time, so a customer with a better code of their own needs to be able to
+       * take ours off to use it — locking it would trap them on the worse of the two.
+       */
+      showAddDiscounts: true,
+      allowDiscountRemoval: true,
       ...(input.successUrl ? { successUrl: input.successUrl } : {}),
     },
   });
