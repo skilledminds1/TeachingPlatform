@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { requireTeacher } from "@/server/auth/session";
 import { enforceActionRateLimit } from "@/server/security/action-rate-limit";
 import { getLiveLessonUsage } from "@/server/billing/entitlements";
+import { getActiveSalesForPlans, getEffectivePlanPrice } from "@/server/billing/pricing";
 import { isPaidPlanSlug, paddlePriceId } from "@/services/paddle/catalogue";
 import { fail, ok, type ActionResult } from "@/types/action";
 
@@ -34,7 +35,13 @@ export async function createSubscriptionCheckout(
   input: unknown,
 ): Promise<
   ActionResult<
-    | { mode: "paddle"; priceId: string; organizationId: string; email: string }
+    | {
+        mode: "paddle";
+        priceId: string;
+        organizationId: string;
+        email: string;
+        discountId: string | null;
+      }
     | { mode: "updated" }
     | { mode: "local"; planName: string }
   >
@@ -98,16 +105,19 @@ export async function createSubscriptionCheckout(
   }
 
   /**
-   * Nothing here computes a charge any more. The price id sent to Paddle IS the amount, and
-   * removing this application's ability to work out a number is the point — see
-   * 20260808160000_price_plans_in_zar for the three ways it got that wrong.
+   * Nothing here computes a charge. The price id IS the amount and the discount id IS the
+   * promotion — both are Paddle catalogue objects, and this application only names them. That
+   * is the point: see 20260808160000_price_plans_in_zar for the three ways working out a
+   * number for itself went wrong.
    *
-   * The casualty is promotional pricing. PlanSale used to be applied here: first charge at the
-   * discount, renewals at list. Paddle expresses a discount as a catalogue object, not a figure
-   * a caller supplies, so sales are NOT applied at checkout today. Left visibly absent rather
-   * than half-wired, because a sale that shows in the UI and never reaches the till is worse
-   * than one that does not exist.
+   * A sale with no paddleDiscountId resolves to no sale, in getEffectivePlanPrice and here
+   * alike, so the plan card and the checkout can never disagree about whether a discount
+   * exists.
    */
+  const sales = await getActiveSalesForPlans([plan.id]);
+  const priced = getEffectivePlanPrice(plan, parsed.data.interval, sales.get(plan.id));
+  const discountId = priced.sale?.paddleDiscountId ?? null;
+
   const appUrl = env.NEXT_PUBLIC_APP_URL;
   const appHost = new URL(appUrl).hostname;
   const isLocalApp = appHost === "localhost" || appHost === "127.0.0.1";
@@ -197,6 +207,7 @@ export async function createSubscriptionCheckout(
     priceId: paddlePriceId(plan.slug, parsed.data.interval),
     organizationId: membership.organizationId,
     email: user.email,
+    discountId,
   });
 }
 

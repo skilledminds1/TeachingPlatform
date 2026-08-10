@@ -59,9 +59,18 @@ vi.mock("@/server/security/action-rate-limit", () => ({
   enforceActionRateLimit: vi.fn(async () => null),
 }));
 
+// Hoisted so a test can put an active sale behind the checkout. The real implementation is
+// covered in server/billing/pricing.test.ts; what matters here is only what reaches Paddle.
+const mockSale = vi.hoisted(() => ({ current: null as { paddleDiscountId: string | null } | null }));
+
 vi.mock("@/server/billing/pricing", () => ({
   getActiveSalesForPlans: vi.fn(async () => new Map()),
-  getEffectivePlanPrice: vi.fn(() => ({ effectiveCents: 2900, listCents: 2900 })),
+  getEffectivePlanPrice: vi.fn(() => ({
+    effectiveCents: 2900,
+    listCents: 2900,
+    percentOff: mockSale.current ? 30 : 0,
+    sale: mockSale.current,
+  })),
 }));
 
 vi.mock("@/server/billing/entitlements", () => ({
@@ -81,6 +90,7 @@ const PAST_DUE = {
 };
 
 beforeEach(() => {
+  mockSale.current = null;
   state.orgUpdates = [];
   state.providerUpdates = [];
   state.providerResult = true;
@@ -137,6 +147,39 @@ describe("checkout hands off to Paddle", () => {
     expect(result.data.organizationId).toBe("org-1");
     expect(result.data).not.toHaveProperty("amount");
     expect(result.data).not.toHaveProperty("signature");
+  });
+
+  /**
+   * A discount is a Paddle catalogue object, so the checkout names one rather than working out
+   * a reduced figure. Nothing here computes money.
+   */
+  it("sends the discount id when an active sale has one", async () => {
+    mockSale.current = { paddleDiscountId: "dsc_launch" };
+
+    const result = await createSubscriptionCheckout({ planSlug: "business", interval: "monthly" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    if (result.data.mode !== "paddle") throw new Error("expected paddle");
+    expect(result.data.discountId).toBe("dsc_launch");
+    // Still no amount. A discount changes which catalogue object is named, not who does the sums.
+    expect(result.data).not.toHaveProperty("amount");
+  });
+
+  /**
+   * The plan card and the checkout must never disagree about whether a discount exists.
+   * getEffectivePlanPrice reports a sale with no Paddle discount as no sale, and this is the
+   * other half of that: nothing is sent, so nothing is applied.
+   */
+  it("sends no discount when the sale has none behind it", async () => {
+    mockSale.current = { paddleDiscountId: null };
+
+    const result = await createSubscriptionCheckout({ planSlug: "business", interval: "monthly" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    if (result.data.mode !== "paddle") throw new Error("expected paddle");
+    expect(result.data.discountId).toBeNull();
   });
 
   /**

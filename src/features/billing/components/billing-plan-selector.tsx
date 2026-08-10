@@ -44,13 +44,20 @@ type BillingPlan = {
 async function startCheckout(
   data:
     | { mode: "redirect"; url: string; fields: Record<string, string> }
-    | { mode: "paddle"; priceId: string; organizationId: string; email: string },
+    | {
+        mode: "paddle";
+        priceId: string;
+        organizationId: string;
+        email: string;
+        discountId: string | null;
+      },
 ): Promise<void> {
   if (data.mode === "paddle") {
     await openPaddleCheckout({
       priceId: data.priceId,
       organizationId: data.organizationId,
       email: data.email,
+      discountId: data.discountId,
       // Paddle confirms in the overlay; this brings them back to a page that reflects the new
       // plan rather than leaving them looking at the old one.
       successUrl: `${window.location.origin}/dashboard/teacher/billing?checkout=return`,

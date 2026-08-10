@@ -628,15 +628,22 @@ model Plan {
 }
 
 model PlanSale {
-  id            String                @id @default(uuid()) @db.Uuid
-  name          String
-  percentOff    Int                   @map("percent_off")
-  startsAt      DateTime              @map("starts_at")
-  endsAt        DateTime              @map("ends_at")
-  active        Boolean               @default(true)
-  intervalScope PlanSaleIntervalScope @default(both) @map("interval_scope")
-  createdAt     DateTime              @default(now()) @map("created_at")
-  updatedAt     DateTime              @updatedAt @map("updated_at")
+  id               String                @id @default(uuid()) @db.Uuid
+  name             String
+  /// The Paddle discount this sale corresponds to (`dsc_...`).
+  ///
+  /// Paddle expresses a discount as a catalogue object, not a number a caller supplies, so a
+  /// sale without one CANNOT be charged. Nullable so a sale can be drafted before the discount
+  /// exists in Paddle — but getEffectivePlanPrice refuses to advertise a sale it cannot apply,
+  /// because a badge that never reaches the till is worse than no badge at all.
+  paddleDiscountId String?               @map("paddle_discount_id")
+  percentOff       Int                   @map("percent_off")
+  startsAt         DateTime              @map("starts_at")
+  endsAt           DateTime              @map("ends_at")
+  active           Boolean               @default(true)
+  intervalScope    PlanSaleIntervalScope @default(both) @map("interval_scope")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
 
   plans PlanSalePlan[]
 

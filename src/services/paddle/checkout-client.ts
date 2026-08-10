@@ -16,6 +16,7 @@ type PaddleCheckoutOptions = {
   items: Array<{ priceId: string; quantity: number }>;
   customer?: { email: string };
   customData?: Record<string, string>;
+  discountId?: string;
   settings?: { displayMode?: string; theme?: string; successUrl?: string };
 };
 
@@ -102,6 +103,8 @@ export async function openPaddleCheckout(input: {
   priceId: string;
   organizationId: string;
   email: string;
+  /** A Paddle discount id, when an active sale has one. Omitted entirely when null. */
+  discountId?: string | null;
   successUrl?: string;
 }): Promise<void> {
   const paddle = await loadPaddle();
@@ -109,6 +112,9 @@ export async function openPaddleCheckout(input: {
     items: [{ priceId: input.priceId, quantity: 1 }],
     customer: { email: input.email },
     customData: { organization_id: input.organizationId },
+    // Sent only when there is one. Paddle rejects a null discountId rather than ignoring it,
+    // so the key has to be absent rather than present-and-empty.
+    ...(input.discountId ? { discountId: input.discountId } : {}),
     settings: {
       displayMode: "overlay",
       ...(input.successUrl ? { successUrl: input.successUrl } : {}),

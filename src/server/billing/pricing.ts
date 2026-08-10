@@ -12,6 +12,14 @@ export type PlanPriceInput = {
 export type ActiveSale = {
   id: string;
   name: string;
+  /**
+   * The Paddle discount to send at checkout. Null means this sale cannot be charged.
+   *
+   * Paddle owns discounts the way it owns prices: they are catalogue objects, not figures this
+   * application computes. A sale with no discount id is therefore purely decorative, and
+   * getEffectivePlanPrice treats it as no sale at all.
+   */
+  paddleDiscountId: string | null;
   percentOff: number;
   endsAt: Date;
   intervalScope: "monthly" | "annual" | "both";
@@ -48,6 +56,7 @@ export async function getActiveSalesForPlans(
     select: {
       id: true,
       name: true,
+      paddleDiscountId: true,
       percentOff: true,
       endsAt: true,
       intervalScope: true,
@@ -60,6 +69,7 @@ export async function getActiveSalesForPlans(
     const activeSale: ActiveSale = {
       id: sale.id,
       name: sale.name,
+      paddleDiscountId: sale.paddleDiscountId,
       percentOff: sale.percentOff,
       endsAt: sale.endsAt,
       intervalScope: sale.intervalScope,
@@ -87,7 +97,16 @@ export function getEffectivePlanPrice(
 } {
   const listCents =
     interval === "annual" ? plan.annualPriceCents : plan.monthlyPriceCents;
-  if (!sale || !saleAppliesToInterval(sale.intervalScope, interval)) {
+  /**
+   * A sale with no Paddle discount behind it is reported as NO SALE.
+   *
+   * When the PayFast rail computed the charge itself, percentOff alone was enough. Paddle takes
+   * a discount id or nothing, so a sale that has not been created in Paddle cannot reach the
+   * till — and advertising "30% off" next to a button that charges full price is the worst of
+   * the available failures. It is silent, it is visible to the customer, and the first person
+   * to notice is the one who has already paid.
+   */
+  if (!sale || !sale.paddleDiscountId || !saleAppliesToInterval(sale.intervalScope, interval)) {
     return { listCents, effectiveCents: listCents, percentOff: 0, sale: null };
   }
   return {
