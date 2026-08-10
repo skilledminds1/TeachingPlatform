@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { LanguageSwitcher } from "@/features/i18n/components/language-switcher";
+import { env } from "@/lib/env";
 
 const footerColumns = [
   {
@@ -54,6 +55,22 @@ export async function SiteFooter() {
               language to escape it — the options are written in their own scripts.
             */}
             <LanguageSwitcher className="inline-block pt-1" />
+            {/*
+              A way to reach a human, from every page.
+              
+              Not decoration: Paddle declined this domain for verification, and their own
+              pre-submission checklist requires "a contact email or form reachable from the
+              homepage" alongside the legal pages. There was none. The address is not
+              translated because an email address is the same in every language.
+            */}
+            <p className="pt-1 text-sm text-muted-foreground">
+              <a
+                href={`mailto:${env.LEGAL_SUPPORT_EMAIL}`}
+                className="transition-colors duration-200 hover:text-foreground"
+              >
+                {env.LEGAL_SUPPORT_EMAIL}
+              </a>
+            </p>
           </div>
           {footerColumns.map((column) => (
             <nav key={column.key} aria-label={t(column.key)} className="space-y-3">
@@ -75,7 +92,7 @@ export async function SiteFooter() {
         </div>
         <div className="mt-12 border-t border-border/60 pt-6">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} Amazing Skills. All rights reserved.
+            &copy; {new Date().getFullYear()} {env.LEGAL_ENTITY_NAME}. All rights reserved.
           </p>
         </div>
       </div>
