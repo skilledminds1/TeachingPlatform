@@ -52,6 +52,18 @@ describe("policy completeness", () => {
     }
   });
 
+  /**
+   * A blocked avatar is invisible from the server: the request never happens, nothing is
+   * logged, and the only symptom is an empty circle on someone else's screen. This was live
+   * for every Google-signed-up teacher, on the public tutor listing, and the browser
+   * reported it to a console nobody was reading.
+   */
+  it("allows the provider host that Google sign-in avatars are served from", () => {
+    const imgSrc = directive(production, "img-src");
+    expect(imgSrc).toContain("https://*.googleusercontent.com");
+    expect(imgSrc).toContain("https://*.supabase.co");
+  });
+
   it("still allows the Supabase and LiveKit connections the app needs", () => {
     const connectSrc = directive(production, "connect-src");
     expect(connectSrc).toContain("https://*.supabase.co");
