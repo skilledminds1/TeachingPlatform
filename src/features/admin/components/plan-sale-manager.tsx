@@ -25,6 +25,7 @@ type SaleItem = {
   id: string;
   name: string;
   percentOff: number;
+  paddleDiscountId: string | null;
   startsAt: string | Date;
   endsAt: string | Date;
   active: boolean;
@@ -83,6 +84,7 @@ function SaleForm({
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState(sale?.name ?? "");
   const [percentOff, setPercentOff] = useState(String(sale?.percentOff ?? 20));
+  const [paddleDiscountId, setPaddleDiscountId] = useState(sale?.paddleDiscountId ?? "");
   const [startsAt, setStartsAt] = useState(
     sale ? toLocalInputValue(sale.startsAt) : "",
   );
@@ -112,6 +114,7 @@ function SaleForm({
       const payload = {
         name,
         percentOff: Number(percentOff),
+        paddleDiscountId: paddleDiscountId.trim(),
         startsAt: new Date(startsAt).toISOString(),
         endsAt: new Date(endsAt).toISOString(),
         intervalScope,
@@ -162,6 +165,24 @@ function SaleForm({
             value={percentOff}
             onChange={(event) => setPercentOff(event.target.value)}
           />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Paddle discount ID</Label>
+          <Input
+            value={paddleDiscountId}
+            placeholder="dsc_01abc…"
+            onChange={(event) => setPaddleDiscountId(event.target.value)}
+          />
+          {/*
+            Not decoration. Paddle applies a discount by id, so a sale without one cannot be
+            charged — and rather than show a percentage the till will ignore, the plan cards
+            hide the sale entirely until this is filled in.
+          */}
+          <p className="text-xs text-muted-foreground">
+            {paddleDiscountId.trim()
+              ? "Create this discount in Paddle → Catalog → Discounts. It must cover the plans selected below."
+              : "Without a Paddle discount ID this sale is saved but never shown or applied."}
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label>Interval scope</Label>

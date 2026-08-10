@@ -77,6 +77,21 @@ const saleSchema = z
   .object({
     name: z.string().trim().min(2).max(120),
     percentOff: z.number().int().min(1).max(100),
+    /**
+     * The Paddle discount that actually applies this sale.
+     *
+     * Optional so a sale can be drafted before the discount exists in Paddle — but a sale
+     * without one is not advertised anywhere, because getEffectivePlanPrice reports it as no
+     * sale. The shape is checked so a mistyped id fails here rather than at a customer's
+     * checkout, where the failure is a discount that silently does not apply.
+     */
+    paddleDiscountId: z
+      .string()
+      .trim()
+      .regex(/^dsc_[A-Za-z0-9]+$/, "A Paddle discount id looks like dsc_01abc…")
+      .or(z.literal(""))
+      .optional()
+      .transform((value) => (value ? value : null)),
     startsAt: z.string().datetime(),
     endsAt: z.string().datetime(),
     intervalScope: z.enum(["monthly", "annual", "both"]),
@@ -378,6 +393,7 @@ export async function createPlanSale(
       data: {
         name: parsed.data.name,
         percentOff: parsed.data.percentOff,
+        paddleDiscountId: parsed.data.paddleDiscountId,
         startsAt: new Date(parsed.data.startsAt),
         endsAt: new Date(parsed.data.endsAt),
         intervalScope: parsed.data.intervalScope,
@@ -439,6 +455,7 @@ export async function updatePlanSale(
       data: {
         name: parsed.data.name,
         percentOff: parsed.data.percentOff,
+        paddleDiscountId: parsed.data.paddleDiscountId,
         startsAt: new Date(parsed.data.startsAt),
         endsAt: new Date(parsed.data.endsAt),
         intervalScope: parsed.data.intervalScope,

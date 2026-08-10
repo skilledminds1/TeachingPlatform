@@ -108,6 +108,7 @@ export default async function AdminSubscriptionsPage() {
             id: sale.id,
             name: sale.name,
             percentOff: sale.percentOff,
+            paddleDiscountId: sale.paddleDiscountId,
             startsAt: sale.startsAt.toISOString(),
             endsAt: sale.endsAt.toISOString(),
             active: sale.active,
