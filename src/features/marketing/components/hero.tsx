@@ -1,12 +1,12 @@
 import {
   BookOpen,
+  CalendarClock,
   Calculator,
   FlaskConical,
   Languages,
   Music,
-  ShieldCheck,
   Sparkles,
-  Star,
+  Users,
   Video,
   Wallet,
 } from "lucide-react";
@@ -14,11 +14,19 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 
+/**
+  * What the subscription buys, stated as software.
+  *
+  * These used to describe a student's experience — verified teachers, honest reviews. That
+  * is a real part of the product, but leading with it presents Amazing Skills as a
+  * marketplace for tutoring rather than as the software a tutor runs their teaching on,
+  * and the two are not the same business. See the note on the heading below.
+  */
 const trustPoints = [
-  { icon: ShieldCheck, label: "Verified teachers" },
-  { icon: Video, label: "Live 1-on-1 lessons" },
-  { icon: Wallet, label: "Pay your teacher directly" },
-  { icon: Star, label: "Reviews only after real lessons" },
+  { icon: CalendarClock, label: "Scheduling and availability" },
+  { icon: Video, label: "Live video classroom" },
+  { icon: Users, label: "Student management" },
+  { icon: Wallet, label: "0% commission on lessons" },
 ] as const;
 
 const floatingSubjects = [
@@ -125,15 +133,25 @@ export function Hero() {
         <div className="animate-hero-fade-up mx-auto max-w-3xl space-y-6 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/12 px-3.5 py-1.5 text-sm font-medium text-foreground shadow-sm shadow-primary/10">
             <Sparkles className="size-3.5 text-primary" aria-hidden />
-            Live 1-on-1 tutoring, straight from your browser
+            Software for tutors and tutoring academies
           </div>
 
+          {/*
+            The heading names the product, and the product is software.
+
+            It used to read "Learn live. One tutor at a time." — written to a student, and
+            it made the whole page read as a marketplace selling tutoring. That is not what
+            is sold here: a tutoring business subscribes to this software and runs their own
+            teaching on it, while lesson fees pass directly between student and teacher at
+            0% commission and never touch us. Paddle declined the domain on that reading,
+            but the reason to fix it is that the page was describing the wrong business.
+          */}
           <h1 className="font-heading text-5xl font-bold tracking-tight text-balance md:text-7xl">
-            Learn live.
+            The software behind
             <br />
             <span className="relative inline-block">
               <span className="bg-linear-to-r from-primary via-violet-500 to-sky-500 bg-clip-text text-transparent">
-                One tutor at a time.
+                your tutoring business.
               </span>
               <svg
                 aria-hidden
@@ -153,36 +171,40 @@ export function Hero() {
           </h1>
 
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground md:text-xl">
-            Book a live 1-on-1 video lesson with a verified tutor in your subject, at a time
-            that suits you. You pay your teacher directly — Amazing Skills takes no cut of
-            your lesson.
+            Scheduling, live video classrooms and student management, in one subscription
+            from $12 a month. Your students pay you directly for lessons — we take 0%
+            commission and never touch your earnings.
           </p>
 
           <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
             <Button
               size="lg"
               className="shadow-lg shadow-primary/25 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30"
-              render={<Link href="/find-tutor" />}
+              render={<Link href="/register?role=teacher" />}
             >
-              Find a tutor
+              Start teaching
             </Button>
             <Button
               size="lg"
               variant="outline"
               className="transition-transform duration-200 hover:-translate-y-0.5"
-              render={<Link href="/#how-it-works" />}
+              render={<Link href="/#pricing" />}
             >
-              See how it works
+              See plans and pricing
             </Button>
           </div>
 
+          {/*
+            Students still have somewhere to go. The route is kept, not removed — it is just
+            no longer the first thing the page asks a visitor to do.
+          */}
           <p className="text-sm text-muted-foreground">
-            Are you an educator?{" "}
+            Looking for a tutor?{" "}
             <Link
-              href="/register?role=teacher"
+              href="/find-tutor"
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              Start teaching live lessons
+              Find a teacher
             </Link>
           </p>
         </div>

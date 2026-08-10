@@ -13,18 +13,19 @@ export function Cta() {
           />
           <div className="relative space-y-6">
             <h2 className="text-3xl font-semibold tracking-tight text-balance md:text-4xl">
-              Ready to learn — or teach?
+              Ready to teach — or to learn?
             </h2>
             <p className="mx-auto max-w-xl text-muted-foreground">
-              Book a live lesson with a verified tutor, or open your own teaching business.
-              Create a free account in under a minute.
+              Run your tutoring on software built for it, or book a lesson with a verified
+              tutor. Create a free account in under a minute.
             </p>
+            {/* Same two doors as before, in the order the rest of the page now uses. */}
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button size="lg" render={<Link href="/find-tutor" />}>
-                Find a tutor
+              <Button size="lg" render={<Link href="/register?role=teacher" />}>
+                Start teaching
               </Button>
-              <Button size="lg" variant="outline" render={<Link href="/register?role=teacher" />}>
-                Become a teacher
+              <Button size="lg" variant="outline" render={<Link href="/find-tutor" />}>
+                Find a tutor
               </Button>
             </div>
           </div>

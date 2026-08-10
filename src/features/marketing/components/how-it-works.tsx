@@ -62,8 +62,13 @@ export function HowItWorks() {
       <div className="mx-auto max-w-6xl space-y-12 px-6 py-16 md:px-8 md:py-24">
         <div className="space-y-3 text-center">
           <h2 className="text-3xl font-semibold tracking-tight">How it works</h2>
+          {/*
+            Says who these three steps belong to. The page now opens by addressing a tutor,
+            and without this line the reader is handed a student's journey with no warning
+            that the audience just changed.
+          */}
           <p className="text-muted-foreground">
-            Three steps from finding a tutor to your first lesson
+            For students: three steps from finding a tutor to the first lesson
           </p>
         </div>
 

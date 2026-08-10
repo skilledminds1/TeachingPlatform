@@ -12,14 +12,20 @@ import { SiteHeader } from "@/features/marketing/components/site-header";
 import { Subjects } from "@/features/marketing/components/subjects";
 import { getMarketingPlans } from "@/server/billing/pricing";
 
+/**
+ * The title and description are what a search result, a shared link and a reviewer read
+ * before anything renders, so they say what is sold: software, on a subscription. The
+ * previous pair described booking a lesson, which is the thing this platform specifically
+ * does NOT sell — lesson fees pass between student and teacher at 0% commission.
+ */
 export const metadata: Metadata = {
-  title: "Amazing Skills — Live 1-on-1 Online Tutoring",
+  title: "Amazing Skills — Software for Online Tutoring Businesses",
   description:
-    "Book live 1-on-1 video lessons with verified tutors, in your browser. You pay your teacher directly — Amazing Skills takes no cut of your lesson.",
+    "Scheduling, live video classrooms and student management for tutors and tutoring academies, from $12 a month. Your students pay you directly — we take 0% commission on lessons.",
   openGraph: {
-    title: "Amazing Skills — Live 1-on-1 Online Tutoring",
+    title: "Amazing Skills — Software for Online Tutoring Businesses",
     description:
-      "Book live 1-on-1 video lessons with verified tutors. Pay your teacher directly, with no platform markup.",
+      "Run your tutoring online: scheduling, live video classrooms and student management in one subscription. 0% commission on lessons.",
     type: "website",
   },
 };
